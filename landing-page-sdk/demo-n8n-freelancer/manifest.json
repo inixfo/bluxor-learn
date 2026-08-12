@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "name": "N8N Freelancer Demo",
+  "slug": "n8n-freelancer-demo",
+  "version": "1.0.0",
+  "author": "Bluxor",
+  "sdkVersion": "2",
+  "entry": "dist/index.html",
+  "description": "Demo landing page for an n8n freelancer automation product",
+  "capabilities": ["product", "offers", "checkout", "analytics"]
+}

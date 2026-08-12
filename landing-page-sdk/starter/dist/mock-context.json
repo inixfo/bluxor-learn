@@ -1,0 +1,18 @@
+{
+  "page": { "slug": "local-starter", "version": "local", "preview": true },
+  "product": {
+    "name": "AI Automation with n8n",
+    "slug": "ai-automation-n8n",
+    "cover": "https://images.pexels.com/photos/8879249/pexels-photo-8879249.jpeg?auto=compress&cs=tinysrgb&w=800",
+    "short_description": "Build real automation workflows that save hours every week.",
+    "currency": "BDT",
+    "price_minor": 49900,
+    "formatted_price": "BDT 499"
+  },
+  "offers": {
+    "single": { "key": "single", "name": "AI Automation with n8n", "price_minor": 49900, "formatted_price": "BDT 499", "is_primary": false },
+    "double": { "key": "double", "name": "Automation + Security Bundle", "price_minor": 79900, "formatted_price": "BDT 799", "is_primary": false },
+    "complete": { "key": "complete", "name": "Complete Collection", "price_minor": 99900, "formatted_price": "BDT 999", "is_primary": true }
+  },
+  "analytics": { "landing_page_id": null, "landing_page_version_id": null }
+}

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learn by Bluxor Landing Page</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Learn by Bluxor</p>
+          <h1 data-lbx-product-name>Loading product...</h1>
+          <p data-lbx-product-short-description class="lede"></p>
+          <div class="actions">
+            <button data-lbx-checkout="single">Get Instant Access - <span data-lbx-offer-price="single"></span></button>
+            <button class="secondary" data-lbx-track="cta_click" data-lbx-modal-open="curriculum">See Curriculum</button>
+          </div>
+        </div>
+        <img data-lbx-product-cover alt="" />
+      </section>
+      <section class="offers">
+        <article class="offer">
+          <strong data-lbx-offer-name="single">Single offer</strong>
+          <p data-lbx-offer-price="single"></p>
+          <button data-lbx-checkout="single">Choose</button>
+        </article>
+        <article class="offer">
+          <strong data-lbx-offer-name="double">Double offer</strong>
+          <p data-lbx-offer-price="double"></p>
+          <button data-lbx-checkout="double">Choose</button>
+        </article>
+        <article class="offer">
+          <strong data-lbx-offer-name="complete">Complete offer</strong>
+          <p data-lbx-offer-price="complete"></p>
+          <button data-lbx-checkout="complete">Recommended</button>
+        </article>
+      </section>
+      <section class="faq">
+        <button class="question" data-lbx-accordion-trigger="faq-1">What do I get?</button>
+        <div data-lbx-accordion-panel="faq-1">
+          <p>You get instant access after checkout. Product details and prices are filled by Learn by Bluxor.</p>
+        </div>
+      </section>
+      <div class="modal" data-lbx-modal="curriculum" hidden>
+        <div class="modal-panel">
+          <button class="close" data-lbx-modal-close="curriculum" aria-label="Close">Close</button>
+          <h2 data-lbx-product-name></h2>
+          <p data-lbx-product-description></p>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,117 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend-service: &backend-service
+  image: learn-bluxor-backend:${APP_IMAGE_TAG:-production}
+  build:
+    context: .
+    dockerfile: docker/backend/Dockerfile
+  env_file:
+    - .env.docker
+  restart: unless-stopped
+  networks:
+    - learn-internal
+    - proxy
+  volumes:
+    - learn_bluxor_private_storage:/var/www/html/storage/app/private
+    - learn_bluxor_public_storage:/var/www/html/storage/app/public
+    - learn_bluxor_landing_public:/var/www/html/storage/app/public/landing-pages
+  logging: *default-logging
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  web:
+    container_name: learn-bluxor-web
+    image: learn-bluxor-web:${APP_IMAGE_TAG:-production}
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - learn-internal
+      - proxy
+    volumes:
+      - learn_bluxor_public_storage:/var/www/storage-public:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    <<: *backend-service
+    container_name: learn-bluxor-app
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  queue:
+    <<: *backend-service
+    container_name: learn-bluxor-queue
+    command: ["php", "artisan", "queue:work", "redis", "--sleep=3", "--tries=3", "--timeout=120", "--backoff=60", "--max-jobs=500"]
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 2m
+
+  scheduler:
+    <<: *backend-service
+    container_name: learn-bluxor-scheduler
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 1m
+
+  redis:
+    container_name: learn-bluxor-redis
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    networks:
+      - learn-internal
+    volumes:
+      - learn_bluxor_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  learn-internal:
+    driver: bridge
+  proxy:
+    external: true
+
+volumes:
+  learn_bluxor_private_storage:
+  learn_bluxor_public_storage:
+  learn_bluxor_landing_public:
+  learn_bluxor_redis_data:

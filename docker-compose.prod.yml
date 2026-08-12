@@ -1,0 +1,4 @@
+# Production defaults live in docker-compose.yml for the Hetzner/NPM server.
+# This file is intentionally empty so older commands using
+# `-f docker-compose.yml -f docker-compose.prod.yml` remain valid.
+services: {}

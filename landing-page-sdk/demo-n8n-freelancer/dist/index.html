@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>N8N Freelancer Demo - Learn by Bluxor</title>
+    <meta
+      name="description"
+      content="A Learn by Bluxor demo landing page for selling a practical n8n automation resource."
+    />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Learn by Bluxor demo funnel</p>
+          <h1>Turn n8n automations into a sellable freelance skill.</h1>
+          <p class="lede">
+            Launch with a practical, project-first system for building client workflows, packaging offers,
+            and delivering automation work with confidence.
+          </p>
+
+          <div class="hero-actions">
+            <button type="button" data-lbx-checkout="single" data-lbx-track="cta_click">
+              Get instant access <span data-lbx-offer-price="single"></span>
+            </button>
+            <a href="#curriculum" class="secondary-link">See what is inside</a>
+          </div>
+
+          <div class="trust-row" aria-label="Product highlights">
+            <span>Instant access</span>
+            <span>Client-ready templates</span>
+            <span>Lifetime updates</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Automation workflow preview">
+          <img src="images/workflow-board.svg" alt="Illustrated automation workflow board" />
+          <div class="price-card">
+            <span class="price-label">Live platform price</span>
+            <strong data-lbx-offer-price="single">Loading...</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="product-strip" aria-label="Connected platform product">
+        <div>
+          <p class="section-kicker">Connected product</p>
+          <h2 data-lbx-product-name>N8N Freelancer Accelerator</h2>
+          <p data-lbx-product-short-description>
+            Build paid automation workflows using practical client scenarios and reusable delivery templates.
+          </p>
+        </div>
+        <div class="product-cover-wrap">
+          <img data-lbx-product-cover src="images/workflow-board.svg" alt="Product cover" />
+        </div>
+      </section>
+
+      <section id="curriculum" class="curriculum">
+        <div class="section-heading">
+          <p class="section-kicker">Curriculum</p>
+          <h2>Everything needed to move from learning to delivery.</h2>
+        </div>
+        <div class="module-grid">
+          <article>
+            <span>01</span>
+            <h3>Workflow foundations</h3>
+            <p>Map client problems, select triggers, connect APIs, and design recoverable workflow steps.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>AI automation patterns</h3>
+            <p>Use AI blocks for lead enrichment, support replies, content ops, and structured extraction.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Freelance delivery kit</h3>
+            <p>Package offers, scope projects, document handoff, and avoid fragile one-off automations.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="offers" aria-label="Offers">
+        <div class="section-heading narrow">
+          <p class="section-kicker">Choose access</p>
+          <h2>Server-authoritative offers and checkout.</h2>
+          <p>
+            The page displays offer values from Learn by Bluxor. Checkout buttons only pass an offer key.
+          </p>
+        </div>
+
+        <div class="offer-grid">
+          <article class="offer-card">
+            <p class="offer-name" data-lbx-offer-name="single">Single Product</p>
+            <strong data-lbx-offer-price="single">Loading...</strong>
+            <span class="muted">Best for getting started today.</span>
+            <button type="button" data-lbx-checkout="single" data-lbx-track="cta_click">Choose single</button>
+          </article>
+
+          <article class="offer-card featured">
+            <p class="offer-name" data-lbx-offer-name="complete">Complete Bundle</p>
+            <strong data-lbx-offer-price="complete">Loading...</strong>
+            <span class="muted">Includes the product plus advanced resources.</span>
+            <button type="button" data-lbx-checkout="complete" data-lbx-track="cta_click">Choose complete</button>
+          </article>
+
+          <article class="offer-card">
+            <p class="offer-name" data-lbx-offer-name="double">Two-Resource Pack</p>
+            <strong data-lbx-offer-price="double">Loading...</strong>
+            <span class="muted">A smaller bundle for focused learning.</span>
+            <button type="button" data-lbx-checkout="double" data-lbx-track="cta_click">Choose double</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="proof">
+        <div class="proof-stat">
+          <strong>7</strong>
+          <span>client workflow blueprints</span>
+        </div>
+        <div class="proof-stat">
+          <strong>24</strong>
+          <span>delivery checklists and prompts</span>
+        </div>
+        <div class="proof-stat">
+          <strong>1</strong>
+          <span>central Learn by Bluxor checkout</span>
+        </div>
+      </section>
+
+      <section class="faq">
+        <div class="section-heading narrow">
+          <p class="section-kicker">Questions</p>
+          <h2>Quick answers before checkout.</h2>
+        </div>
+
+        <div class="faq-list">
+          <article>
+            <button type="button" data-lbx-accordion-trigger="faq-access">
+              How do I get access after payment?
+            </button>
+            <div data-lbx-accordion-panel="faq-access">
+              <p>
+                Learn by Bluxor grants access after verified payment. Downloads appear in the customer
+                library and are sent by email when configured.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <button type="button" data-lbx-accordion-trigger="faq-price">
+              Are these prices hardcoded?
+            </button>
+            <div data-lbx-accordion-panel="faq-price">
+              <p>
+                No. Prices and offer names are hydrated from the platform context so admins can update
+                products without editing the landing package.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <button type="button" data-lbx-accordion-trigger="faq-js">
+              Does this upload custom JavaScript?
+            </button>
+            <div data-lbx-accordion-panel="faq-js">
+              <p>
+                No. This package contains static HTML, CSS, and SVG only. The trusted Learn by Bluxor runtime
+                is injected by the platform when the page is served.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <p class="section-kicker">Ready to publish</p>
+        <h2>Upload this ZIP, assign offers, publish, and visit `/go/n8n-freelancer-demo`.</h2>
+        <button type="button" data-lbx-checkout="single" data-lbx-track="cta_click">
+          Start with <span data-lbx-offer-price="single"></span>
+        </button>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,125 @@
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: #f7faf9;
+  color: #17201c;
+}
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 36px;
+  align-items: center;
+  min-height: 78vh;
+}
+
+.eyebrow {
+  color: #0f8a5f;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(38px, 7vw, 72px);
+  line-height: 1;
+  margin: 0;
+}
+
+.lede {
+  font-size: 18px;
+  line-height: 1.7;
+  color: #52645c;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  background: #0f8a5f;
+  color: white;
+  font-weight: 800;
+  padding: 14px 18px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #17201c;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+[data-lbx-product-cover] {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.offers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.offer {
+  border: 1px solid #d9e5df;
+  border-radius: 8px;
+  background: white;
+  padding: 20px;
+}
+
+.offer strong {
+  display: block;
+  font-size: 20px;
+}
+
+.faq {
+  margin-top: 24px;
+}
+
+.question {
+  width: 100%;
+  text-align: left;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(23 32 28 / 0.62);
+}
+
+.modal-panel {
+  max-width: 640px;
+  border-radius: 8px;
+  background: white;
+  padding: 24px;
+}
+
+.close {
+  float: right;
+  background: #52645c;
+}
+
+@media (max-width: 760px) {
+  .hero,
+  .offers {
+    grid-template-columns: 1fr;
+  }
+}

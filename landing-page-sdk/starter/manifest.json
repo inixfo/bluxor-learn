@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 2,
+  "name": "Learn by Bluxor Starter Funnel",
+  "version": "1.0.0",
+  "author": "Bluxor",
+  "sdkVersion": "2",
+  "entry": "dist/index.html",
+  "description": "Starter landing page package",
+  "capabilities": ["product", "offers", "checkout", "analytics"]
+}
