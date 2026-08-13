@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Eye, FileText, Image as ImageIcon, Save, Upload, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Eye, FileText, Image as ImageIcon, Save, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
-import { createAdminProduct, getAdminProduct, publishAdminProduct, updateAdminProduct, uploadAdminProductFile, type AdminProductFile } from '@/services/api/admin';
+import { createAdminProduct, getAdminCategories, getAdminProduct, publishAdminProduct, updateAdminProduct, uploadAdminProductFile, type AdminCategory, type AdminProductFile } from '@/services/api/admin';
 
 const tabs = ['Basic Info', 'Pricing', 'Media', 'Digital Files', 'Bundles', 'SEO', 'Status'];
 
@@ -17,6 +17,9 @@ export default function AdminProductEditor() {
   const [activeTab, setActiveTab] = useState('Basic Info');
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState<AdminProductFile[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [removeCover, setRemoveCover] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -29,7 +32,12 @@ export default function AdminProductEditor() {
     short_description: '',
     description: '',
     cover_image_path: '',
+    category_id: '',
   });
+
+  useEffect(() => {
+    getAdminCategories().then(setCategories).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -45,6 +53,7 @@ export default function AdminProductEditor() {
         short_description: product.short_description || '',
         description: product.description || '',
         cover_image_path: product.cover_image_path || '',
+        category_id: product.category_id ? String(product.category_id) : '',
       });
       setFiles(product.files || []);
     });
@@ -65,12 +74,18 @@ export default function AdminProductEditor() {
     short_description: form.short_description,
     description: form.description,
     cover_image_path: form.cover_image_path,
+    category_id: form.category_id ? Number(form.category_id) : null,
+    cover_image: coverFile,
+    remove_cover_image: removeCover,
   });
 
   const save = async () => {
     setSaving(true);
     try {
       const product = id ? await updateAdminProduct(id, payload()) : await createAdminProduct(payload());
+      setForm((prev) => ({ ...prev, cover_image_path: product.cover_image_path || '' }));
+      setCoverFile(null);
+      setRemoveCover(false);
       toast({ type: 'success', title: 'Product saved' });
       if (!id) navigate(`/admin/products/${product.id}/edit`, { replace: true });
     } catch {
@@ -159,6 +174,10 @@ export default function AdminProductEditor() {
                   <option value="bundle">Bundle</option>
                 </Select>
                 <Input label="Short description" placeholder="One-line summary shown on cards" value={form.short_description} onChange={(event) => updateField('short_description', event.target.value)} />
+                <Select label="Category" value={form.category_id} onChange={(event) => updateField('category_id', event.target.value)}>
+                  <option value="">Uncategorized</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </Select>
                 <Textarea label="Full description" placeholder="Detailed product description" value={form.description} onChange={(event) => updateField('description', event.target.value)} />
               </div>
             </Card>
@@ -181,10 +200,19 @@ export default function AdminProductEditor() {
           {activeTab === 'Media' && (
             <Card className="p-6">
               <h2 className="mb-4 text-base font-bold text-ink-900">Media</h2>
-              <Input label="Cover image URL" placeholder="https://..." value={form.cover_image_path} onChange={(event) => updateField('cover_image_path', event.target.value)} />
-              <div className="mt-4">
-                <UploadZone label="Gallery Images" icon={ImageIcon} hint="Additional product images" />
-              </div>
+              <ProductCoverUpload
+                currentUrl={removeCover ? '' : form.cover_image_path}
+                file={coverFile}
+                onPick={(file) => {
+                  setCoverFile(file);
+                  setRemoveCover(false);
+                }}
+                onRemove={() => {
+                  setCoverFile(null);
+                  setRemoveCover(true);
+                  updateField('cover_image_path', '');
+                }}
+              />
             </Card>
           )}
 
@@ -270,17 +298,27 @@ function StatusOption({ label, hint, checked, onChange }: { label: string; hint:
   );
 }
 
-function UploadZone({ label, icon: Icon, hint }: { label: string; icon: LucideIcon; hint: string }) {
+function ProductCoverUpload({ currentUrl, file, onPick, onRemove }: { currentUrl: string; file: File | null; onPick: (file: File) => void; onRemove: () => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const preview = file ? URL.createObjectURL(file) : currentUrl;
+
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-ink-700">{label}</label>
+      <label className="mb-1.5 block text-sm font-medium text-ink-700">Primary cover image</label>
       <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/50 px-6 py-8 text-center transition-colors hover:border-brand-300 hover:bg-brand-50/30">
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => {
+          const next = event.target.files?.[0];
+          if (next) onPick(next);
+        }} />
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm">
-          <Icon className="h-6 w-6" />
+          {preview ? <img src={preview} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <ImageIcon className="h-6 w-6" />}
         </div>
-        <p className="mt-3 text-sm font-medium text-ink-700">Upload wiring pending</p>
-        <p className="mt-1 text-xs text-ink-400">{hint}</p>
-        <Button size="sm" variant="outline" className="mt-3" disabled leftIcon={<Upload className="h-4 w-4" />}>Browse files</Button>
+        <p className="mt-3 text-sm font-medium text-ink-700">{file ? file.name : preview ? 'Cover image selected' : 'Upload JPEG, PNG, or WEBP'}</p>
+        <p className="mt-1 text-xs text-ink-400">Maximum 5 MB. Stored on persistent public media storage.</p>
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" variant="outline" leftIcon={<Upload className="h-4 w-4" />} onClick={() => inputRef.current?.click()}>Choose image</Button>
+          {preview && <Button size="sm" variant="ghost" onClick={onRemove}>Remove</Button>}
+        </div>
       </div>
     </div>
   );

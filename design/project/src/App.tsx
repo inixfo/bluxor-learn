@@ -7,6 +7,7 @@ import { CustomerLayout } from '@/layouts/CustomerLayout';
 import { AdminLayout } from '@/layouts/AdminLayout';
 
 import Home from '@/pages/Home';
+import Categories from '@/pages/Categories';
 import Products from '@/pages/Products';
 import ProductDetail from '@/pages/ProductDetail';
 import Login from '@/pages/auth/Login';
@@ -35,6 +36,8 @@ import AdminLandingPageDetail from '@/pages/admin/LandingPageDetail';
 import AdminUploadLandingPage from '@/pages/admin/UploadLandingPage';
 import AdminSettings from '@/pages/admin/Settings';
 import AdminAuditLogs from '@/pages/admin/AuditLogs';
+import AdminCategories from '@/pages/admin/Categories';
+import AdminContentPages from '@/pages/admin/ContentPages';
 import NotFound from '@/pages/NotFound';
 
 export default function App() {
@@ -46,6 +49,8 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/categories/:slug" element={<Products />} />
             <Route path="/p/:slug" element={<ProductDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -55,6 +60,7 @@ export default function App() {
             <Route path="/contact" element={<StaticPage />} />
             <Route path="/help" element={<StaticPage />} />
             <Route path="/faq" element={<StaticPage />} />
+            <Route path="/download-help" element={<StaticPage />} />
             <Route path="/terms" element={<StaticPage />} />
             <Route path="/privacy" element={<StaticPage />} />
             <Route path="/refund-policy" element={<StaticPage />} />
@@ -80,6 +86,7 @@ export default function App() {
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/products/new" element={<AdminProductEditor />} />
             <Route path="/admin/products/:id/edit" element={<AdminProductEditor />} />
+            <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/customers" element={<AdminCustomers />} />
             <Route path="/admin/coupons" element={<AdminCoupons />} />
@@ -88,6 +95,7 @@ export default function App() {
             <Route path="/admin/landing-pages/:id" element={<AdminLandingPageDetail />} />
             <Route path="/admin/landing-pages/upload" element={<AdminUploadLandingPage />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/content-pages" element={<AdminContentPages />} />
             <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
           </Route>
 

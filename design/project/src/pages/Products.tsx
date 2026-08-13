@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { PackageX, Search } from 'lucide-react';
 import { Input, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +17,7 @@ const sortOptions = [
 
 export default function Products() {
   const [params, setParams] = useSearchParams();
+  const { slug: categorySlug = '' } = useParams();
   const [query, setQuery] = useState(params.get('q') || '');
   const [view, setView] = useState<'grid' | 'categories'>(params.get('view') === 'categories' ? 'categories' : 'grid');
   const [products, setProducts] = useState<ApiProduct[]>([]);
@@ -25,7 +26,7 @@ export default function Products() {
   const [loadError, setLoadError] = useState('');
 
   const sort = params.get('sort') || 'popular';
-  const categoryFilter = params.get('category') || '';
+  const categoryFilter = params.get('category') || categorySlug;
   const typeFilter = params.get('filter') || '';
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function Products() {
   return (
     <div className="container-page py-10">
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-ink-900">All Products</h1>
+        <h1 className="font-display text-3xl font-bold text-ink-900">{categorySlug ? `${categories.find((category) => category.id === categorySlug)?.name || 'Category'} Products` : 'All Products'}</h1>
         <p className="mt-1 text-ink-500">Practical resources to help you learn and earn.</p>
       </div>
 

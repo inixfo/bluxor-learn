@@ -1,49 +1,53 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
-
-const pages: Record<string, { title: string; body: string[] }> = {
-  '/about': {
-    title: 'About Learn by Bluxor',
-    body: ['Learn by Bluxor publishes practical digital learning resources for learners who want usable skills, not passive content.'],
-  },
-  '/contact': {
-    title: 'Contact',
-    body: ['For support, order access, payment, or download questions, contact the Learn by Bluxor support team through the official support channel configured for production.'],
-  },
-  '/help': {
-    title: 'Help',
-    body: ['After a verified payment, purchases appear in your account library. Guest buyers receive secure access by email and may create an account later using the same email.'],
-  },
-  '/faq': {
-    title: 'FAQ',
-    body: ['Products are delivered as protected digital files. Prices and discounts are calculated by the backend at checkout.'],
-  },
-  '/terms': {
-    title: 'Terms',
-    body: ['Final legal terms should be reviewed before launch. This page exists so production navigation never points to a dead route.'],
-  },
-  '/privacy': {
-    title: 'Privacy Policy',
-    body: ['Final privacy copy should be reviewed before launch. Do not enter sensitive secrets or payment credentials into public forms.'],
-  },
-  '/refund-policy': {
-    title: 'Refund Policy',
-    body: ['Digital-product refunds are reviewed case by case and completed only after backend/payment-provider confirmation.'],
-  },
-};
+import { Input, Textarea } from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
+import { getContentPage, submitContact, type ContentPage } from '@/services/api/content';
 
 export default function StaticPage() {
   const location = useLocation();
-  const page = useMemo(() => pages[location.pathname] || pages['/help'], [location.pathname]);
+  const toast = useToast();
+  const slug = location.pathname.replace(/^\//, '') || 'help';
+  const [page, setPage] = useState<ContentPage | null>(null);
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    setPage(null);
+    getContentPage(slug).then(setPage).catch(() => undefined);
+  }, [slug]);
+
+  const send = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSending(true);
+    try {
+      const message = await submitContact(form);
+      toast({ type: 'success', title: 'Message sent', message });
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch {
+      toast({ type: 'error', title: 'Message failed', message: 'Check the form and try again.' });
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="container-page py-16">
       <div className="mx-auto max-w-2xl">
-        <h1 className="font-display text-3xl font-bold text-ink-900">{page.title}</h1>
+        <h1 className="font-display text-3xl font-bold text-ink-900">{page?.title || 'Loading...'}</h1>
         <div className="mt-5 space-y-4 text-sm leading-6 text-ink-600">
-          {page.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          {(page?.content || '').split(/\n\n+/).filter(Boolean).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </div>
+        {slug === 'contact' && (
+          <form onSubmit={send} className="mt-8 space-y-4 rounded-xl border border-ink-100 bg-white p-5">
+            <Input label="Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} required />
+            <Input label="Email" type="email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} required />
+            <Input label="Subject" value={form.subject} onChange={(event) => setForm((prev) => ({ ...prev, subject: event.target.value }))} required />
+            <Textarea label="Message" value={form.message} onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))} required />
+            <Button type="submit" loading={sending}>Send Message</Button>
+          </form>
+        )}
         <Link to="/products" className="mt-8 inline-block">
           <Button>Browse Products</Button>
         </Link>

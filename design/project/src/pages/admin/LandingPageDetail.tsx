@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { formatBDT } from '@/data/store';
-import { assignLandingOffers, displayMinor, displaySize, getLandingAnalytics, getLandingPage, getPreviewUrl, publishLandingVersion, searchOfferItems, type LandingAnalytics, type LandingOfferPayload, type LandingPageAdmin, type OfferItem } from '@/services/api/landing';
+import { assignLandingOffers, displayMinor, displaySize, getLandingAnalytics, getLandingPage, getPreviewUrl, publishLandingVersion, searchOfferItems, updateLandingProduct, type LandingAnalytics, type LandingOfferPayload, type LandingPageAdmin, type OfferItem } from '@/services/api/landing';
 import { useToast } from '@/components/ui/Toast';
 
 const tabs = [
@@ -23,10 +23,12 @@ export default function AdminLandingPageDetail() {
   const [analytics, setAnalytics] = useState<LandingAnalytics | null>(null);
   const [offerItems, setOfferItems] = useState<{ product: OfferItem[]; bundle: OfferItem[] }>({ product: [], bundle: [] });
   const [offerDrafts, setOfferDrafts] = useState<LandingOfferPayload[]>([]);
+  const [associatedProductId, setAssociatedProductId] = useState('');
 
   const load = () => {
     getLandingPage(id).then((next) => {
       setPage(next);
+      setAssociatedProductId(next.primary_product_id ? String(next.primary_product_id) : '');
       setOfferDrafts((next.offers || []).map((offer) => ({
         offer_key: offer.offer_key,
         offer_type: offer.offer_type as 'product' | 'bundle',
@@ -73,6 +75,13 @@ export default function AdminLandingPageDetail() {
       })),
     });
     toast({ type: 'success', title: 'Offers saved' });
+    load();
+  };
+
+  const saveAssociatedProduct = async () => {
+    if (!page || !associatedProductId) return;
+    await updateLandingProduct(page.id, Number(associatedProductId));
+    toast({ type: 'success', title: 'Associated product updated' });
     load();
   };
 
@@ -131,6 +140,17 @@ export default function AdminLandingPageDetail() {
           </Card>
 
           <Card className="p-5">
+            <div className="mb-5">
+              <h2 className="mb-2 text-sm font-bold text-ink-900">Associated Product</h2>
+              <div className="flex gap-2">
+                <select value={associatedProductId} onChange={(event) => setAssociatedProductId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-sm">
+                  <option value="">Select product</option>
+                  {offerItems.product.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+                <Button size="sm" onClick={saveAssociatedProduct}>Save</Button>
+              </div>
+              <p className="mt-1 text-xs text-ink-400">Runtime product bindings update without re-uploading the package.</p>
+            </div>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-bold text-ink-900">Offer Assignment</h2>
               <Button size="sm" variant="outline" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setOfferDrafts((rows) => [...rows, { offer_key: `offer-${rows.length + 1}`, offer_type: 'product', product_id: offerItems.product[0]?.id || null, is_primary: rows.length === 0 }])}>Add</Button>

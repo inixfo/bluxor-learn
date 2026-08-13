@@ -22,7 +22,7 @@ const sections = [
     links: [
       { label: 'Help', to: '/help' },
       { label: 'FAQ', to: '/faq' },
-      { label: 'Download Help', to: '/account/downloads' },
+      { label: 'Download Help', to: '/download-help' },
     ],
   },
   {

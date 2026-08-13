@@ -106,12 +106,19 @@ Also configure:
   - `https://learn.bluxor.com/api/v1/payments/piprapay/webhook`
   - `https://learn.bluxor.com/api/v1/payments/piprapay/success`
 - Brevo SMTP:
+  - `MAIL_MAILER=smtp`
   - `MAIL_HOST=smtp-relay.brevo.com`
   - `MAIL_PORT=587`
   - `MAIL_ENCRYPTION=tls`
   - `MAIL_USERNAME`
   - `MAIL_PASSWORD`
   - `MAIL_FROM_ADDRESS`
+  - `MAIL_FROM_NAME`
+  - `ADMIN_NOTIFICATION_EMAIL`
+- Google OAuth:
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+  - `GOOGLE_REDIRECT_URI=https://learn.bluxor.com/api/v1/auth/google/callback`
 
 Learn uses the installed PipraPay V3 Redirect Checkout API:
 
@@ -122,6 +129,15 @@ POST /api/refund-payment
 ```
 
 Outgoing PipraPay requests use the `MHS-PIPRAPAY-API-KEY` header. The installed production API uses singular `verify-payment`.
+
+Google Console configuration:
+
+```text
+Authorized JavaScript origin: https://learn.bluxor.com
+Authorized redirect URI: https://learn.bluxor.com/api/v1/auth/google/callback
+```
+
+Product and category images are written to Laravel's public disk and served under `/storage/*`. The Docker deployment persists that disk with `learn_bluxor_public_storage`, mounted into both `app` and `web`, so uploaded media survives image rebuilds and service recreation.
 
 ## Build And Start
 

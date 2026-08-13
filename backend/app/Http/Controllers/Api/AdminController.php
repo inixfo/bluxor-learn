@@ -14,6 +14,7 @@ use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\LandingPagePackageValidator;
+use App\Services\PublicMediaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,18 +26,32 @@ class AdminController extends Controller
 
     public function dashboard()
     {
-        $paid = Order::where('payment_status', 'paid');
-        $refunded = Order::where('payment_status', 'refunded');
+        $paidRevenue = (int) Order::where('payment_status', 'paid')->sum('total_minor');
+        $refundedRevenue = (int) Order::where('payment_status', 'refunded')->sum('total_minor');
+        $customers = DB::query()
+            ->fromSub(Order::selectRaw('lower(customer_email) as email')->distinct(), 'order_customers')
+            ->count();
 
         return response()->json(['data' => [
             'metrics' => [
-                'revenue_minor' => (clone $paid)->sum('total_minor') - (clone $refunded)->sum('total_minor'),
+                'revenue_minor' => $paidRevenue - $refundedRevenue,
                 'orders' => Order::count(),
-                'customers' => Order::selectRaw('lower(customer_email) as email')->distinct()->count('email'),
+                'customers' => $customers,
                 'products' => Product::count(),
             ],
             'recent_orders' => Order::with('items', 'paymentTransactions')->latest()->limit(5)->get(),
-            'top_products' => Product::orderByDesc('featured')->limit(4)->get(),
+            'top_products' => Product::query()
+                ->addSelect([
+                    'paid_revenue_minor' => DB::table('order_items')
+                        ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                        ->selectRaw('coalesce(sum(order_items.total_minor), 0)')
+                        ->whereColumn('order_items.product_id', 'products.id')
+                        ->where('orders.payment_status', 'paid'),
+                ])
+                ->orderByDesc('paid_revenue_minor')
+                ->orderByDesc('products.featured')
+                ->limit(4)
+                ->get(),
         ]]);
     }
 
@@ -57,7 +72,7 @@ class AdminController extends Controller
         return response()->json(['data' => $product->load('category', 'files', 'tags')]);
     }
 
-    public function storeProduct(Request $request)
+    public function storeProduct(Request $request, PublicMediaService $media)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -71,7 +86,13 @@ class AdminController extends Controller
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'cover_image_path' => ['nullable', 'string'],
+            'cover_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
+
+        unset($data['cover_image']);
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image_path'] = $media->storeImage($request->file('cover_image'), 'product-images');
+        }
 
         $product = Product::create(['uuid' => (string) Str::uuid(), 'published_at' => $data['status'] === 'published' ? now() : null] + $data);
         $this->audit->log('product.created', $product, ['after' => $product->only(array_keys($data))], $request);
@@ -79,7 +100,7 @@ class AdminController extends Controller
         return response()->json(['data' => $product], 201);
     }
 
-    public function updateProduct(Request $request, Product $product)
+    public function updateProduct(Request $request, Product $product, PublicMediaService $media)
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
@@ -93,7 +114,19 @@ class AdminController extends Controller
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'cover_image_path' => ['nullable', 'string'],
+            'cover_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'remove_cover_image' => ['nullable', 'boolean'],
         ]);
+
+        $oldCover = $product->cover_image_path;
+        unset($data['cover_image']);
+        if ($request->boolean('remove_cover_image')) {
+            $data['cover_image_path'] = null;
+        }
+
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image_path'] = $media->storeImage($request->file('cover_image'), 'product-images');
+        }
 
         $before = $product->only(array_keys($data));
 
@@ -102,6 +135,10 @@ class AdminController extends Controller
         }
 
         $product->update($data);
+        if (array_key_exists('cover_image_path', $data) && $oldCover !== ($data['cover_image_path'] ?? null)) {
+            $media->deleteIfManaged($oldCover);
+        }
+
         $this->audit->log('product.updated', $product, ['before' => $before, 'after' => $product->fresh()->only(array_keys($data))], $request);
 
         return response()->json(['data' => $product->fresh('category')]);

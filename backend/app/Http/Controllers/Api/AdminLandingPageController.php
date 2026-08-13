@@ -59,6 +59,24 @@ class AdminLandingPageController extends Controller
         return response()->json(['data' => $this->pagePayload($landingPage->fresh('offers.product', 'offers.bundle'), true)]);
     }
 
+    public function updateProduct(Request $request, LandingPage $landingPage)
+    {
+        $data = $request->validate([
+            'primary_product_id' => ['required', 'integer', 'exists:products,id'],
+        ]);
+
+        $landingPage->forceFill(['primary_product_id' => $data['primary_product_id']])->save();
+
+        $primaryOffer = $landingPage->offers()->where('offer_type', 'product')->where('is_primary', true)->first()
+            ?: $landingPage->offers()->where('offer_type', 'product')->orderBy('sort_order')->first();
+
+        if ($primaryOffer) {
+            $primaryOffer->forceFill(['product_id' => $data['primary_product_id']])->save();
+        }
+
+        return response()->json(['data' => $this->pagePayload($landingPage->fresh('primaryProduct', 'offers.product', 'offers.bundle'), true)]);
+    }
+
     public function publish(LandingPage $landingPage, LandingPageVersion $version)
     {
         return response()->json(['data' => $this->pagePayload($this->engine->publish($landingPage, $version))]);

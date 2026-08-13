@@ -14,6 +14,8 @@ use InvalidArgumentException;
 
 class PaymentCompletionService
 {
+    public function __construct(private readonly AdminNotificationService $notifications) {}
+
     public function markPaid(Order $order, string $gateway, string $eventKey, array $payload = []): Order
     {
         return DB::transaction(function () use ($order, $gateway, $eventKey, $payload) {
@@ -115,6 +117,13 @@ class PaymentCompletionService
             $event->forceFill(['processed_at' => now()])->save();
 
             if ($wasPending) {
+                $this->notifications->create(
+                    'order.paid',
+                    'New paid order',
+                    $order->order_number.' from '.$order->customer_email,
+                    '/admin/orders',
+                    $order
+                );
                 SendPurchaseConfirmationEmail::dispatch($order->id)->afterCommit();
             }
 

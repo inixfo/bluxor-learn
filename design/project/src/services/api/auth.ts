@@ -57,3 +57,8 @@ export async function resendVerification(): Promise<string> {
   });
   return response.data.message;
 }
+
+export async function googleRedirectUrl(returnTo: string): Promise<string> {
+  const params = new URLSearchParams({ return_to: returnTo });
+  return (await apiRequest<{ data: { url: string } }>(`/auth/google/redirect?${params.toString()}`)).data.url;
+}

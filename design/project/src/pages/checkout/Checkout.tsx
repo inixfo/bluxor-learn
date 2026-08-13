@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Lock, CreditCard, Tag, ShieldCheck, LogIn, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,10 +8,12 @@ import { useToast } from '@/components/ui/Toast';
 import { formatBDT } from '@/data/store';
 import { ApiError } from '@/services/api/client';
 import { createCheckoutOrder, initiatePipraPay, quoteCheckout, type CheckoutQuote } from '@/services/api/checkout';
+import { googleRedirectUrl } from '@/services/api/auth';
 import { useAuth } from '@/services/auth-context';
 
 export default function Checkout() {
   const [params] = useSearchParams();
+  const location = useLocation();
   const toast = useToast();
   const { user, initializing } = useAuth();
   const [coupon, setCoupon] = useState('');
@@ -79,6 +81,14 @@ export default function Checkout() {
     setQuote(await quoteCheckout(offerPayload));
   };
 
+  const continueWithGoogle = async () => {
+    try {
+      window.location.assign(await googleRedirectUrl(`/checkout${location.search}`));
+    } catch {
+      toast({ type: 'error', title: 'Google login unavailable', message: 'Guest checkout is still available below.' });
+    }
+  };
+
   const placeOrder = async () => {
     setFieldErrors({});
     if (!quote) return;
@@ -132,6 +142,16 @@ export default function Checkout() {
 
           <section className="card-surface p-6">
             <h2 className="mb-4 text-base font-bold text-ink-900">Customer information</h2>
+            {!user && !initializing && (
+              <div className="mb-4">
+                <Button variant="outline" className="w-full" onClick={continueWithGoogle}>Continue with Google</Button>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-ink-100" />
+                  <span className="text-xs text-ink-400">or checkout as guest</span>
+                  <div className="h-px flex-1 bg-ink-100" />
+                </div>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Full name" name="name" placeholder="Your name" value={customer.name} onChange={(e) => setCustomer((prev) => ({ ...prev, name: e.target.value }))} hint={fieldErrors.customer_name?.[0]} required />
               <Input label="Mobile number" name="phone" placeholder="01XXXXXXXXX" value={customer.phone} onChange={(e) => setCustomer((prev) => ({ ...prev, phone: e.target.value }))} hint={fieldErrors.customer_phone?.[0]} required />

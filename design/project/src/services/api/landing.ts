@@ -91,6 +91,13 @@ export async function assignLandingOffers(pageId: number, payload: { primary_pro
   })).data;
 }
 
+export async function updateLandingProduct(pageId: number, primaryProductId: number): Promise<LandingPageAdmin> {
+  return (await apiRequest<{ data: LandingPageAdmin }>(`/admin/landing-pages/${pageId}/product`, {
+    method: 'PATCH',
+    body: JSON.stringify({ primary_product_id: primaryProductId }),
+  })).data;
+}
+
 export async function searchOfferItems(type: 'product' | 'bundle', q = ''): Promise<OfferItem[]> {
   const params = new URLSearchParams({ type });
   if (q) params.set('q', q);

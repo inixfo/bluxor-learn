@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/services/auth-context';
+import { googleRedirectUrl } from '@/services/api/auth';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -25,6 +26,14 @@ export default function Register() {
       toast({ type: 'error', title: 'Registration failed', message: 'Check the form and try again.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const continueWithGoogle = async () => {
+    try {
+      window.location.assign(await googleRedirectUrl('/account'));
+    } catch {
+      toast({ type: 'error', title: 'Google sign-up unavailable', message: 'Check Google OAuth configuration.' });
     }
   };
 
@@ -74,7 +83,7 @@ export default function Register() {
             <div className="h-px flex-1 bg-ink-100" />
           </div>
 
-          <Button variant="outline" className="w-full" size="lg" disabled>
+          <Button variant="outline" className="w-full" size="lg" onClick={continueWithGoogle}>
             Continue with Google
           </Button>
         </div>

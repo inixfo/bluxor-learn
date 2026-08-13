@@ -5,7 +5,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/Toast';
-import { getAdminSettings, updateAdminSettings } from '@/services/api/admin';
+import { getAdminSettings, sendAdminTestEmail, updateAdminSettings } from '@/services/api/admin';
 
 const sections = [
   { id: 'general', label: 'General', icon: Globe },
@@ -22,6 +22,7 @@ export default function AdminSettings() {
   const [active, setActive] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
   const [general, setGeneral] = useState({
     site_name: 'Learn by Bluxor',
     site_url: 'https://learn.bluxor.com',
@@ -105,7 +106,25 @@ export default function AdminSettings() {
           )}
 
           {active === 'payments' && <EnvironmentManaged title="Payments" icon={<CreditCard className="h-5 w-5" />} lines={['PipraPay is configured through server environment variables.', 'API keys are never rendered back to the browser.', 'Success, cancel, and webhook URLs use https://learn.bluxor.com.']} />}
-          {active === 'email' && <EnvironmentManaged title="Email" icon={<Mail className="h-5 w-5" />} lines={['SMTP credentials are managed in .env.docker or the host secret manager.', 'Purchase confirmation emails are sent by the queue worker.']} />}
+          {active === 'email' && (
+            <Card className="p-6">
+              <EnvironmentManaged title="Email" icon={<Mail className="h-5 w-5" />} lines={['SMTP credentials are managed in .env.docker or the host secret manager.', 'Purchase confirmation emails are sent by the queue worker.']} embedded />
+              <div className="mt-6 border-t border-ink-100 pt-5">
+                <h3 className="text-sm font-bold text-ink-900">Send Test Email</h3>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input type="email" placeholder="owner@example.com" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} />
+                  <Button onClick={async () => {
+                    try {
+                      const message = await sendAdminTestEmail(testEmail);
+                      toast({ type: 'success', title: 'Email queued', message });
+                    } catch {
+                      toast({ type: 'error', title: 'Test email failed', message: 'Check SMTP settings and backend logs.' });
+                    }
+                  }}>Send Test</Button>
+                </div>
+              </div>
+            </Card>
+          )}
           {active === 'analytics' && <EnvironmentManaged title="Analytics" icon={<BarChart3 className="h-5 w-5" />} lines={['Internal analytics are captured by backend events.', 'External pixels should be added only after privacy/legal review.']} />}
           {active === 'security' && <EnvironmentManaged title="Security" icon={<Shield className="h-5 w-5" />} lines={['Admin access is enforced by backend roles.', '2FA policy is a planned hardening item and is not exposed as an inactive toggle.']} />}
           {active === 'storage' && <EnvironmentManaged title="Storage" icon={<HardDrive className="h-5 w-5" />} lines={['Private product files and original landing ZIPs stay outside the public web root.', 'Local Docker volumes or S3/R2-compatible storage are configured server-side.']} />}
@@ -129,9 +148,9 @@ export default function AdminSettings() {
   );
 }
 
-function EnvironmentManaged({ title, icon, lines }: { title: string; icon: React.ReactNode; lines: string[] }) {
-  return (
-    <Card className="p-6">
+function EnvironmentManaged({ title, icon, lines, embedded = false }: { title: string; icon: React.ReactNode; lines: string[]; embedded?: boolean }) {
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-100 text-ink-600">{icon}</div>
         <div>
@@ -142,6 +161,13 @@ function EnvironmentManaged({ title, icon, lines }: { title: string; icon: React
       <ul className="mt-5 space-y-2 text-sm text-ink-600">
         {lines.map((line) => <li key={line}>- {line}</li>)}
       </ul>
+    </>
+  );
+  if (embedded) return content;
+
+  return (
+    <Card className="p-6">
+      {content}
     </Card>
   );
 }

@@ -2,9 +2,16 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminCategoryController;
+use App\Http\Controllers\Api\AdminContentPageController;
+use App\Http\Controllers\Api\AdminEmailController;
 use App\Http\Controllers\Api\AdminLandingPageController;
+use App\Http\Controllers\Api\AdminNotificationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\ContentPageController;
+use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\LandingPageController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PublicCatalogController;
@@ -14,6 +21,8 @@ Route::middleware('web')->prefix('v1')->group(function () {
     Route::get('/home', [PublicCatalogController::class, 'home']);
     Route::get('/products', [PublicCatalogController::class, 'products']);
     Route::get('/categories', [PublicCatalogController::class, 'categories']);
+    Route::get('/content-pages/{slug}', [ContentPageController::class, 'show']);
+    Route::post('/contact', [ContactController::class, 'submit'])->middleware('throttle:5,1');
     Route::get('/catalog/{slug}', [PublicCatalogController::class, 'catalog']);
     Route::get('/search/products', [PublicCatalogController::class, 'search']);
     Route::get('/landing-pages/{slug}/context', [LandingPageController::class, 'context']);
@@ -23,6 +32,8 @@ Route::middleware('web')->prefix('v1')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->middleware('throttle:10,1');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->middleware('throttle:10,1');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth');
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:3,1');
@@ -61,9 +72,11 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::post('/products', [AdminController::class, 'storeProduct']);
         Route::get('/products/{product}', [AdminController::class, 'showProduct']);
         Route::patch('/products/{product}', [AdminController::class, 'updateProduct']);
+        Route::post('/products/{product}', [AdminController::class, 'updateProduct']);
         Route::post('/products/{product}/publish', [AdminController::class, 'publishProduct']);
         Route::post('/products/{product}/archive', [AdminController::class, 'archiveProduct']);
         Route::post('/products/{product}/files', [AdminController::class, 'uploadProductFile']);
+        Route::apiResource('categories', AdminCategoryController::class);
         Route::get('/orders', [AdminController::class, 'orders']);
         Route::post('/orders/{order}/refund', [PaymentController::class, 'refund'])->middleware('throttle:6,1');
         Route::get('/customers', [AdminController::class, 'customers']);
@@ -81,6 +94,7 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::post('/landing-pages/uploads', [AdminLandingPageController::class, 'upload']);
         Route::get('/landing-pages/{landingPage}', [AdminLandingPageController::class, 'show']);
         Route::patch('/landing-pages/{landingPage}/offers', [AdminLandingPageController::class, 'assignOffers']);
+        Route::patch('/landing-pages/{landingPage}/product', [AdminLandingPageController::class, 'updateProduct']);
         Route::post('/landing-pages/{landingPage}/versions/{version}/publish', [AdminLandingPageController::class, 'publish']);
         Route::post('/landing-pages/{landingPage}/unpublish', [AdminLandingPageController::class, 'unpublish']);
         Route::get('/landing-page-versions/{version}/preview-url', [AdminLandingPageController::class, 'previewUrl']);
@@ -88,5 +102,11 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::get('/landing-pages/{landingPage}/analytics', [AdminLandingPageController::class, 'analytics']);
         Route::get('/settings', [AdminController::class, 'settings']);
         Route::patch('/settings/{section}', [AdminController::class, 'updateSettings']);
+        Route::post('/settings/email/test', [AdminEmailController::class, 'test'])->middleware('throttle:6,1');
+        Route::apiResource('content-pages', AdminContentPageController::class)->except(['destroy']);
+        Route::get('/notifications', [AdminNotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [AdminNotificationController::class, 'unreadCount']);
+        Route::post('/notifications/{notification}/read', [AdminNotificationController::class, 'read']);
+        Route::post('/notifications/read-all', [AdminNotificationController::class, 'readAll']);
     });
 });

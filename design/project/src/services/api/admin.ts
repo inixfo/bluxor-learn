@@ -20,7 +20,8 @@ export type AdminProduct = {
   short_description?: string | null;
   description?: string | null;
   updated_at: string;
-  category?: { name: string } | null;
+  category_id?: number | null;
+  category?: { id?: number; name: string } | null;
   files?: AdminProductFile[];
 };
 
@@ -44,6 +45,41 @@ export type AdminProductPayload = {
   short_description?: string;
   description?: string;
   cover_image_path?: string;
+  cover_image?: File | null;
+  remove_cover_image?: boolean;
+  category_id?: number | null;
+};
+
+export type AdminCategory = {
+  id: number;
+  name: string;
+  name_bn?: string | null;
+  slug: string;
+  description?: string | null;
+  image_path?: string | null;
+  status: 'active' | 'inactive';
+  sort_order: number;
+  products_count?: number;
+};
+
+export type AdminContentPage = {
+  id: number;
+  title: string;
+  slug: string;
+  content?: string | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  status: 'draft' | 'published';
+};
+
+export type AdminNotification = {
+  id: number;
+  type: string;
+  title: string;
+  message?: string | null;
+  url?: string | null;
+  read_at?: string | null;
+  created_at: string;
 };
 
 export type AdminOrder = {
@@ -207,17 +243,31 @@ export async function getAdminProduct(id: string): Promise<AdminProduct> {
 }
 
 export async function createAdminProduct(payload: AdminProductPayload): Promise<AdminProduct> {
-  return (await apiRequest<{ data: AdminProduct }>('/admin/products', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })).data;
+  if (payload.cover_image) {
+    return (await apiFormRequest<{ data: AdminProduct }>('/admin/products', productFormData(payload))).data;
+  }
+
+  return (await apiRequest<{ data: AdminProduct }>('/admin/products', { method: 'POST', body: JSON.stringify(payload) })).data;
 }
 
 export async function updateAdminProduct(id: string, payload: Partial<AdminProductPayload>): Promise<AdminProduct> {
-  return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })).data;
+  if (payload.cover_image) {
+    const formData = productFormData(payload);
+    formData.append('_method', 'PATCH');
+    return (await apiFormRequest<{ data: AdminProduct }>(`/admin/products/${id}`, formData)).data;
+  }
+
+  return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })).data;
+}
+
+function productFormData(payload: Partial<AdminProductPayload>): FormData {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || key === 'cover_image') return;
+    formData.append(key, String(value));
+  });
+  if (payload.cover_image) formData.append('cover_image', payload.cover_image);
+  return formData;
 }
 
 export async function publishAdminProduct(id: string): Promise<AdminProduct> {
@@ -252,6 +302,62 @@ export async function refundAdminOrder(orderId: number): Promise<unknown> {
 
 export async function getAdminCustomers(): Promise<AdminCustomer[]> {
   return pageItems(await apiRequest<{ data: Paginated<AdminCustomer> }>('/admin/customers'));
+}
+
+export async function getAdminCategories(): Promise<AdminCategory[]> {
+  return (await apiRequest<{ data: AdminCategory[] }>('/admin/categories')).data;
+}
+
+export async function createAdminCategory(payload: Partial<AdminCategory> & { image?: File | null }): Promise<AdminCategory> {
+  return (await apiFormRequest<{ data: AdminCategory }>('/admin/categories', categoryFormData(payload))).data;
+}
+
+export async function updateAdminCategory(id: number, payload: Partial<AdminCategory> & { image?: File | null; remove_image?: boolean }): Promise<AdminCategory> {
+  const formData = categoryFormData(payload);
+  formData.append('_method', 'PATCH');
+  return (await apiFormRequest<{ data: AdminCategory }>(`/admin/categories/${id}`, formData)).data;
+}
+
+export async function deleteAdminCategory(id: number): Promise<void> {
+  await apiRequest(`/admin/categories/${id}`, { method: 'DELETE' });
+}
+
+function categoryFormData(payload: Partial<AdminCategory> & { image?: File | null; remove_image?: boolean }): FormData {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || key === 'image') return;
+    formData.append(key, String(value));
+  });
+  if (payload.image) formData.append('image', payload.image);
+  return formData;
+}
+
+export async function getAdminContentPages(): Promise<AdminContentPage[]> {
+  return (await apiRequest<{ data: AdminContentPage[] }>('/admin/content-pages')).data;
+}
+
+export async function updateAdminContentPage(id: number, payload: Partial<AdminContentPage>): Promise<AdminContentPage> {
+  return (await apiRequest<{ data: AdminContentPage }>(`/admin/content-pages/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })).data;
+}
+
+export async function sendAdminTestEmail(email: string): Promise<string> {
+  return (await apiRequest<{ data: { message: string } }>('/admin/settings/email/test', { method: 'POST', body: JSON.stringify({ email }) })).data.message;
+}
+
+export async function getAdminNotifications(): Promise<AdminNotification[]> {
+  return (await apiRequest<{ data: AdminNotification[] }>('/admin/notifications')).data;
+}
+
+export async function getAdminUnreadNotificationCount(): Promise<number> {
+  return (await apiRequest<{ data: { count: number } }>('/admin/notifications/unread-count')).data.count;
+}
+
+export async function markAdminNotificationRead(id: number): Promise<AdminNotification> {
+  return (await apiRequest<{ data: AdminNotification }>(`/admin/notifications/${id}/read`, { method: 'POST', body: JSON.stringify({}) })).data;
+}
+
+export async function markAllAdminNotificationsRead(): Promise<void> {
+  await apiRequest('/admin/notifications/read-all', { method: 'POST', body: JSON.stringify({}) });
 }
 
 export async function getAdminCoupons(): Promise<AdminCoupon[]> {

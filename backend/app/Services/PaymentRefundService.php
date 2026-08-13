@@ -14,7 +14,8 @@ class PaymentRefundService
 {
     public function __construct(
         private readonly PipraPayGateway $gateway,
-        private readonly AuditLogger $audit
+        private readonly AuditLogger $audit,
+        private readonly AdminNotificationService $notifications
     ) {}
 
     public function fullRefund(Order $order, ?Request $request = null): RefundAttempt
@@ -117,6 +118,13 @@ class PaymentRefundService
             }
 
             $this->audit->log('order.refunded', $order, ['refund_attempt_id' => $attempt->id, 'provider_refund_id' => $refund['provider_refund_id']], $request);
+            $this->notifications->create(
+                'order.refunded',
+                'Order refunded',
+                $order->order_number.' was refunded.',
+                '/admin/orders',
+                $order
+            );
 
             return $attempt->fresh();
         });

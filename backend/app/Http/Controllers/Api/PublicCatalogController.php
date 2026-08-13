@@ -18,7 +18,11 @@ class PublicCatalogController extends Controller
             'data' => [
                 'featured_products' => $products->where('featured', true)->values()->map(fn ($product) => $this->product($product)),
                 'new_arrivals' => $products->take(4)->values()->map(fn ($product) => $this->product($product)),
-                'categories' => Category::withCount(['products' => fn ($query) => $query->where('status', 'published')])->get(),
+                'categories' => Category::withCount(['products' => fn ($query) => $query->where('status', 'published')])
+                    ->where('status', 'active')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(),
                 'bundles' => Bundle::with('products')->where('status', 'published')->get()->map(fn ($bundle) => $this->bundle($bundle)),
             ],
         ]);
@@ -61,6 +65,7 @@ class PublicCatalogController extends Controller
             'data' => Category::withCount(['products' => fn ($query) => $query->where('status', 'published')])
                 ->where('status', 'active')
                 ->orderBy('sort_order')
+                ->orderBy('name')
                 ->get(),
         ]);
     }
