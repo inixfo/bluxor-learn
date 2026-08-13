@@ -78,8 +78,8 @@ export async function createCheckoutOrder(payload: {
   return { ...response.data.order, guest_access_token: response.data.guest_access_token || null };
 }
 
-export async function initiatePipraPay(orderNumber: string): Promise<{ checkout_url: string; redirect_url: string; provider_payment_id?: string | null }> {
-  const response = await apiRequest<{ data: { checkout_url: string; redirect_url: string; provider_payment_id?: string | null } }>('/payments/piprapay/initiate', {
+export async function initiatePipraPay(orderNumber: string): Promise<{ pp_url?: string; checkout_url: string; provider_payment_id?: string | null }> {
+  const response = await apiRequest<{ data: { pp_url?: string; checkout_url: string; provider_payment_id?: string | null } }>('/payments/piprapay/initiate', {
     method: 'POST',
     body: JSON.stringify({ order_number: orderNumber }),
   });
@@ -87,7 +87,7 @@ export async function initiatePipraPay(orderNumber: string): Promise<{ checkout_
   return response.data;
 }
 
-export async function verifyPipraPayRedirect(params: { pp_id: string; order?: string }): Promise<unknown> {
+export async function verifyPipraPayRedirect(params: { pp_id?: string; transaction_ref?: string; order?: string }): Promise<unknown> {
   return (await apiRequest<{ data: unknown }>('/payments/piprapay/success', {
     method: 'POST',
     body: JSON.stringify(params),

@@ -42,7 +42,6 @@ return [
         'currency' => env('PIPRAPAY_CURRENCY', 'BDT'),
         'webhook_url' => env('PIPRAPAY_WEBHOOK_URL'),
         'return_url' => env('PIPRAPAY_RETURN_URL'),
-        'cancel_url' => env('PIPRAPAY_CANCEL_URL'),
     ],
 
 ];

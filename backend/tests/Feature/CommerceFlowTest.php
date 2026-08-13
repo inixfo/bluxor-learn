@@ -44,40 +44,57 @@ class CommerceFlowTest extends TestCase
         $this->assertNull($order->user_id);
     }
 
-    public function test_piprapay_create_charge_success_persists_provider_identifier(): void
+    public function test_piprapay_redirect_checkout_success_persists_provider_identifier(): void
     {
         $this->seed(DatabaseSeeder::class);
         $this->fakePipraPay();
         $order = $this->pendingOrder();
 
         Http::fake([
-            'pipra.test/api/create-charge' => Http::response([
-                'pp_id' => 'pp-create-1',
-                'checkout_url' => 'https://pay.pipra.test/checkout/pp-create-1',
-                'invoice_id' => 'invoice-1',
+            'pipra.test/api/checkout/redirect' => Http::response([
+                'pp_id' => 'pp-v3-1',
+                'pp_url' => 'https://pay.pipra.test/payment/pp-v3-1',
             ]),
         ]);
 
         $this->postJson('/api/v1/payments/piprapay/initiate', ['order_number' => $order->order_number])
             ->assertOk()
             ->assertJsonPath('data.gateway', 'piprapay')
-            ->assertJsonPath('data.checkout_url', 'https://pay.pipra.test/checkout/pp-create-1');
+            ->assertJsonPath('data.provider_payment_id', 'pp-v3-1')
+            ->assertJsonPath('data.checkout_url', 'https://pay.pipra.test/payment/pp-v3-1');
 
         $this->assertDatabaseHas('payment_transactions', [
             'order_id' => $order->id,
             'gateway' => 'piprapay',
-            'provider_transaction_id' => 'pp-create-1',
+            'provider_transaction_id' => 'pp-v3-1',
             'status' => 'pending',
         ]);
+
+        Http::assertSent(function ($request) use ($order) {
+            $metadata = json_decode((string) $request['metadata'], true);
+
+            return $request->url() === 'https://pipra.test/api/checkout/redirect'
+                && $request->hasHeader('MHS-PIPRAPAY-API-KEY', 'test-key')
+                && $request['full_name'] === 'Guest Buyer'
+                && $request['email_address'] === 'guest@example.com'
+                && $request['mobile_number'] === '01700000000'
+                && $request['amount'] === number_format($order->total_minor / 100, 2, '.', '')
+                && $request['currency'] === 'BDT'
+                && $request['return_url'] === 'https://learn.test/api/v1/payments/piprapay/success'
+                && $request['webhook_url'] === 'https://learn.test/api/v1/payments/piprapay/webhook'
+                && ($metadata['order_id'] ?? null) === $order->uuid
+                && ($metadata['order_number'] ?? null) === $order->order_number
+                && ! isset($request['email_mobile'], $request['redirect_url'], $request['return_type'], $request['cancel_url']);
+        });
     }
 
-    public function test_piprapay_create_charge_failure_marks_attempt_failed(): void
+    public function test_piprapay_redirect_checkout_failure_marks_attempt_failed(): void
     {
         $this->seed(DatabaseSeeder::class);
         $this->fakePipraPay();
         $order = $this->pendingOrder();
 
-        Http::fake(['pipra.test/api/create-charge' => Http::response(['message' => 'bad'], 500)]);
+        Http::fake(['pipra.test/api/checkout/redirect' => Http::response(['message' => 'bad'], 500)]);
 
         $this->postJson('/api/v1/payments/piprapay/initiate', ['order_number' => $order->order_number])
             ->assertStatus(422);
@@ -87,6 +104,19 @@ class CommerceFlowTest extends TestCase
             'gateway' => 'piprapay',
             'status' => 'failed',
         ]);
+    }
+
+    public function test_piprapay_initiation_requires_customer_mobile(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->fakePipraPay();
+        $order = $this->pendingOrder(phone: null);
+
+        $this->postJson('/api/v1/payments/piprapay/initiate', ['order_number' => $order->order_number])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('customer_phone');
+
+        Http::assertNothingSent();
     }
 
     public function test_duplicate_webhook_creates_entitlements_email_and_payment_event_once(): void
@@ -109,8 +139,8 @@ class CommerceFlowTest extends TestCase
         $this->fakePipraPayVerify($order, 'pp-paid-1', 'completed');
 
         $payload = ['pp_id' => 'pp-paid-1', 'status' => 'completed'];
-        $this->postJson('/api/v1/payments/piprapay/webhook', $payload, $this->webhookHeaders())->assertOk();
-        $this->postJson('/api/v1/payments/piprapay/webhook', $payload, $this->webhookHeaders())->assertOk();
+        $this->postJson('/api/v1/payments/piprapay/webhook', $payload)->assertOk();
+        $this->postJson('/api/v1/payments/piprapay/webhook', $payload)->assertOk();
 
         $order->refresh();
         $this->assertSame('paid', $order->payment_status);
@@ -127,7 +157,7 @@ class CommerceFlowTest extends TestCase
         $order = $this->pendingOrder();
         $this->fakePipraPayVerify($order, 'pp-paid-2', 'completed');
 
-        $this->postJson('/api/v1/payments/piprapay/webhook', ['pp_id' => 'pp-paid-2'], $this->webhookHeaders())->assertOk();
+        $this->postJson('/api/v1/payments/piprapay/webhook', ['pp_id' => 'pp-paid-2'])->assertOk();
         $this->postJson('/api/v1/payments/piprapay/success', ['pp_id' => 'pp-paid-2', 'order' => $order->order_number])->assertOk();
 
         $this->assertSame(1, Entitlement::where('order_id', $order->id)->count());
@@ -151,10 +181,52 @@ class CommerceFlowTest extends TestCase
             $this->postJson('/api/v1/payments/piprapay/success', ['pp_id' => 'pp-bad-'.$index, 'order' => $order->order_number])->assertStatus(422);
         }
 
-        $this->postJson('/api/v1/payments/piprapay/webhook', ['status' => 'completed'], $this->webhookHeaders())->assertStatus(422);
-        $this->postJson('/api/v1/payments/piprapay/webhook', ['pp_id' => 'pp-bad-key'], ['mh-piprapay-api-key' => 'wrong'])->assertStatus(422);
+        Http::fake(['pipra.test/api/verify-payment' => Http::response($this->pipraPayVerifyPayload($order->order_number, $order->uuid, 'pp-different', 'completed', $order->total_minor))]);
+        $this->postJson('/api/v1/payments/piprapay/success', ['pp_id' => 'pp-requested', 'order' => $order->order_number])->assertStatus(422);
+
+        $this->postJson('/api/v1/payments/piprapay/webhook', ['status' => 'completed'])->assertStatus(422);
 
         $this->assertSame('pending', $order->fresh()->payment_status);
+    }
+
+    public function test_verify_uses_provider_amount_not_fee_inclusive_total(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        Queue::fake();
+        $this->fakePipraPay();
+        $order = $this->pendingOrder();
+
+        Http::fake(['pipra.test/api/verify-payment' => Http::response(
+            $this->pipraPayVerifyPayload($order->order_number, $order->uuid, 'pp-amount-vs-total', 'completed', $order->total_minor) + [
+                'total' => number_format(($order->total_minor + 3000) / 100, 2, '.', ''),
+                'fee' => '30.00',
+            ]
+        )]);
+
+        $this->postJson('/api/v1/payments/piprapay/success', [
+            'transaction_ref' => 'pp-amount-vs-total',
+            'pp_status' => 'completed',
+            'order' => $order->order_number,
+        ])->assertOk();
+
+        $this->assertSame('paid', $order->fresh()->payment_status);
+    }
+
+    public function test_browser_return_uses_transaction_ref_and_redirects_to_frontend_receipt(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        Queue::fake();
+        $this->fakePipraPay();
+        $order = $this->pendingOrder();
+        $this->fakePipraPayVerify($order, 'pp-return-v3', 'completed');
+
+        $response = $this->get('/api/v1/payments/piprapay/success?pp_status=completed&transaction_ref=pp-return-v3');
+
+        $response->assertStatus(302);
+        $this->assertStringContainsString('/checkout/success?', $response->headers->get('Location'));
+        $this->assertStringContainsString('order='.$order->order_number, $response->headers->get('Location'));
+        $this->assertStringContainsString('pp_id=pp-return-v3', $response->headers->get('Location'));
+        $this->assertSame('paid', $order->fresh()->payment_status);
     }
 
     public function test_successful_full_refund_revokes_entitlements_and_duplicate_refund_does_not_call_provider_twice(): void
@@ -181,6 +253,9 @@ class CommerceFlowTest extends TestCase
 
         $this->actingAs($admin)->postJson('/api/v1/admin/orders/'.$order->id.'/refund', ['confirm' => true])->assertStatus(422);
         Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->url() === 'https://pipra.test/api/refund-payment'
+            && $request->hasHeader('MHS-PIPRAPAY-API-KEY', 'test-key')
+            && $request['pp_id'] === 'pp-refund-1');
     }
 
     public function test_refund_failure_does_not_change_order_or_entitlements(): void
@@ -200,13 +275,14 @@ class CommerceFlowTest extends TestCase
         $this->assertSame(1, RefundAttempt::where('order_id', $order->id)->where('status', 'failed')->count());
     }
 
-    private function pendingOrder(string $slug = 'ai-automation-n8n'): Order
+    private function pendingOrder(string $slug = 'ai-automation-n8n', ?string $phone = '01700000000'): Order
     {
         $product = Product::where('slug', $slug)->firstOrFail();
         $orderNumber = $this->postJson('/api/v1/checkout/orders', [
             'product_id' => $product->id,
             'customer_name' => 'Guest Buyer',
             'customer_email' => 'guest@example.com',
+            'customer_phone' => $phone,
             'payment_method' => 'card',
         ])->assertCreated()->json('data.order.order_number');
 
@@ -224,7 +300,13 @@ class CommerceFlowTest extends TestCase
 
     private function fakePipraPay(): void
     {
-        config(['services.piprapay.base_url' => 'https://pipra.test', 'services.piprapay.api_key' => 'test-key']);
+        config([
+            'services.piprapay.base_url' => 'https://pipra.test',
+            'services.piprapay.api_key' => 'test-key',
+            'services.piprapay.return_url' => 'https://learn.test/api/v1/payments/piprapay/success',
+            'services.piprapay.webhook_url' => 'https://learn.test/api/v1/payments/piprapay/webhook',
+            'app.frontend_url' => 'https://learn.test',
+        ]);
     }
 
     private function fakePipraPayVerify(Order $order, string $ppId, string $status): void
@@ -244,6 +326,7 @@ class CommerceFlowTest extends TestCase
             'currency' => $currency,
             'gateway' => 'bkash',
             'metadata' => [
+                'order_id' => $orderUuid,
                 'order_uuid' => $orderUuid,
                 'order_number' => $orderNumber,
                 'payment_attempt_uuid' => fake()->uuid(),
@@ -253,6 +336,6 @@ class CommerceFlowTest extends TestCase
 
     private function webhookHeaders(): array
     {
-        return ['mh-piprapay-api-key' => 'test-key'];
+        return ['MHS-PIPRAPAY-API-KEY' => 'test-key'];
     }
 }

@@ -82,8 +82,8 @@ export default function Checkout() {
   const placeOrder = async () => {
     setFieldErrors({});
     if (!quote) return;
-    if (!customer.name || !customer.email) {
-      toast({ type: 'error', title: 'Customer information required', message: 'Enter your name and email to continue.' });
+    if (!customer.name || !customer.email || !customer.phone) {
+      toast({ type: 'error', title: 'Customer information required', message: 'Enter your name, email, and mobile number to continue.' });
       return;
     }
 
@@ -94,14 +94,14 @@ export default function Checkout() {
         coupon_code: appliedCoupon || undefined,
         customer_name: customer.name,
         customer_email: customer.email,
-        customer_phone: customer.phone || undefined,
+        customer_phone: customer.phone,
         payment_method: 'piprapay',
       });
       if (order.guest_access_token) {
         sessionStorage.setItem(`guest_access_token:${order.order_number}`, order.guest_access_token);
       }
       const paymentIntent = await initiatePipraPay(order.order_number);
-      window.location.assign(paymentIntent.checkout_url || paymentIntent.redirect_url);
+      window.location.assign(paymentIntent.pp_url || paymentIntent.checkout_url);
     } catch (error) {
       if (error instanceof ApiError) setFieldErrors(error.errors || {});
       toast({ type: 'error', title: 'Checkout failed', message: error instanceof ApiError ? error.message : 'Please review your information and try again.' });
@@ -134,7 +134,7 @@ export default function Checkout() {
             <h2 className="mb-4 text-base font-bold text-ink-900">Customer information</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Full name" name="name" placeholder="Your name" value={customer.name} onChange={(e) => setCustomer((prev) => ({ ...prev, name: e.target.value }))} hint={fieldErrors.customer_name?.[0]} required />
-              <Input label="Phone (optional)" name="phone" placeholder="01XXXXXXXXX" value={customer.phone} onChange={(e) => setCustomer((prev) => ({ ...prev, phone: e.target.value }))} hint={fieldErrors.customer_phone?.[0]} />
+              <Input label="Mobile number" name="phone" placeholder="01XXXXXXXXX" value={customer.phone} onChange={(e) => setCustomer((prev) => ({ ...prev, phone: e.target.value }))} hint={fieldErrors.customer_phone?.[0]} required />
               <Input label="Email" name="email" type="email" placeholder="you@example.com" value={customer.email} onChange={(e) => setCustomer((prev) => ({ ...prev, email: e.target.value }))} hint={fieldErrors.customer_email?.[0]} className="sm:col-span-2" required />
             </div>
             <p className="mt-3 text-xs text-ink-400">Your download link will be sent to this email. Registration is optional.</p>

@@ -101,10 +101,10 @@ Also configure:
 
 - `PIPRAPAY_BASE_URL=https://pay.bluxor.com`
 - `PIPRAPAY_API_KEY`
+- `PIPRAPAY_CURRENCY=BDT`
 - PipraPay callbacks:
   - `https://learn.bluxor.com/api/v1/payments/piprapay/webhook`
   - `https://learn.bluxor.com/api/v1/payments/piprapay/success`
-  - `https://learn.bluxor.com/api/v1/payments/piprapay/cancel`
 - Brevo SMTP:
   - `MAIL_HOST=smtp-relay.brevo.com`
   - `MAIL_PORT=587`
@@ -112,6 +112,16 @@ Also configure:
   - `MAIL_USERNAME`
   - `MAIL_PASSWORD`
   - `MAIL_FROM_ADDRESS`
+
+Learn uses the installed PipraPay V3 Redirect Checkout API:
+
+```text
+POST /api/checkout/redirect
+POST /api/verify-payment
+POST /api/refund-payment
+```
+
+Outgoing PipraPay requests use the `MHS-PIPRAPAY-API-KEY` header. The installed production API uses singular `verify-payment`.
 
 ## Build And Start
 

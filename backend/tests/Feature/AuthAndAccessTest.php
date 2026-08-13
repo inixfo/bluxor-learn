@@ -149,6 +149,7 @@ class AuthAndAccessTest extends TestCase
                 'amount' => number_format($order->total_minor / 100, 2, '.', ''),
                 'currency' => 'BDT',
                 'metadata' => [
+                    'order_id' => $order->uuid,
                     'order_uuid' => $order->uuid,
                     'order_number' => $order->order_number,
                     'payment_attempt_uuid' => fake()->uuid(),
@@ -159,6 +160,6 @@ class AuthAndAccessTest extends TestCase
 
     private function webhookHeaders(): array
     {
-        return ['mh-piprapay-api-key' => 'test-key'];
+        return ['MHS-PIPRAPAY-API-KEY' => 'test-key'];
     }
 }

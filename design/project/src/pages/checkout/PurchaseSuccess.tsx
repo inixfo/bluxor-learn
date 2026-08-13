@@ -22,7 +22,7 @@ export default function PurchaseSuccess() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const orderNumber = params.get('order') || '';
-  const ppId = params.get('pp_id') || params.get('payment_id') || '';
+  const ppId = params.get('transaction_ref') || params.get('pp_id') || params.get('payment_id') || '';
   const guestAccessToken = params.get('guest_access_token') || (orderNumber ? sessionStorage.getItem(`guest_access_token:${orderNumber}`) || '' : '');
 
   useEffect(() => {

@@ -6,6 +6,7 @@ use App\Contracts\PaymentGateway;
 use App\Models\Order;
 use App\Models\PaymentTransaction;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -18,23 +19,27 @@ class PipraPayGateway implements PaymentGateway
         }
 
         $apiKey = $this->apiKey();
+        if (blank($order->customer_phone)) {
+            throw ValidationException::withMessages(['customer_phone' => ['Mobile number is required for PipraPay checkout.']]);
+        }
+
         $attemptUuid = (string) Str::uuid();
         $metadata = [
+            'order_id' => $order->uuid,
             'order_uuid' => $order->uuid,
             'order_number' => $order->order_number,
             'payment_attempt_uuid' => $attemptUuid,
         ];
 
         $payload = [
-            'full_name' => $order->customer_name ?: 'Learn by Bluxor Customer',
-            'email_mobile' => $order->customer_email ?: $order->customer_phone,
+            'full_name' => $order->customer_name,
+            'email_address' => $order->customer_email,
+            'mobile_number' => $order->customer_phone,
             'amount' => $this->majorAmount($order->total_minor),
-            'metadata' => $metadata,
-            'redirect_url' => $this->returnUrl($order),
-            'return_type' => 'GET',
-            'cancel_url' => $this->cancelUrl($order),
-            'webhook_url' => $this->webhookUrl(),
             'currency' => strtoupper($order->currency ?: config('services.piprapay.currency', 'BDT')),
+            'metadata' => json_encode($metadata, JSON_UNESCAPED_SLASHES),
+            'return_url' => $this->returnUrl(),
+            'webhook_url' => $this->webhookUrl(),
         ];
 
         $transaction = PaymentTransaction::updateOrCreate(
@@ -56,27 +61,32 @@ class PipraPayGateway implements PaymentGateway
             ->acceptJson()
             ->asJson()
             ->withHeaders($this->headers($apiKey))
-            ->post($this->endpoint('/api/create-charge'), $payload);
+            ->post($this->endpoint('/api/checkout/redirect'), $payload);
 
         if (! $response->ok()) {
+            $this->logProviderFailure('checkout_redirect', $response->status(), $response->json(), [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+            ]);
+
             $transaction->forceFill([
                 'status' => 'failed',
-                'normalized_state' => 'create_failed',
+                'normalized_state' => 'initiate_failed',
                 'failed_at' => now(),
                 'raw_response' => $this->safePayload($response->json() ?: ['body' => $response->body()]),
             ])->save();
 
-            throw ValidationException::withMessages(['gateway' => ['PipraPay Create Charge request failed.']]);
+            throw ValidationException::withMessages(['gateway' => ['Payment gateway could not start the checkout. Please try again.']]);
         }
 
         $provider = $response->json();
         if (! is_array($provider)) {
-            throw ValidationException::withMessages(['gateway' => ['PipraPay Create Charge response was invalid.']]);
+            throw ValidationException::withMessages(['gateway' => ['Payment gateway returned an invalid checkout response.']]);
         }
 
         $normalized = $this->normalizeCreateResponse($provider);
-        if (! $normalized['checkout_url']) {
-            throw ValidationException::withMessages(['gateway' => ['PipraPay response did not include a checkout URL.']]);
+        if (! $normalized['pp_id'] || ! $normalized['checkout_url']) {
+            throw ValidationException::withMessages(['gateway' => ['Payment gateway response did not include a checkout URL.']]);
         }
 
         $transaction->forceFill([
@@ -93,8 +103,8 @@ class PipraPayGateway implements PaymentGateway
             'payment_attempt_uuid' => $attemptUuid,
             'provider_payment_id' => $normalized['pp_id'],
             'invoice_id' => $normalized['invoice_id'],
+            'pp_url' => $normalized['checkout_url'],
             'checkout_url' => $normalized['checkout_url'],
-            'redirect_url' => $normalized['checkout_url'],
             'currency' => $order->currency,
             'amount_minor' => $order->total_minor,
         ];
@@ -113,7 +123,9 @@ class PipraPayGateway implements PaymentGateway
             ->post($this->endpoint('/api/verify-payment'), ['pp_id' => $providerPaymentId]);
 
         if (! $response->ok()) {
-            throw ValidationException::withMessages(['gateway' => ['PipraPay verification request failed.']]);
+            $this->logProviderFailure('verify_payment', $response->status(), $response->json(), ['pp_id' => $providerPaymentId]);
+
+            throw ValidationException::withMessages(['gateway' => ['Payment gateway could not verify the payment. Please try again.']]);
         }
 
         $provider = $response->json();
@@ -131,21 +143,21 @@ class PipraPayGateway implements PaymentGateway
         $metadata = $this->metadata($provider);
         $ppId = (string) ($provider['pp_id'] ?? $provider['transaction_id'] ?? '');
         $transactionId = (string) ($provider['transaction_id'] ?? '');
-        $amountMinor = $this->minor($provider['amount'] ?? $provider['total'] ?? null);
+        $amountMinor = $this->verifiedAmountMinor($provider);
         $currency = strtoupper((string) ($provider['currency'] ?? ''));
 
         if ($ppId === '') {
             throw ValidationException::withMessages(['pp_id' => ['PipraPay verification response did not include pp_id.']]);
         }
 
-        if (! in_array($status, ['completed', 'success', 'paid'], true)) {
+        if (! PipraPayStatus::isCompleted($status)) {
             throw ValidationException::withMessages(['status' => ['PipraPay payment is not completed.']]);
         }
 
         $this->assertMatchesOrder($order, $metadata, $amountMinor, $currency);
 
         return [
-            'state' => $status,
+            'state' => PipraPayStatus::normalize($status),
             'valid' => true,
             'order_number' => $order->order_number,
             'provider_transaction_id' => $ppId,
@@ -156,6 +168,16 @@ class PipraPayGateway implements PaymentGateway
             'metadata' => $metadata,
             'raw' => $this->safePayload($provider),
         ];
+    }
+
+    public function assertPaymentIdMatches(array $provider, string $expectedProviderPaymentId): void
+    {
+        $provider = $this->dataPayload($provider);
+        $actual = (string) ($provider['pp_id'] ?? $provider['transaction_id'] ?? '');
+
+        if ($expectedProviderPaymentId === '' || $actual === '' || ! hash_equals($expectedProviderPaymentId, $actual)) {
+            throw ValidationException::withMessages(['pp_id' => ['PipraPay verification response did not match the expected payment ID.']]);
+        }
     }
 
     public function normalizeFailedPayload(Order $order, array $payload, string $state): array
@@ -175,13 +197,8 @@ class PipraPayGateway implements PaymentGateway
         ];
     }
 
-    public function validateWebhook(array $payload, ?string $receivedApiKey): array
+    public function validateWebhook(array $payload, ?string $receivedApiKey = null): array
     {
-        $expected = (string) config('services.piprapay.api_key');
-        if ($expected === '' || ! hash_equals($expected, (string) $receivedApiKey)) {
-            throw ValidationException::withMessages(['gateway' => ['Unauthorized PipraPay webhook.']]);
-        }
-
         $payload = $this->dataPayload($payload);
         if (empty($payload['pp_id'])) {
             throw ValidationException::withMessages(['pp_id' => ['PipraPay webhook missing pp_id.']]);
@@ -203,7 +220,13 @@ class PipraPayGateway implements PaymentGateway
             ->post($this->endpoint('/api/refund-payment'), ['pp_id' => $providerPaymentId]);
 
         if (! $response->ok()) {
-            throw ValidationException::withMessages(['gateway' => ['PipraPay refund request failed.']]);
+            $this->logProviderFailure('refund_payment', $response->status(), $response->json(), [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'pp_id' => $providerPaymentId,
+            ]);
+
+            throw ValidationException::withMessages(['gateway' => ['Payment gateway could not confirm the refund. Please try again.']]);
         }
 
         $provider = $response->json();
@@ -214,11 +237,8 @@ class PipraPayGateway implements PaymentGateway
         $payload = $this->dataPayload($provider);
         $status = strtolower((string) ($payload['status'] ?? $payload['refund_status'] ?? ''));
         $successFlag = $payload['success'] ?? $payload['status'] ?? $provider['status'] ?? null;
-        $success = in_array($status, ['completed', 'success', 'refunded', 'processed'], true)
-            || $successFlag === true
-            || strtolower((string) $successFlag) === 'true';
 
-        if (! $success) {
+        if (! PipraPayStatus::isRefundSuccess($status, $successFlag)) {
             throw ValidationException::withMessages(['gateway' => ['PipraPay refund was not confirmed successful.']]);
         }
 
@@ -250,7 +270,8 @@ class PipraPayGateway implements PaymentGateway
 
     private function assertMatchesOrder(Order $order, array $metadata, int $amountMinor, string $currency): void
     {
-        if (($metadata['order_uuid'] ?? null) !== $order->uuid || ($metadata['order_number'] ?? null) !== $order->order_number) {
+        $metadataOrderId = $metadata['order_id'] ?? $metadata['order_uuid'] ?? null;
+        if ($metadataOrderId !== $order->uuid || ($metadata['order_number'] ?? null) !== $order->order_number) {
             throw ValidationException::withMessages(['metadata' => ['PipraPay metadata does not match this order.']]);
         }
 
@@ -270,7 +291,7 @@ class PipraPayGateway implements PaymentGateway
         return [
             'pp_id' => $data['pp_id'] ?? $data['transaction_id'] ?? $data['payment_id'] ?? null,
             'invoice_id' => $data['invoice_id'] ?? $data['invoiceId'] ?? null,
-            'checkout_url' => $data['checkout_url'] ?? $data['payment_url'] ?? $data['redirect_url'] ?? $data['url'] ?? null,
+            'checkout_url' => $data['pp_url'] ?? $data['checkout_url'] ?? $data['payment_url'] ?? $data['url'] ?? null,
         ];
     }
 
@@ -288,7 +309,6 @@ class PipraPayGateway implements PaymentGateway
     private function headers(string $apiKey): array
     {
         return [
-            'mh-piprapay-api-key' => $apiKey,
             'MHS-PIPRAPAY-API-KEY' => $apiKey,
         ];
     }
@@ -313,20 +333,11 @@ class PipraPayGateway implements PaymentGateway
         return $baseUrl.$path;
     }
 
-    private function returnUrl(Order $order): string
+    private function returnUrl(): string
     {
         $base = rtrim((string) config('services.piprapay.return_url'), '/');
-        $url = $base !== '' ? $base : rtrim((string) config('app.frontend_url', env('FRONTEND_URL', url('/'))), '/').'/checkout/success';
 
-        return $url.(str_contains($url, '?') ? '&' : '?').http_build_query(['order' => $order->order_number]);
-    }
-
-    private function cancelUrl(Order $order): string
-    {
-        $base = rtrim((string) config('services.piprapay.cancel_url'), '/');
-        $url = $base !== '' ? $base : rtrim((string) config('app.frontend_url', env('FRONTEND_URL', url('/'))), '/').'/checkout';
-
-        return $url.(str_contains($url, '?') ? '&' : '?').http_build_query(['order' => $order->order_number, 'cancelled' => 1]);
+        return $base !== '' ? $base : url('/api/v1/payments/piprapay/success');
     }
 
     private function webhookUrl(): string
@@ -344,6 +355,24 @@ class PipraPayGateway implements PaymentGateway
     private function minor(mixed $amount): int
     {
         return (int) round(((float) $amount) * 100);
+    }
+
+    private function verifiedAmountMinor(array $provider): int
+    {
+        // PipraPay V3 verification returns both `amount` and fee/net totals.
+        // `amount` is the merchant checkout amount Learn sent when creating the redirect.
+        return $this->minor($provider['amount'] ?? $provider['total'] ?? null);
+    }
+
+    private function logProviderFailure(string $endpoint, int $status, mixed $body, array $context = []): void
+    {
+        $payload = is_array($body) ? $this->safePayload($body) : [];
+        Log::warning('PipraPay provider request failed.', array_merge($context, [
+            'endpoint' => $endpoint,
+            'http_status' => $status,
+            'provider_error_code' => $payload['code'] ?? $payload['error_code'] ?? null,
+            'provider_error_message' => $payload['message'] ?? $payload['error'] ?? null,
+        ]));
     }
 
     private function safePayload(array $payload): array

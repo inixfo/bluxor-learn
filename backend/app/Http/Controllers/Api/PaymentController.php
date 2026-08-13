@@ -31,11 +31,25 @@ class PaymentController extends Controller
 
     public function success(Request $request)
     {
-        $ppId = (string) $request->input('pp_id', $request->input('invoice_id', ''));
-        $provider = $this->piprapay->verify($ppId);
-        $order = $this->orderFromProvider($provider, $request->input('order'));
-        $verified = $this->piprapay->normalizeVerified($order, $provider);
-        $paid = $this->payments->markPaid($order, 'piprapay', 'redirect:'.$verified['provider_transaction_id'], $verified);
+        $ppId = (string) $request->input('transaction_ref', $request->input('pp_id', $request->input('invoice_id', '')));
+
+        try {
+            $provider = $this->piprapay->verify($ppId);
+            $this->piprapay->assertPaymentIdMatches($provider, $ppId);
+            $order = $this->orderFromProvider($provider, $request->input('order'));
+            $verified = $this->piprapay->normalizeVerified($order, $provider);
+            $paid = $this->payments->markPaid($order, 'piprapay', 'redirect:'.$verified['provider_transaction_id'], $verified);
+        } catch (ValidationException $exception) {
+            if ($request->isMethod('get')) {
+                return redirect($this->frontendCheckoutResultUrl(null, $ppId, 'unconfirmed'));
+            }
+
+            throw $exception;
+        }
+
+        if ($request->isMethod('get')) {
+            return redirect($this->frontendCheckoutResultUrl($order, $verified['provider_transaction_id'], 'paid'));
+        }
 
         return response()->json(['data' => $paid]);
     }
@@ -44,8 +58,9 @@ class PaymentController extends Controller
     {
         abort_unless(str_contains((string) $request->header('content-type'), 'application/json'), 415);
 
-        $payload = $this->piprapay->validateWebhook($request->all(), $this->pipraPayHeader($request));
+        $payload = $this->piprapay->validateWebhook($request->all());
         $provider = $this->piprapay->verify((string) $payload['pp_id']);
+        $this->piprapay->assertPaymentIdMatches($provider, (string) $payload['pp_id']);
         $order = $this->orderFromProvider($provider);
         $verified = $this->piprapay->normalizeVerified($order, $provider);
         $paid = $this->payments->markPaid($order, 'piprapay', 'webhook:'.$verified['provider_transaction_id'], $verified);
@@ -94,10 +109,14 @@ class PaymentController extends Controller
         return Order::where('order_number', $orderNumber)->firstOrFail();
     }
 
-    private function pipraPayHeader(Request $request): ?string
+    private function frontendCheckoutResultUrl(?Order $order, ?string $ppId, string $status): string
     {
-        return $request->header('mh-piprapay-api-key')
-            ?: $request->header('Mh-Piprapay-Api-Key')
-            ?: $request->header('MHS-PIPRAPAY-API-KEY');
+        $query = array_filter([
+            'order' => $order?->order_number,
+            'pp_id' => $ppId,
+            'payment_status' => $status,
+        ]);
+
+        return rtrim((string) config('app.frontend_url', env('FRONTEND_URL', url('/'))), '/').'/checkout/success?'.http_build_query($query);
     }
 }
