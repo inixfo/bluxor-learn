@@ -257,5 +257,11 @@ class DatabaseSeeder extends Seeder
 
         DB::table('settings')->updateOrInsert(['group' => 'general', 'key' => 'site_name'], ['value' => json_encode('Learn by Bluxor'), 'created_at' => now(), 'updated_at' => now()]);
         DB::table('settings')->updateOrInsert(['group' => 'general', 'key' => 'timezone'], ['value' => json_encode('Asia/Dhaka'), 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->call([
+            ContactSettingsSeeder::class,
+            FaqSeeder::class,
+            HelpCenterSeeder::class,
+        ]);
     }
 }

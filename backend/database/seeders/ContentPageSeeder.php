@@ -35,60 +35,59 @@ class ContentPageSeeder extends Seeder
                 'content' => <<<'MD'
 Eyebrow: About Learn by Bluxor
 
-# Practical knowledge you can actually use.
+# Practical knowledge. Built for action.
 
-Learn by Bluxor is a digital learning platform by Bluxor, built for people who want practical knowledge without unnecessary complexity.
+Learn by Bluxor turns complex topics into practical digital resources you can understand, apply, and keep using.
 
-We create ebooks, guides, templates, resources, and other digital products around technology, automation, online business, cybersecurity, productivity, and related skills.
+## Learning should help you do something.
 
-Our goal is simple: turn complicated subjects into useful, understandable resources that help you learn faster and put what you learn into practice.
+Learn by Bluxor creates practical digital learning resources for people who want more than surface-level information.
 
-## Learning should lead to action.
+Our ebooks, guides, templates, projects, and downloadable resources are designed to help make complicated subjects easier to understand and easier to apply.
 
-There is more information online than ever before. The difficult part is not finding information - it is finding the right information, understanding it, and knowing what to do next.
+Whether you're learning automation, technology, online business, cybersecurity, development, productivity, or another modern digital skill, our goal is to help you move from:
 
-That is why Learn by Bluxor focuses on practical learning.
-
-Instead of filling products with unnecessary theory, we aim to explain concepts clearly, show how they work, and provide examples that can be applied in real situations.
+* "I've heard about this"
+* "I understand how this works."
+* "I can actually use this."
 
 ## What you'll find here
 
 ### Practical Guides
 
-Step-by-step ebooks and guides designed to make complex subjects easier to understand.
+Clear, structured learning material focused on real-world use.
 
-### Automation & Technology
+### Templates & Resources
 
-Resources covering AI, automation tools, workflows, software, and modern technology.
+Files and resources designed to save time and help implementation.
 
-### Digital Skills
+### Projects & Examples
 
-Practical material for improving skills related to online work, business, development, marketing, and productivity.
+Learn through practical examples instead of theory alone.
 
-### Ready-to-use Resources
+### Continuously Improving Content
 
-Templates, files, examples, and supporting materials that help you move from learning to implementation.
+Some resources may be corrected or updated as tools and technologies change.
 
-## Made to be useful, not just readable.
+Do not promise lifetime updates.
 
-Every Learn by Bluxor product is designed around a practical outcome.
+## Our approach
 
-Depending on the subject, a resource may include:
+### Understand
 
-* step-by-step instructions
-* screenshots and visual explanations
-* examples
-* templates
-* downloadable files
-* workflows
-* checklists
-* practical projects
+Break complicated ideas into understandable explanations.
 
-Our products may evolve over time as tools and technologies change.
+### Practice
 
-When an updated version is made available to an eligible purchase, it can be delivered through the customer's Learn by Bluxor library.
+Learn through examples and guided exercises.
 
-Do not promise lifetime updates unless the product explicitly includes them.
+### Build
+
+Turn concepts into real workflows, projects, or usable resources.
+
+### Apply
+
+Use what you've learned in your own work, business, studies, or projects.
 
 ## Our principles
 
@@ -108,7 +107,7 @@ Avoid unnecessary filler.
 
 Technology should be taught and used responsibly.
 
-## Ready to learn something useful?
+## Start learning something useful.
 
 Browse our growing collection of practical digital resources.
 MD,

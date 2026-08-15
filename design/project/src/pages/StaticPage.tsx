@@ -136,18 +136,20 @@ export default function StaticPage() {
 }
 
 function AboutPage({ page, parsed }: { page: ContentPage; parsed: ParsedPage }) {
-  const [belief, findSection, build, principles, cta] = [
+  const [belief, findSection, approach, build, principles, cta] = [
     parsed.sections[0],
     parsed.sections.find((section) => section.title === "What you'll find here"),
+    parsed.sections.find((section) => section.title === 'Our approach'),
     parsed.sections.find((section) => section.title === 'Made to be useful, not just readable.'),
     parsed.sections.find((section) => section.title === 'Our principles'),
-    parsed.sections.find((section) => section.title === 'Ready to learn something useful?'),
+    parsed.sections.find((section) => section.title === 'Start learning something useful.') || parsed.sections.find((section) => section.title === 'Ready to learn something useful?'),
   ];
 
   return (
     <PageShell page={page} parsed={parsed}>
       {belief && <Article sections={[belief]} />}
       {findSection && <SubsectionCards section={findSection} icons={cardIcons} />}
+      {approach && <SubsectionCards section={approach} compact icons={cardIcons} />}
       {build && <Article sections={[build]} />}
       {principles && <SubsectionCards section={principles} compact icons={cardIcons.slice(2)} />}
       <CtaBand title={cta?.title || 'Ready to learn something useful?'} text={firstParagraph(cta)} label="Explore Products" to="/products" />

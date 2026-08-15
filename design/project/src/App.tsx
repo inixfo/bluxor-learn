@@ -16,6 +16,11 @@ import Register from '@/pages/auth/Register';
 import ForgotPassword from '@/pages/auth/ForgotPassword';
 import ResetPassword from '@/pages/auth/ResetPassword';
 import StaticPage from '@/pages/StaticPage';
+import Contact from '@/pages/Contact';
+import HelpCenter from '@/pages/HelpCenter';
+import HelpArticle from '@/pages/HelpArticle';
+import Faq from '@/pages/Faq';
+import DownloadHelp from '@/pages/DownloadHelp';
 import Checkout from '@/pages/checkout/Checkout';
 import PurchaseSuccess from '@/pages/checkout/PurchaseSuccess';
 import CustomerOverview from '@/pages/customer/Overview';
@@ -41,6 +46,8 @@ import AdminSettings from '@/pages/admin/Settings';
 import AdminAuditLogs from '@/pages/admin/AuditLogs';
 import AdminCategories from '@/pages/admin/Categories';
 import AdminContentPages from '@/pages/admin/ContentPages';
+import AdminFaqManager from '@/pages/admin/FaqManager';
+import AdminHelpCenterManager from '@/pages/admin/HelpCenterManager';
 import NotFound from '@/pages/NotFound';
 
 export default function App() {
@@ -62,10 +69,11 @@ export default function App() {
             </Route>
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/about" element={<StaticPage />} />
-            <Route path="/contact" element={<StaticPage />} />
-            <Route path="/help" element={<StaticPage />} />
-            <Route path="/faq" element={<StaticPage />} />
-            <Route path="/download-help" element={<StaticPage />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<HelpCenter />} />
+            <Route path="/help/:categorySlug/:articleSlug" element={<HelpArticle />} />
+            <Route path="/faq" element={<Faq />} />
+            <Route path="/download-help" element={<DownloadHelp />} />
             <Route path="/terms" element={<StaticPage />} />
             <Route path="/privacy" element={<StaticPage />} />
             <Route path="/refund-policy" element={<StaticPage />} />
@@ -103,6 +111,8 @@ export default function App() {
             <Route path="/admin/landing-pages/upload" element={<AdminUploadLandingPage />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/content-pages" element={<AdminContentPages />} />
+            <Route path="/admin/help-center" element={<AdminHelpCenterManager />} />
+            <Route path="/admin/faq" element={<AdminFaqManager />} />
             <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
           </Route>
 

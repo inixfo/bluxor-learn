@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Globe, CreditCard, Mail, BarChart3, Shield, HardDrive, FileCode2, Save } from 'lucide-react';
+import { Globe, CreditCard, Mail, BarChart3, Shield, HardDrive, FileCode2, Save, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
+import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/Toast';
@@ -9,6 +9,7 @@ import { getAdminSettings, sendAdminTestEmail, updateAdminSettings } from '@/ser
 
 const sections = [
   { id: 'general', label: 'General', icon: Globe },
+  { id: 'contact', label: 'Contact', icon: MessageCircle },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -30,11 +31,20 @@ export default function AdminSettings() {
     timezone: 'Asia/Dhaka',
     support_email: '',
   });
+  const [contact, setContact] = useState({
+    support_email: '',
+    support_phone: '',
+    support_whatsapp: '',
+    business_name: '',
+    business_address: '',
+    support_availability_text: '',
+  });
 
   useEffect(() => {
     getAdminSettings()
       .then((settings) => {
         const group = settings.general || {};
+        const contactGroup = settings.contact || {};
         setGeneral((prev) => ({
           ...prev,
           site_name: String(group.site_name ?? prev.site_name),
@@ -42,6 +52,15 @@ export default function AdminSettings() {
           support_email: String(group.support_email ?? prev.support_email),
           site_url: String(group.site_url ?? prev.site_url),
           default_currency: String(group.default_currency ?? prev.default_currency),
+        }));
+        setContact((prev) => ({
+          ...prev,
+          support_email: String(contactGroup.support_email ?? group.support_email ?? prev.support_email),
+          support_phone: String(contactGroup.support_phone ?? prev.support_phone),
+          support_whatsapp: String(contactGroup.support_whatsapp ?? prev.support_whatsapp),
+          business_name: String(contactGroup.business_name ?? prev.business_name),
+          business_address: String(contactGroup.business_address ?? prev.business_address),
+          support_availability_text: String(contactGroup.support_availability_text ?? prev.support_availability_text),
         }));
       })
       .finally(() => setLoading(false));
@@ -59,6 +78,18 @@ export default function AdminSettings() {
     }
   };
 
+  const saveContact = async () => {
+    setSaving(true);
+    try {
+      await updateAdminSettings('contact', contact);
+      toast({ type: 'success', title: 'Contact settings saved' });
+    } catch {
+      toast({ type: 'error', title: 'Could not save contact settings' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -67,6 +98,7 @@ export default function AdminSettings() {
           <p className="mt-1 text-sm text-ink-500">{loading ? 'Loading settings...' : 'Configure safe store settings.'}</p>
         </div>
         {active === 'general' && <Button leftIcon={<Save className="h-4 w-4" />} loading={saving} onClick={saveGeneral}>Save</Button>}
+        {active === 'contact' && <Button leftIcon={<Save className="h-4 w-4" />} loading={saving} onClick={saveContact}>Save</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -102,6 +134,21 @@ export default function AdminSettings() {
                 </Select>
                 <Input label="Support email" type="email" value={general.support_email} onChange={(e) => setGeneral((prev) => ({ ...prev, support_email: e.target.value }))} className="sm:col-span-2" />
               </div>
+            </Card>
+          )}
+
+          {active === 'contact' && (
+            <Card className="p-6">
+              <h2 className="mb-4 text-base font-bold text-ink-900">Contact Settings</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input label="Support Email" type="email" value={contact.support_email} onChange={(e) => setContact((prev) => ({ ...prev, support_email: e.target.value }))} />
+                <Input label="Support Phone" value={contact.support_phone} onChange={(e) => setContact((prev) => ({ ...prev, support_phone: e.target.value }))} />
+                <Input label="WhatsApp Number" value={contact.support_whatsapp} onChange={(e) => setContact((prev) => ({ ...prev, support_whatsapp: e.target.value }))} />
+                <Input label="Business Name" value={contact.business_name} onChange={(e) => setContact((prev) => ({ ...prev, business_name: e.target.value }))} />
+                <Textarea label="Business Address" value={contact.business_address} onChange={(e) => setContact((prev) => ({ ...prev, business_address: e.target.value }))} rows={4} />
+                <Textarea label="Support Availability Text" value={contact.support_availability_text} onChange={(e) => setContact((prev) => ({ ...prev, support_availability_text: e.target.value }))} rows={4} />
+              </div>
+              <p className="mt-4 text-xs text-ink-400">Empty fields are hidden on the public Contact page.</p>
             </Card>
           )}
 

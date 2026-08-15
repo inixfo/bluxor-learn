@@ -114,6 +114,50 @@ export type AdminContactInquiry = {
 
 export type AdminContactInquiryCounts = Record<'all' | AdminContactInquiryStatus, number>;
 
+export type AdminFaqCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  sort_order: number;
+  status: 'active' | 'inactive';
+  items_count?: number;
+};
+
+export type AdminFaqItem = {
+  id: number;
+  faq_category_id: number;
+  question: string;
+  answer: string;
+  sort_order: number;
+  status: 'active' | 'inactive';
+  category?: AdminFaqCategory;
+};
+
+export type AdminHelpCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+  sort_order: number;
+  status: 'active' | 'inactive';
+  articles_count?: number;
+};
+
+export type AdminHelpArticle = {
+  id: number;
+  help_category_id: number;
+  title: string;
+  slug: string;
+  summary?: string | null;
+  content: string;
+  sort_order: number;
+  is_featured: boolean;
+  status: 'draft' | 'published';
+  views?: number;
+  category?: AdminHelpCategory;
+};
+
 export type AdminOrder = {
   id: number;
   order_number: string;
@@ -422,6 +466,75 @@ export async function replyToAdminContactInquiry(id: number, payload: { subject:
     method: 'POST',
     body: JSON.stringify(payload),
   })).data;
+}
+
+export async function getAdminFaqCategories(): Promise<AdminFaqCategory[]> {
+  return (await apiRequest<{ data: AdminFaqCategory[] }>('/admin/faq-categories')).data;
+}
+
+export async function createAdminFaqCategory(payload: Partial<AdminFaqCategory>): Promise<AdminFaqCategory> {
+  return (await apiRequest<{ data: AdminFaqCategory }>('/admin/faq-categories', { method: 'POST', body: JSON.stringify(payload) })).data;
+}
+
+export async function updateAdminFaqCategory(id: number, payload: Partial<AdminFaqCategory>): Promise<AdminFaqCategory> {
+  return (await apiRequest<{ data: AdminFaqCategory }>(`/admin/faq-categories/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })).data;
+}
+
+export async function deleteAdminFaqCategory(id: number): Promise<void> {
+  await apiRequest(`/admin/faq-categories/${id}`, { method: 'DELETE' });
+}
+
+export async function getAdminFaqItems(categoryId?: number): Promise<AdminFaqItem[]> {
+  const suffix = categoryId ? `?${new URLSearchParams({ category_id: String(categoryId) }).toString()}` : '';
+  return (await apiRequest<{ data: AdminFaqItem[] }>(`/admin/faq-items${suffix}`)).data;
+}
+
+export async function createAdminFaqItem(payload: Partial<AdminFaqItem>): Promise<AdminFaqItem> {
+  return (await apiRequest<{ data: AdminFaqItem }>('/admin/faq-items', { method: 'POST', body: JSON.stringify(payload) })).data;
+}
+
+export async function updateAdminFaqItem(id: number, payload: Partial<AdminFaqItem>): Promise<AdminFaqItem> {
+  return (await apiRequest<{ data: AdminFaqItem }>(`/admin/faq-items/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })).data;
+}
+
+export async function deleteAdminFaqItem(id: number): Promise<void> {
+  await apiRequest(`/admin/faq-items/${id}`, { method: 'DELETE' });
+}
+
+export async function getAdminHelpCategories(): Promise<AdminHelpCategory[]> {
+  return (await apiRequest<{ data: AdminHelpCategory[] }>('/admin/help-categories')).data;
+}
+
+export async function createAdminHelpCategory(payload: Partial<AdminHelpCategory>): Promise<AdminHelpCategory> {
+  return (await apiRequest<{ data: AdminHelpCategory }>('/admin/help-categories', { method: 'POST', body: JSON.stringify(payload) })).data;
+}
+
+export async function updateAdminHelpCategory(id: number, payload: Partial<AdminHelpCategory>): Promise<AdminHelpCategory> {
+  return (await apiRequest<{ data: AdminHelpCategory }>(`/admin/help-categories/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })).data;
+}
+
+export async function deleteAdminHelpCategory(id: number): Promise<void> {
+  await apiRequest(`/admin/help-categories/${id}`, { method: 'DELETE' });
+}
+
+export async function getAdminHelpArticles(filters: { category_id?: number; status?: string } = {}): Promise<AdminHelpArticle[]> {
+  const params = new URLSearchParams();
+  if (filters.category_id) params.set('category_id', String(filters.category_id));
+  if (filters.status) params.set('status', filters.status);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return (await apiRequest<{ data: AdminHelpArticle[] }>(`/admin/help-articles${suffix}`)).data;
+}
+
+export async function createAdminHelpArticle(payload: Partial<AdminHelpArticle>): Promise<AdminHelpArticle> {
+  return (await apiRequest<{ data: AdminHelpArticle }>('/admin/help-articles', { method: 'POST', body: JSON.stringify(payload) })).data;
+}
+
+export async function updateAdminHelpArticle(id: number, payload: Partial<AdminHelpArticle>): Promise<AdminHelpArticle> {
+  return (await apiRequest<{ data: AdminHelpArticle }>(`/admin/help-articles/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })).data;
+}
+
+export async function deleteAdminHelpArticle(id: number): Promise<void> {
+  await apiRequest(`/admin/help-articles/${id}`, { method: 'DELETE' });
 }
 
 export async function getAdminCoupons(): Promise<AdminCoupon[]> {
