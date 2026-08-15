@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DollarSign, ShoppingCart, Users, Package, Eye, MousePointerClick, CreditCard } from 'lucide-react';
+import { DollarSign, ShoppingCart, Users, Package, Eye, MousePointerClick, CreditCard, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { formatBDT } from '@/data/store';
 import { displayMinor, getAdminDashboard, type AdminDashboardSummary } from '@/services/api/admin';
 
-const colors = ['brand', 'violet', 'success', 'warning'] as const;
+const colors = ['brand', 'violet', 'success', 'warning', 'danger'] as const;
 
 export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState<AdminDashboardSummary | null>(null);
@@ -25,6 +25,7 @@ export default function AdminDashboard() {
     { label: 'Orders', value: dashboard.metrics.orders.toLocaleString(), icon: ShoppingCart },
     { label: 'Customers', value: dashboard.metrics.customers.toLocaleString(), icon: Users },
     { label: 'Products', value: dashboard.metrics.products.toLocaleString(), icon: Package },
+    { label: 'New Support Messages', value: dashboard.metrics.new_support_messages.toLocaleString(), icon: MessageSquare, to: '/admin/contact-inquiries?status=new' },
   ] : [];
 
   const paidOrders = dashboard?.recent_orders.filter((order) => order.payment_status === 'paid').length || 0;
@@ -48,15 +49,9 @@ export default function AdminDashboard() {
 
       {error && <div className="mb-5 rounded-xl border border-danger-200 bg-danger-50 p-4 text-sm text-danger-700">{error}</div>}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {metrics.map((m, index) => (
-          <Card key={m.label} className="p-5">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-${colors[index]}-100 text-${colors[index]}-600`}>
-              <m.icon className="h-5 w-5" />
-            </div>
-            <p className="mt-3 text-2xl font-bold text-ink-900">{m.value}</p>
-            <p className="text-xs text-ink-400">{m.label}</p>
-          </Card>
+          <MetricCard key={m.label} metric={m} color={colors[index]} />
         ))}
       </div>
 
@@ -136,4 +131,18 @@ export default function AdminDashboard() {
       </Card>
     </div>
   );
+}
+
+function MetricCard({ metric, color }: { metric: { label: string; value: string; icon: typeof DollarSign; to?: string }; color: typeof colors[number] }) {
+  const content = (
+    <Card className="h-full p-5">
+      <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-${color}-100 text-${color}-600`}>
+        <metric.icon className="h-5 w-5" />
+      </div>
+      <p className="mt-3 text-2xl font-bold text-ink-900">{metric.value}</p>
+      <p className="text-xs text-ink-400">{metric.label}</p>
+    </Card>
+  );
+
+  return metric.to ? <Link to={metric.to}>{content}</Link> : content;
 }

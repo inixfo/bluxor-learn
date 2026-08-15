@@ -7,6 +7,7 @@ export type ContentPage = {
   content?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
+  updated_at?: string | null;
 };
 
 export async function getContentPage(slug: string): Promise<ContentPage> {

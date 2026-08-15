@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Bundle;
 use App\Models\Category;
+use App\Models\ContactInquiry;
 use App\Models\Coupon;
 use App\Models\LandingPage;
 use App\Models\Order;
@@ -38,6 +39,8 @@ class AdminController extends Controller
                 'orders' => Order::count(),
                 'customers' => $customers,
                 'products' => Product::count(),
+                'new_support_messages' => ContactInquiry::where('status', 'new')->count(),
+                'unresolved_inquiries' => ContactInquiry::whereIn('status', ['new', 'read', 'replied'])->count(),
             ],
             'recent_orders' => Order::with('items', 'paymentTransactions')->latest()->limit(5)->get(),
             'top_products' => Product::query()

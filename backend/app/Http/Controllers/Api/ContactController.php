@@ -31,7 +31,7 @@ class ContactController extends Controller
             'contact.submitted',
             'New contact inquiry',
             $inquiry->subject.' from '.$inquiry->name,
-            '/admin/settings',
+            '/admin/contact-inquiries/'.$inquiry->id,
             $inquiry
         );
 
@@ -44,6 +44,6 @@ class ContactController extends Controller
             ]);
         }
 
-        return response()->json(['data' => ['message' => 'Thanks, your message has been received.']], 201);
+        return response()->json(['data' => ['message' => 'Thanks for contacting us. Your message has been received.']], 201);
     }
 }

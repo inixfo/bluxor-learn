@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, FileCode2, ShoppingCart, Users, Ticket,
-  BarChart3, ClipboardList, Settings, LogOut, ShieldCheck, ChevronLeft, Menu, Tags, FileText,
+  BarChart3, ClipboardList, Settings, LogOut, ShieldCheck, ChevronLeft, Menu, Tags, FileText, MessageSquare,
 } from 'lucide-react';
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/admin/landing-pages', label: 'Landing Pages', icon: FileCode2 },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/customers', label: 'Customers', icon: Users },
+  { to: '/admin/contact-inquiries', label: 'Contact Inquiries', icon: MessageSquare },
   { to: '/admin/coupons', label: 'Coupons', icon: Ticket },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/admin/audit-logs', label: 'Audit Logs', icon: ClipboardList },

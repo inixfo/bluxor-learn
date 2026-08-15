@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminCategoryController;
+use App\Http\Controllers\Api\AdminContactInquiryController;
 use App\Http\Controllers\Api\AdminContentPageController;
 use App\Http\Controllers\Api\AdminEmailController;
 use App\Http\Controllers\Api\AdminLandingPageController;
@@ -104,6 +105,10 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::patch('/settings/{section}', [AdminController::class, 'updateSettings']);
         Route::post('/settings/email/test', [AdminEmailController::class, 'test'])->middleware('throttle:6,1');
         Route::apiResource('content-pages', AdminContentPageController::class)->except(['destroy']);
+        Route::get('/contact-inquiries', [AdminContactInquiryController::class, 'index']);
+        Route::get('/contact-inquiries/{contactInquiry}', [AdminContactInquiryController::class, 'show']);
+        Route::patch('/contact-inquiries/{contactInquiry}', [AdminContactInquiryController::class, 'update']);
+        Route::post('/contact-inquiries/{contactInquiry}/reply', [AdminContactInquiryController::class, 'reply'])->middleware('throttle:12,1');
         Route::get('/notifications', [AdminNotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [AdminNotificationController::class, 'unreadCount']);
         Route::post('/notifications/{notification}/read', [AdminNotificationController::class, 'read']);

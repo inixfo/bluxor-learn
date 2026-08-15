@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(ContentPageSeeder::class);
+
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $customerRole = Role::firstOrCreate(['name' => 'customer']);
 

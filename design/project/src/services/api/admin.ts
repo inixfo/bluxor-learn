@@ -82,6 +82,38 @@ export type AdminNotification = {
   created_at: string;
 };
 
+export type AdminContactInquiryStatus = 'new' | 'read' | 'replied' | 'resolved' | 'spam';
+
+export type AdminContactInquiryReply = {
+  id: number;
+  contact_inquiry_id: number;
+  admin_user_id?: number | null;
+  sent_to: string;
+  subject: string;
+  message: string;
+  created_at: string;
+  admin?: { id: number; name: string; email: string } | null;
+};
+
+export type AdminContactInquiry = {
+  id: number;
+  uuid: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: AdminContactInquiryStatus;
+  read_at?: string | null;
+  replied_at?: string | null;
+  resolved_at?: string | null;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  replies?: AdminContactInquiryReply[];
+};
+
+export type AdminContactInquiryCounts = Record<'all' | AdminContactInquiryStatus, number>;
+
 export type AdminOrder = {
   id: number;
   order_number: string;
@@ -162,6 +194,8 @@ export type AdminDashboardSummary = {
     orders: number;
     customers: number;
     products: number;
+    new_support_messages: number;
+    unresolved_inquiries: number;
   };
   recent_orders: AdminOrder[];
   top_products: AdminProduct[];
@@ -358,6 +392,36 @@ export async function markAdminNotificationRead(id: number): Promise<AdminNotifi
 
 export async function markAllAdminNotificationsRead(): Promise<void> {
   await apiRequest('/admin/notifications/read-all', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export async function getAdminContactInquiries(filters: { q?: string; status?: string } = {}): Promise<{ items: AdminContactInquiry[]; counts: AdminContactInquiryCounts }> {
+  const params = new URLSearchParams();
+  if (filters.q) params.set('q', filters.q);
+  if (filters.status) params.set('status', filters.status);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const response = await apiRequest<{ data: { items: Paginated<AdminContactInquiry>; counts: AdminContactInquiryCounts } }>(`/admin/contact-inquiries${suffix}`);
+  return {
+    items: pageItems({ data: response.data.items }),
+    counts: response.data.counts,
+  };
+}
+
+export async function getAdminContactInquiry(id: string): Promise<AdminContactInquiry> {
+  return (await apiRequest<{ data: AdminContactInquiry }>(`/admin/contact-inquiries/${id}`)).data;
+}
+
+export async function updateAdminContactInquiry(id: number, payload: { status?: AdminContactInquiryStatus; admin_notes?: string | null }): Promise<AdminContactInquiry> {
+  return (await apiRequest<{ data: AdminContactInquiry }>(`/admin/contact-inquiries/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })).data;
+}
+
+export async function replyToAdminContactInquiry(id: number, payload: { subject: string; message: string }): Promise<AdminContactInquiry> {
+  return (await apiRequest<{ data: AdminContactInquiry }>(`/admin/contact-inquiries/${id}/reply`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })).data;
 }
 
 export async function getAdminCoupons(): Promise<AdminCoupon[]> {

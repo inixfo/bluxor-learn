@@ -30,6 +30,8 @@ import AdminProducts from '@/pages/admin/Products';
 import AdminProductEditor from '@/pages/admin/ProductEditor';
 import AdminOrders from '@/pages/admin/Orders';
 import AdminCustomers from '@/pages/admin/Customers';
+import AdminContactInquiries from '@/pages/admin/ContactInquiries';
+import AdminContactInquiryDetail from '@/pages/admin/ContactInquiryDetail';
 import AdminCoupons from '@/pages/admin/Coupons';
 import AdminAnalytics from '@/pages/admin/Analytics';
 import AdminLandingPages from '@/pages/admin/LandingPages';
@@ -92,6 +94,8 @@ export default function App() {
             <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/customers" element={<AdminCustomers />} />
+            <Route path="/admin/contact-inquiries" element={<AdminContactInquiries />} />
+            <Route path="/admin/contact-inquiries/:id" element={<AdminContactInquiryDetail />} />
             <Route path="/admin/coupons" element={<AdminCoupons />} />
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/landing-pages" element={<AdminLandingPages />} />
