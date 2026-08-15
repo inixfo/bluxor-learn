@@ -26,6 +26,10 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        if ($request->user()) {
+            return response()->json(['message' => 'Already authenticated.'], 409);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -43,6 +47,10 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        if ($request->user()) {
+            return response()->json(['message' => 'Already authenticated.'], 409);
+        }
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],

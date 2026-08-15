@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/services/auth-context';
 import { googleRedirectUrl } from '@/services/api/auth';
+import { authenticatedHomePath, safeInternalReturnTo } from '@/services/auth-routing';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const toast = useToast();
   const { login } = useAuth();
   const [showPwd, setShowPwd] = useState(false);
@@ -19,8 +21,8 @@ export default function Login() {
     event.preventDefault();
     setLoading(true);
     try {
-      await login(form);
-      navigate('/account');
+      const user = await login(form);
+      navigate(safeInternalReturnTo(params.get('return_to')) || authenticatedHomePath(user), { replace: true });
     } catch {
       toast({ type: 'error', title: 'Login failed', message: 'Check your email and password.' });
     } finally {
@@ -30,7 +32,7 @@ export default function Login() {
 
   const continueWithGoogle = async () => {
     try {
-      window.location.assign(await googleRedirectUrl('/account'));
+      window.location.assign(await googleRedirectUrl(safeInternalReturnTo(params.get('return_to')) || '/account'));
     } catch {
       toast({ type: 'error', title: 'Google login unavailable', message: 'Check Google OAuth configuration.' });
     }

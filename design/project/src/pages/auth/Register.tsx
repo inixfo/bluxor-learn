@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { ShieldCheck, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/services/auth-context';
 import { googleRedirectUrl } from '@/services/api/auth';
+import { safeInternalReturnTo } from '@/services/auth-routing';
 
 export default function Register() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const toast = useToast();
   const { register } = useAuth();
   const [showPwd, setShowPwd] = useState(false);
@@ -21,7 +23,7 @@ export default function Register() {
     try {
       await register({ ...form, password_confirmation: form.password });
       toast({ type: 'success', title: 'Account created', message: 'Check your email to verify your account.' });
-      navigate('/account');
+      navigate(safeInternalReturnTo(params.get('return_to')) || '/account', { replace: true });
     } catch {
       toast({ type: 'error', title: 'Registration failed', message: 'Check the form and try again.' });
     } finally {
@@ -31,7 +33,7 @@ export default function Register() {
 
   const continueWithGoogle = async () => {
     try {
-      window.location.assign(await googleRedirectUrl('/account'));
+      window.location.assign(await googleRedirectUrl(safeInternalReturnTo(params.get('return_to')) || '/account'));
     } catch {
       toast({ type: 'error', title: 'Google sign-up unavailable', message: 'Check Google OAuth configuration.' });
     }

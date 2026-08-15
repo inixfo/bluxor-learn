@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { currentUser, login as loginRequest, logout as logoutRequest, register as registerRequest, type AuthUser } from '@/services/api/auth';
+import { isAdminUser } from '@/services/auth-routing';
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     user,
     initializing,
-    isAdmin: !!user?.roles?.some((role) => role.name === 'admin'),
+    isAdmin: isAdminUser(user),
     refresh,
     login: async (payload) => {
       const next = await loginRequest(payload);

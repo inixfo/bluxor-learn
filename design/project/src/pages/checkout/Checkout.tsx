@@ -121,6 +121,7 @@ export default function Checkout() {
   };
 
   const total = quote?.total || 0;
+  const loginPath = `/login?${new URLSearchParams({ return_to: `/checkout${location.search}` }).toString()}`;
 
   return (
     <div className="container-page py-8 lg:py-12">
@@ -134,7 +135,7 @@ export default function Checkout() {
           {!user && !initializing && (
             <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50/50 px-4 py-3">
               <p className="text-sm text-ink-700"><span className="font-semibold">Already have an account?</span> Log in for faster checkout.</p>
-              <Link to="/login" className="flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700">
+              <Link to={loginPath} className="flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700">
                 <LogIn className="h-4 w-4" /> Log in
               </Link>
             </div>

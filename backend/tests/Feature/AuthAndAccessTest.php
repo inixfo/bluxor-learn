@@ -42,6 +42,27 @@ class AuthAndAccessTest extends TestCase
         ])->assertOk();
     }
 
+    public function test_authenticated_user_cannot_call_login_or_register_endpoints(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $customer = User::where('email', 'rakib@example.com')->firstOrFail();
+
+        $this->actingAs($customer)->postJson('/api/v1/auth/login', [
+            'email' => 'other@example.com',
+            'password' => 'password123',
+        ])->assertStatus(409)->assertJsonPath('message', 'Already authenticated.');
+
+        $this->actingAs($customer)->postJson('/api/v1/auth/register', [
+            'name' => 'Duplicate Customer',
+            'email' => 'duplicate@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertStatus(409)->assertJsonPath('message', 'Already authenticated.');
+
+        $this->assertDatabaseMissing('users', ['email' => 'duplicate@example.com']);
+    }
+
     public function test_guest_cannot_access_account_and_customer_cannot_access_admin(): void
     {
         $this->seed(DatabaseSeeder::class);

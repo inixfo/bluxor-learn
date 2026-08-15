@@ -5,6 +5,7 @@ import { PublicLayout } from '@/layouts/PublicLayout';
 import { CheckoutLayout } from '@/layouts/CheckoutLayout';
 import { CustomerLayout } from '@/layouts/CustomerLayout';
 import { AdminLayout } from '@/layouts/AdminLayout';
+import { GuestOnlyLayout } from '@/layouts/GuestOnlyLayout';
 
 import Home from '@/pages/Home';
 import Categories from '@/pages/Categories';
@@ -52,9 +53,11 @@ export default function App() {
             <Route path="/categories" element={<Categories />} />
             <Route path="/categories/:slug" element={<Products />} />
             <Route path="/p/:slug" element={<ProductDetail />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route element={<GuestOnlyLayout />}>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+            </Route>
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/about" element={<StaticPage />} />
             <Route path="/contact" element={<StaticPage />} />
