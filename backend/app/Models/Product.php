@@ -43,4 +43,9 @@ class Product extends Model
     {
         return $this->belongsToMany(Bundle::class)->withPivot('sort_order');
     }
+
+    public function resources(): BelongsToMany
+    {
+        return $this->belongsToMany(Resource::class, 'product_resource');
+    }
 }

@@ -1,14 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Eye, FileText, Image as ImageIcon, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Copy, Eye, FileText, FolderDown, Image as ImageIcon, Link2, Save, Trash2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
-import { createAdminProduct, getAdminCategories, getAdminProduct, publishAdminProduct, updateAdminProduct, uploadAdminProductFile, type AdminCategory, type AdminProductFile } from '@/services/api/admin';
+import {
+  attachAdminProductResource,
+  createAdminProduct,
+  detachAdminProductResource,
+  getAdminCategories,
+  getAdminProduct,
+  getAdminResources,
+  publishAdminProduct,
+  updateAdminProduct,
+  uploadAdminProductFile,
+  type AdminCategory,
+  type AdminProductFile,
+  type AdminResource,
+} from '@/services/api/admin';
 
-const tabs = ['Basic Info', 'Pricing', 'Media', 'Digital Files', 'Bundles', 'SEO', 'Status'];
+const tabs = ['Basic Info', 'Pricing', 'Media', 'Digital Files', 'Resources', 'Bundles', 'SEO', 'Status'];
 
 export default function AdminProductEditor() {
   const toast = useToast();
@@ -17,6 +30,9 @@ export default function AdminProductEditor() {
   const [activeTab, setActiveTab] = useState('Basic Info');
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState<AdminProductFile[]>([]);
+  const [resources, setResources] = useState<AdminResource[]>([]);
+  const [allResources, setAllResources] = useState<AdminResource[]>([]);
+  const [selectedResourceId, setSelectedResourceId] = useState('');
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
@@ -37,6 +53,7 @@ export default function AdminProductEditor() {
 
   useEffect(() => {
     getAdminCategories().then(setCategories).catch(() => undefined);
+    getAdminResources().then(setAllResources).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -56,6 +73,7 @@ export default function AdminProductEditor() {
         category_id: product.category_id ? String(product.category_id) : '',
       });
       setFiles(product.files || []);
+      setResources(product.resources || []);
     });
   }, [id]);
 
@@ -127,6 +145,34 @@ export default function AdminProductEditor() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const attachResource = async () => {
+    if (!id || !selectedResourceId) return;
+    try {
+      const product = await attachAdminProductResource(id, Number(selectedResourceId));
+      setResources(product.resources || []);
+      setSelectedResourceId('');
+      toast({ type: 'success', title: 'Resource attached' });
+    } catch {
+      toast({ type: 'error', title: 'Attach failed' });
+    }
+  };
+
+  const detachResource = async (resourceId: number) => {
+    if (!id) return;
+    try {
+      await detachAdminProductResource(id, resourceId);
+      setResources((prev) => prev.filter((resource) => resource.id !== resourceId));
+      toast({ type: 'success', title: 'Resource detached' });
+    } catch {
+      toast({ type: 'error', title: 'Detach failed' });
+    }
+  };
+
+  const copyResourceLink = async (slug: string) => {
+    await navigator.clipboard.writeText(`${window.location.origin}/r/${slug}`);
+    toast({ type: 'success', title: 'Resource link copied.' });
   };
 
   return (
@@ -233,6 +279,48 @@ export default function AdminProductEditor() {
                       </div>
                     </div>
                     <Badge tone={file.status === 'active' ? 'success' : 'neutral'}>{file.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {activeTab === 'Resources' && (
+            <Card className="p-6">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-ink-900">Product Resources</h2>
+                  <p className="mt-1 text-sm text-ink-500">Attach stable /r links for ebook support files and templates.</p>
+                </div>
+                <Button variant="outline" leftIcon={<FolderDown className="h-4 w-4" />} onClick={() => navigate('/admin/resources')}>Upload New Resource</Button>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Select value={selectedResourceId} disabled={!id} onChange={(event) => setSelectedResourceId(event.target.value)}>
+                  <option value="">Attach existing resource</option>
+                  {allResources
+                    .filter((resource) => !resources.some((attached) => attached.id === resource.id))
+                    .map((resource) => <option key={resource.id} value={resource.id}>{resource.title}</option>)}
+                </Select>
+                <Button variant="secondary" disabled={!id || !selectedResourceId} leftIcon={<Link2 className="h-4 w-4" />} onClick={attachResource}>Attach</Button>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {resources.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-ink-200 bg-ink-50 px-4 py-8 text-center text-sm text-ink-500">
+                    No resources attached to this product yet.
+                  </div>
+                ) : resources.map((resource) => (
+                  <div key={resource.id} className="flex flex-col gap-3 rounded-xl border border-ink-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-ink-900">{resource.title}</p>
+                      <p className="font-mono text-xs text-ink-400">/r/{resource.slug} / v{resource.version}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="icon" variant="ghost" title="Copy resource link" onClick={() => copyResourceLink(resource.slug)}><Copy className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Open resource" onClick={() => window.open(`/r/${resource.slug}`, '_blank', 'noopener,noreferrer')}><Eye className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Remove association" onClick={() => detachResource(resource.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </div>
                 ))}
               </div>

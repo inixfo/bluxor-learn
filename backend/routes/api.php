@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AdminHelpArticleController;
 use App\Http\Controllers\Api\AdminHelpCategoryController;
 use App\Http\Controllers\Api\AdminLandingPageController;
 use App\Http\Controllers\Api\AdminNotificationController;
+use App\Http\Controllers\Api\AdminResourceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ContactController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\LandingPageController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PublicSettingsController;
 use App\Http\Controllers\Api\PublicCatalogController;
+use App\Http\Controllers\Api\PublicResourceController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('web')->prefix('v1')->group(function () {
@@ -34,6 +36,8 @@ Route::middleware('web')->prefix('v1')->group(function () {
     Route::get('/help-center', [HelpCenterController::class, 'index']);
     Route::get('/help-center/{categorySlug}/{articleSlug}', [HelpCenterController::class, 'show']);
     Route::get('/settings/contact', [PublicSettingsController::class, 'contact']);
+    Route::get('/resources/{slug}', [PublicResourceController::class, 'show']);
+    Route::get('/resources/{slug}/download', [PublicResourceController::class, 'download'])->middleware('throttle:60,1');
     Route::post('/contact', [ContactController::class, 'submit'])->middleware('throttle:5,1');
     Route::get('/catalog/{slug}', [PublicCatalogController::class, 'catalog']);
     Route::get('/search/products', [PublicCatalogController::class, 'search']);
@@ -88,6 +92,13 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::post('/products/{product}/publish', [AdminController::class, 'publishProduct']);
         Route::post('/products/{product}/archive', [AdminController::class, 'archiveProduct']);
         Route::post('/products/{product}/files', [AdminController::class, 'uploadProductFile']);
+        Route::get('/resources', [AdminResourceController::class, 'index']);
+        Route::post('/resources', [AdminResourceController::class, 'store']);
+        Route::get('/resources/{resource}', [AdminResourceController::class, 'show']);
+        Route::match(['patch', 'post'], '/resources/{resource}', [AdminResourceController::class, 'update']);
+        Route::post('/resources/{resource}/archive', [AdminResourceController::class, 'archive']);
+        Route::post('/products/{product}/resources', [AdminResourceController::class, 'attach']);
+        Route::delete('/products/{product}/resources/{resource}', [AdminResourceController::class, 'detach']);
         Route::apiResource('categories', AdminCategoryController::class);
         Route::get('/orders', [AdminController::class, 'orders']);
         Route::post('/orders/{order}/refund', [PaymentController::class, 'refund'])->middleware('throttle:6,1');

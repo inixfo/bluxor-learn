@@ -23,6 +23,7 @@ export type AdminProduct = {
   category_id?: number | null;
   category?: { id?: number; name: string } | null;
   files?: AdminProductFile[];
+  resources?: AdminResource[];
 };
 
 export type AdminProductFile = {
@@ -32,6 +33,54 @@ export type AdminProductFile = {
   file_size_bytes: number;
   version: string;
   status: string;
+};
+
+export type AdminResourceStatus = 'draft' | 'published' | 'archived';
+export type AdminResourceAccess = 'public' | 'purchase_required';
+export type AdminResourceSource = 'uploaded_file' | 'external_url';
+
+export type AdminResourceVersion = {
+  id: number;
+  resource_id: number;
+  version: string;
+  original_filename?: string | null;
+  file_size?: number | null;
+  created_at: string;
+  creator?: { id: number; name: string; email: string } | null;
+};
+
+export type AdminResource = {
+  id: number;
+  title: string;
+  slug: string;
+  description?: string | null;
+  resource_type: string;
+  source_type: AdminResourceSource;
+  external_url?: string | null;
+  original_filename?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  version: string;
+  access_type: AdminResourceAccess;
+  status: AdminResourceStatus;
+  download_count: number;
+  updated_at: string;
+  products?: { id: number; name: string; slug: string }[];
+  versions?: AdminResourceVersion[];
+};
+
+export type AdminResourcePayload = {
+  title: string;
+  slug: string;
+  description?: string;
+  resource_type: string;
+  source_type: AdminResourceSource;
+  external_url?: string;
+  product_ids?: number[];
+  access_type: AdminResourceAccess;
+  version: string;
+  status: AdminResourceStatus;
+  file?: File | null;
 };
 
 export type AdminProductPayload = {
@@ -361,6 +410,60 @@ export async function uploadAdminProductFile(productId: string, file: File, name
   if (name) formData.append('name', name);
 
   return (await apiFormRequest<{ data: AdminProductFile }>(`/admin/products/${productId}/files`, formData)).data;
+}
+
+export async function getAdminResources(filters: { q?: string; product_id?: number | string; resource_type?: string; status?: string; access_type?: string } = {}): Promise<AdminResource[]> {
+  const params = new URLSearchParams();
+  if (filters.q) params.set('q', filters.q);
+  if (filters.product_id) params.set('product_id', String(filters.product_id));
+  if (filters.resource_type) params.set('resource_type', filters.resource_type);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.access_type) params.set('access_type', filters.access_type);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return pageItems(await apiRequest<{ data: Paginated<AdminResource> }>(`/admin/resources${suffix}`));
+}
+
+export async function getAdminResource(id: number): Promise<AdminResource> {
+  return (await apiRequest<{ data: AdminResource }>(`/admin/resources/${id}`)).data;
+}
+
+export async function createAdminResource(payload: AdminResourcePayload): Promise<AdminResource> {
+  return (await apiFormRequest<{ data: AdminResource }>('/admin/resources', resourceFormData(payload))).data;
+}
+
+export async function updateAdminResource(id: number, payload: Partial<AdminResourcePayload>): Promise<AdminResource> {
+  const formData = resourceFormData(payload);
+  formData.append('_method', 'PATCH');
+  return (await apiFormRequest<{ data: AdminResource }>(`/admin/resources/${id}`, formData)).data;
+}
+
+export async function archiveAdminResource(id: number): Promise<AdminResource> {
+  return (await apiRequest<{ data: AdminResource }>(`/admin/resources/${id}/archive`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function attachAdminProductResource(productId: string, resourceId: number): Promise<AdminProduct> {
+  return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${productId}/resources`, {
+    method: 'POST',
+    body: JSON.stringify({ resource_id: resourceId }),
+  })).data;
+}
+
+export async function detachAdminProductResource(productId: string, resourceId: number): Promise<void> {
+  await apiRequest(`/admin/products/${productId}/resources/${resourceId}`, { method: 'DELETE' });
+}
+
+function resourceFormData(payload: Partial<AdminResourcePayload>): FormData {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || key === 'file' || key === 'product_ids') return;
+    formData.append(key, String(value));
+  });
+  payload.product_ids?.forEach((id) => formData.append('product_ids[]', String(id)));
+  if (payload.file) formData.append('file', payload.file);
+  return formData;
 }
 
 export async function getAdminOrders(): Promise<AdminOrder[]> {

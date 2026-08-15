@@ -21,6 +21,7 @@ import HelpCenter from '@/pages/HelpCenter';
 import HelpArticle from '@/pages/HelpArticle';
 import Faq from '@/pages/Faq';
 import DownloadHelp from '@/pages/DownloadHelp';
+import ResourcePage from '@/pages/ResourcePage';
 import Checkout from '@/pages/checkout/Checkout';
 import PurchaseSuccess from '@/pages/checkout/PurchaseSuccess';
 import CustomerOverview from '@/pages/customer/Overview';
@@ -33,6 +34,7 @@ import CustomerProfile from '@/pages/customer/Profile';
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminProducts from '@/pages/admin/Products';
 import AdminProductEditor from '@/pages/admin/ProductEditor';
+import AdminResources from '@/pages/admin/Resources';
 import AdminOrders from '@/pages/admin/Orders';
 import AdminCustomers from '@/pages/admin/Customers';
 import AdminContactInquiries from '@/pages/admin/ContactInquiries';
@@ -74,6 +76,7 @@ export default function App() {
             <Route path="/help/:categorySlug/:articleSlug" element={<HelpArticle />} />
             <Route path="/faq" element={<Faq />} />
             <Route path="/download-help" element={<DownloadHelp />} />
+            <Route path="/r/:slug" element={<ResourcePage />} />
             <Route path="/terms" element={<StaticPage />} />
             <Route path="/privacy" element={<StaticPage />} />
             <Route path="/refund-policy" element={<StaticPage />} />
@@ -99,6 +102,7 @@ export default function App() {
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/products/new" element={<AdminProductEditor />} />
             <Route path="/admin/products/:id/edit" element={<AdminProductEditor />} />
+            <Route path="/admin/resources" element={<AdminResources />} />
             <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/customers" element={<AdminCustomers />} />

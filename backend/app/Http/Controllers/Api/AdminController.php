@@ -72,7 +72,7 @@ class AdminController extends Controller
 
     public function showProduct(Product $product)
     {
-        return response()->json(['data' => $product->load('category', 'files', 'tags')]);
+        return response()->json(['data' => $product->load('category', 'files', 'tags', 'resources')]);
     }
 
     public function storeProduct(Request $request, PublicMediaService $media)

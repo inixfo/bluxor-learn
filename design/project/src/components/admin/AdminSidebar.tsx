@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, FileCode2, ShoppingCart, Users, Ticket,
-  BarChart3, ClipboardList, Settings, LogOut, ShieldCheck, ChevronLeft, Menu, Tags, FileText, MessageSquare, HelpCircle, CircleHelp,
+  BarChart3, ClipboardList, Settings, LogOut, ShieldCheck, ChevronLeft, Menu, Tags, FileText, MessageSquare, HelpCircle, CircleHelp, FolderDown,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/products', label: 'Products', icon: Package },
   { to: '/admin/categories', label: 'Categories', icon: Tags },
+  { to: '/admin/resources', label: 'Resources', icon: FolderDown },
   { to: '/admin/landing-pages', label: 'Landing Pages', icon: FileCode2 },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/customers', label: 'Customers', icon: Users },
