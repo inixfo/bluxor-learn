@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\LandingPage;
 use App\Models\LandingPageVersion;
+use App\Models\Product;
 use App\Services\LandingPageEngine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 
 class AdminLandingPageController extends Controller
 {
@@ -53,6 +55,10 @@ class AdminLandingPageController extends Controller
             'offers.*.is_primary' => ['nullable', 'boolean'],
         ]);
 
+        if (! empty($data['primary_product_id'])) {
+            $this->publishedProductOrFail((int) $data['primary_product_id'], 'primary_product_id');
+        }
+
         $landingPage->forceFill(['primary_product_id' => $data['primary_product_id'] ?? $landingPage->primary_product_id])->save();
         $this->engine->syncOffers($landingPage, $landingPage->publishedVersion, $data['offers']);
 
@@ -65,16 +71,36 @@ class AdminLandingPageController extends Controller
             'primary_product_id' => ['required', 'integer', 'exists:products,id'],
         ]);
 
-        $landingPage->forceFill(['primary_product_id' => $data['primary_product_id']])->save();
+        $productId = (int) $data['primary_product_id'];
+        $this->publishedProductOrFail($productId, 'primary_product_id');
 
-        $primaryOffer = $landingPage->offers()->where('offer_type', 'product')->where('is_primary', true)->first()
-            ?: $landingPage->offers()->where('offer_type', 'product')->orderBy('sort_order')->first();
+        return DB::transaction(function () use ($landingPage, $productId) {
+            $landingPage->forceFill(['primary_product_id' => $productId])->save();
 
-        if ($primaryOffer) {
-            $primaryOffer->forceFill(['product_id' => $data['primary_product_id']])->save();
-        }
+            $primaryOffer = $landingPage->offers()->where('offer_type', 'product')->where('is_primary', true)->first()
+                ?: $landingPage->offers()->where('offer_type', 'product')->orderBy('sort_order')->first();
 
-        return response()->json(['data' => $this->pagePayload($landingPage->fresh('primaryProduct', 'offers.product', 'offers.bundle'), true)]);
+            if ($primaryOffer) {
+                $primaryOffer->forceFill([
+                    'product_id' => $productId,
+                    'bundle_id' => null,
+                    'is_primary' => true,
+                ])->save();
+                $landingPage->offers()->whereKeyNot($primaryOffer->id)->update(['is_primary' => false]);
+            } elseif (! $landingPage->offers()->exists()) {
+                $landingPage->offers()->create([
+                    'landing_page_version_id' => $landingPage->published_version_id,
+                    'offer_key' => 'single',
+                    'offer_type' => 'product',
+                    'product_id' => $productId,
+                    'bundle_id' => null,
+                    'sort_order' => 0,
+                    'is_primary' => true,
+                ]);
+            }
+
+            return response()->json(['data' => $this->pagePayload($landingPage->fresh('primaryProduct', 'offers.product', 'offers.bundle'), true)]);
+        });
     }
 
     public function publish(LandingPage $landingPage, LandingPageVersion $version)
@@ -163,5 +189,16 @@ class AdminLandingPageController extends Controller
             'published_at' => $version->published_at,
             'landing_page_id' => $version->landing_page_id,
         ];
+    }
+
+    private function publishedProductOrFail(int $productId, string $field): Product
+    {
+        $product = Product::whereKey($productId)->where('status', 'published')->first();
+
+        if (! $product) {
+            throw ValidationException::withMessages([$field => ['Product is not available.']]);
+        }
+
+        return $product;
     }
 }

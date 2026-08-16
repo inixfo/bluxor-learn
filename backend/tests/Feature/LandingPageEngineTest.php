@@ -9,6 +9,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -220,6 +221,130 @@ class LandingPageEngineTest extends TestCase
 
         $this->withHeaders(['Accept' => 'application/json'])->get('/go/legacy-v1')->assertNotFound();
         $this->getJson('/api/v1/landing-pages/legacy-v1/context')->assertNotFound();
+    }
+
+    public function test_associated_product_creates_default_single_offer_when_none_exists(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $admin = User::where('email', 'admin@learn.bluxor.test')->firstOrFail();
+        $product = Product::where('slug', 'ai-automation-n8n')->firstOrFail();
+        $page = LandingPage::create([
+            'uuid' => (string) Str::uuid(),
+            'name' => 'Empty Offer Landing',
+            'slug' => 'empty-offer-landing',
+            'status' => 'draft',
+        ]);
+
+        $this->assertSame(0, $page->offers()->count());
+
+        $this->actingAs($admin)
+            ->patchJson('/api/v1/admin/landing-pages/'.$page->id.'/product', [
+                'primary_product_id' => $product->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.primary_product_id', $product->id)
+            ->assertJsonPath('data.offers.0.offer_key', 'single')
+            ->assertJsonPath('data.offers.0.offer_type', 'product')
+            ->assertJsonPath('data.offers.0.product_id', $product->id)
+            ->assertJsonPath('data.offers.0.is_primary', true);
+
+        $this->assertDatabaseHas('landing_page_offers', [
+            'landing_page_id' => $page->id,
+            'offer_key' => 'single',
+            'offer_type' => 'product',
+            'product_id' => $product->id,
+            'is_primary' => true,
+        ]);
+    }
+
+    public function test_associated_product_reassignment_updates_primary_offer_and_preserves_secondary_offers(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $admin = User::where('email', 'admin@learn.bluxor.test')->firstOrFail();
+        $productA = Product::where('slug', 'ai-automation-n8n')->firstOrFail();
+        $productB = Product::where('slug', 'practical-bug-bounty')->firstOrFail();
+        $bundle = \App\Models\Bundle::where('slug', 'complete-learning-bundle')->firstOrFail();
+        $page = LandingPage::create([
+            'uuid' => (string) Str::uuid(),
+            'name' => 'Reassignment Landing',
+            'slug' => 'reassignment-landing',
+            'status' => 'draft',
+            'primary_product_id' => $productA->id,
+        ]);
+        $page->offers()->create([
+            'offer_key' => 'single',
+            'offer_type' => 'product',
+            'product_id' => $productA->id,
+            'sort_order' => 0,
+            'is_primary' => true,
+        ]);
+        $page->offers()->create([
+            'offer_key' => 'bundle',
+            'offer_type' => 'bundle',
+            'bundle_id' => $bundle->id,
+            'sort_order' => 1,
+            'is_primary' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson('/api/v1/admin/landing-pages/'.$page->id.'/product', [
+                'primary_product_id' => $productB->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.primary_product_id', $productB->id);
+
+        $page->refresh();
+        $this->assertSame(2, $page->offers()->count());
+        $this->assertSame(1, $page->offers()->where('is_primary', true)->count());
+        $this->assertDatabaseHas('landing_page_offers', [
+            'landing_page_id' => $page->id,
+            'offer_key' => 'single',
+            'offer_type' => 'product',
+            'product_id' => $productB->id,
+            'is_primary' => true,
+        ]);
+        $this->assertDatabaseHas('landing_page_offers', [
+            'landing_page_id' => $page->id,
+            'offer_key' => 'bundle',
+            'offer_type' => 'bundle',
+            'bundle_id' => $bundle->id,
+            'is_primary' => false,
+        ]);
+    }
+
+    public function test_archived_or_deleted_product_cannot_be_assigned_to_landing_page(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $admin = User::where('email', 'admin@learn.bluxor.test')->firstOrFail();
+        $archived = Product::where('slug', 'cybersecurity-essentials')->firstOrFail();
+        $archived->forceFill(['status' => 'archived'])->save();
+        $deleted = Product::where('slug', 'react-templates-pack')->firstOrFail();
+        $deleted->delete();
+        $page = LandingPage::create([
+            'uuid' => (string) Str::uuid(),
+            'name' => 'Availability Landing',
+            'slug' => 'availability-landing',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson('/api/v1/admin/landing-pages/'.$page->id.'/product', [
+                'primary_product_id' => $archived->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('primary_product_id');
+
+        $this->actingAs($admin)
+            ->patchJson('/api/v1/admin/landing-pages/'.$page->id.'/product', [
+                'primary_product_id' => $deleted->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('primary_product_id');
+
+        $this->assertSame(0, $page->fresh()->offers()->count());
     }
 
     private function zipUpload(string $name, string $heading = 'Hello', array $extra = []): UploadedFile

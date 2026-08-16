@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { formatBDT } from '@/data/store';
+import { ApiError } from '@/services/api/client';
 import { assignLandingOffers, displayMinor, displaySize, getLandingAnalytics, getLandingPage, getPreviewUrl, publishLandingVersion, searchOfferItems, updateLandingProduct, type LandingAnalytics, type LandingOfferPayload, type LandingPageAdmin, type OfferItem } from '@/services/api/landing';
 import { useToast } from '@/components/ui/Toast';
 
@@ -25,18 +26,20 @@ export default function AdminLandingPageDetail() {
   const [offerDrafts, setOfferDrafts] = useState<LandingOfferPayload[]>([]);
   const [associatedProductId, setAssociatedProductId] = useState('');
 
+  const applyPage = (next: LandingPageAdmin) => {
+    setPage(next);
+    setAssociatedProductId(next.primary_product_id ? String(next.primary_product_id) : '');
+    setOfferDrafts((next.offers || []).map((offer) => ({
+      offer_key: offer.offer_key,
+      offer_type: offer.offer_type as 'product' | 'bundle',
+      product_id: offer.product_id || null,
+      bundle_id: offer.bundle_id || null,
+      is_primary: offer.is_primary,
+    })));
+  };
+
   const load = () => {
-    getLandingPage(id).then((next) => {
-      setPage(next);
-      setAssociatedProductId(next.primary_product_id ? String(next.primary_product_id) : '');
-      setOfferDrafts((next.offers || []).map((offer) => ({
-        offer_key: offer.offer_key,
-        offer_type: offer.offer_type as 'product' | 'bundle',
-        product_id: offer.product_id || null,
-        bundle_id: offer.bundle_id || null,
-        is_primary: offer.is_primary,
-      })));
-    });
+    getLandingPage(id).then(applyPage);
     getLandingAnalytics(Number(id)).then(setAnalytics);
   };
 
@@ -60,33 +63,60 @@ export default function AdminLandingPageDetail() {
 
   const saveOffers = async () => {
     if (!page) return;
-    const keys = offerDrafts.map((offer) => offer.offer_key.trim()).filter(Boolean);
-    if (new Set(keys).size !== keys.length) {
-      toast({ type: 'error', title: 'Duplicate offer keys', message: 'Offer keys must be unique for this landing page.' });
+    const validation = validateOfferDrafts(offerDrafts);
+    if (validation) {
+      toast({ type: 'error', title: 'Unable to save offers', message: validation });
       return;
     }
 
-    await assignLandingOffers(page.id, {
-      primary_product_id: page.primary_product_id || offerDrafts.find((offer) => offer.offer_type === 'product' && offer.is_primary)?.product_id || null,
-      offers: offerDrafts.map((offer, index) => ({
-        ...offer,
-        offer_key: offer.offer_key.trim(),
-        is_primary: offer.is_primary || index === 0,
-      })),
-    });
-    toast({ type: 'success', title: 'Offers saved' });
-    load();
+    try {
+      const next = await assignLandingOffers(page.id, {
+        primary_product_id: page.primary_product_id || Number(associatedProductId) || offerDrafts.find((offer) => offer.offer_type === 'product' && offer.is_primary)?.product_id || null,
+        offers: offerDrafts.map((offer) => ({
+          ...offer,
+          offer_key: offer.offer_key.trim(),
+          is_primary: !!offer.is_primary,
+        })),
+      });
+      applyPage(next);
+      toast({ type: 'success', title: 'Offers saved' });
+      load();
+    } catch (error) {
+      toast({ type: 'error', title: 'Unable to save offers', message: apiErrorMessage(error, 'Add at least one valid offer.') });
+    }
   };
 
   const saveAssociatedProduct = async () => {
     if (!page || !associatedProductId) return;
-    await updateLandingProduct(page.id, Number(associatedProductId));
-    toast({ type: 'success', title: 'Associated product updated' });
-    load();
+    try {
+      const next = await updateLandingProduct(page.id, Number(associatedProductId));
+      applyPage(next);
+      toast({ type: 'success', title: 'Associated product updated.' });
+      load();
+    } catch (error) {
+      toast({ type: 'error', title: 'Unable to update associated product', message: apiErrorMessage(error, 'Choose a published product and try again.') });
+    }
   };
 
   const updateOffer = (index: number, patch: Partial<LandingOfferPayload>) => {
     setOfferDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
+  };
+
+  const addOffer = () => {
+    setOfferDrafts((rows) => {
+      const first = rows.length === 0;
+      const associatedId = Number(page?.primary_product_id || associatedProductId || 0) || null;
+      return [
+        ...rows,
+        {
+          offer_key: first ? 'single' : `offer-${rows.length + 1}`,
+          offer_type: 'product',
+          product_id: first ? associatedId : offerItems.product[0]?.id || null,
+          bundle_id: null,
+          is_primary: first,
+        },
+      ];
+    });
   };
 
   if (!page) {
@@ -142,6 +172,7 @@ export default function AdminLandingPageDetail() {
           <Card className="p-5">
             <div className="mb-5">
               <h2 className="mb-2 text-sm font-bold text-ink-900">Associated Product</h2>
+              <p className="mb-3 text-xs leading-5 text-ink-500">The main product sold by this landing page.</p>
               <div className="flex gap-2">
                 <select value={associatedProductId} onChange={(event) => setAssociatedProductId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-sm">
                   <option value="">Select product</option>
@@ -149,13 +180,21 @@ export default function AdminLandingPageDetail() {
                 </select>
                 <Button size="sm" onClick={saveAssociatedProduct}>Save</Button>
               </div>
-              <p className="mt-1 text-xs text-ink-400">Runtime product bindings update without re-uploading the package.</p>
+              <p className="mt-1 text-xs text-ink-400">Saving creates or updates the default primary offer when needed.</p>
             </div>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-ink-900">Offer Assignment</h2>
-              <Button size="sm" variant="outline" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setOfferDrafts((rows) => [...rows, { offer_key: `offer-${rows.length + 1}`, offer_type: 'product', product_id: offerItems.product[0]?.id || null, is_primary: rows.length === 0 }])}>Add</Button>
+              <div>
+                <h2 className="text-sm font-bold text-ink-900">Offer Assignment</h2>
+                <p className="mt-1 text-xs leading-5 text-ink-500">Optional advanced offers for bundles, alternate products, or multiple CTA options.</p>
+              </div>
+              <Button size="sm" variant="outline" leftIcon={<Plus className="h-4 w-4" />} onClick={addOffer}>Add</Button>
             </div>
             <div className="space-y-3">
+              {offerDrafts.length === 0 && (
+                <div className="rounded-lg border border-dashed border-ink-200 bg-ink-50/70 px-4 py-5 text-sm text-ink-500">
+                  No advanced offers are configured yet. Use Associated Product for the default product, or add an offer for alternate CTA options.
+                </div>
+              )}
               {offerDrafts.map((offer, index) => {
                 const items = offerItems[offer.offer_type];
                 const selectedId = offer.offer_type === 'bundle' ? offer.bundle_id : offer.product_id;
@@ -166,7 +205,10 @@ export default function AdminLandingPageDetail() {
                       <option value="product">Product</option>
                       <option value="bundle">Bundle</option>
                     </select>
-                    <select value={selectedId || ''} onChange={(event) => updateOffer(index, offer.offer_type === 'bundle' ? { bundle_id: Number(event.target.value), product_id: null } : { product_id: Number(event.target.value), bundle_id: null })} className="rounded-lg border border-ink-200 px-3 py-2 text-sm">
+                    <select value={selectedId || ''} onChange={(event) => {
+                      const nextId = Number(event.target.value) || null;
+                      updateOffer(index, offer.offer_type === 'bundle' ? { bundle_id: nextId, product_id: null } : { product_id: nextId, bundle_id: null });
+                    }} className="rounded-lg border border-ink-200 px-3 py-2 text-sm">
                       <option value="">Select item</option>
                       {items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                     </select>
@@ -184,7 +226,7 @@ export default function AdminLandingPageDetail() {
               })}
             </div>
             <div className="mt-4 flex justify-end">
-              <Button onClick={saveOffers}>Save Offers</Button>
+              <Button onClick={saveOffers} disabled={offerDrafts.length === 0}>Save Offers</Button>
             </div>
           </Card>
         </div>
@@ -241,4 +283,27 @@ export default function AdminLandingPageDetail() {
       )}
     </div>
   );
+}
+
+function validateOfferDrafts(offers: LandingOfferPayload[]): string | null {
+  if (offers.length === 0) return 'Add at least one offer before saving.';
+
+  const keys = offers.map((offer) => offer.offer_key.trim());
+  if (keys.some((key) => key === '')) return 'Offer key is required for every offer.';
+  if (new Set(keys).size !== keys.length) return 'Offer keys must be unique for this landing page.';
+
+  for (const offer of offers) {
+    if (offer.offer_type === 'product' && !offer.product_id) return `Offer ${offer.offer_key || '(untitled)'} needs a product.`;
+    if (offer.offer_type === 'bundle' && !offer.bundle_id) return `Offer ${offer.offer_key || '(untitled)'} needs a bundle.`;
+  }
+
+  if (offers.filter((offer) => offer.is_primary).length !== 1) return 'Select exactly one featured offer.';
+
+  return null;
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) return error.message || fallback;
+  if (error instanceof Error) return error.message || fallback;
+  return fallback;
 }
