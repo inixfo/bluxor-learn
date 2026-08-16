@@ -392,6 +392,14 @@ function productFormData(payload: Partial<AdminProductPayload>): FormData {
   const formData = new FormData();
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null || key === 'cover_image') return;
+    if (key === 'remove_cover_image') {
+      if (value === true) formData.append(key, formBoolean(value));
+      return;
+    }
+    if (typeof value === 'boolean') {
+      formData.append(key, formBoolean(value));
+      return;
+    }
     formData.append(key, String(value));
   });
   if (payload.cover_image) formData.append('cover_image', payload.cover_image);
@@ -535,10 +543,22 @@ function categoryFormData(payload: Partial<AdminCategory> & { image?: File | nul
   const formData = new FormData();
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null || key === 'image') return;
+    if (key === 'remove_image') {
+      if (value === true) formData.append(key, formBoolean(value));
+      return;
+    }
+    if (typeof value === 'boolean') {
+      formData.append(key, formBoolean(value));
+      return;
+    }
     formData.append(key, String(value));
   });
   if (payload.image) formData.append('image', payload.image);
   return formData;
+}
+
+function formBoolean(value: boolean): string {
+  return value ? '1' : '0';
 }
 
 export async function getAdminContentPages(): Promise<AdminContentPage[]> {
