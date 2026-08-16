@@ -60,9 +60,12 @@ class AdminController extends Controller
 
     public function products(Request $request)
     {
-        $products = Product::with('category')
+        $status = $request->query('status');
+        $products = Product::query()
+            ->with('category')
+            ->when($status === 'deleted', fn ($query) => $query->onlyTrashed())
             ->when($request->query('q'), fn ($query, $q) => $query->where('name', 'like', "%{$q}%"))
-            ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
+            ->when($status && $status !== 'deleted', fn ($query) => $query->where('status', $status))
             ->when($request->query('type'), fn ($query, $type) => $query->where('product_type', $type))
             ->latest()
             ->paginate(20);
@@ -162,6 +165,60 @@ class AdminController extends Controller
     {
         $product->forceFill(['status' => 'archived'])->save();
         $this->audit->log('product.archived', $product);
+
+        return response()->json(['data' => $product->fresh('category')]);
+    }
+
+    public function restoreProduct(Product $product)
+    {
+        $product->forceFill([
+            'status' => 'draft',
+            'published_at' => null,
+        ])->save();
+        $this->audit->log('product.restored', $product);
+
+        return response()->json(['data' => $product->fresh('category')]);
+    }
+
+    public function deleteProduct(Request $request, Product $product)
+    {
+        $activeBundleCount = $product->bundles()->where('bundles.status', 'published')->count();
+        abort_if($activeBundleCount > 0, 422, 'Remove this product from '.$activeBundleCount.' active bundle'.($activeBundleCount === 1 ? '' : 's').' before deleting it.');
+
+        $landingCount = LandingPage::query()
+            ->where('status', 'published')
+            ->where(fn ($query) => $query
+                ->where('primary_product_id', $product->id)
+                ->orWhereHas('offers', fn ($offer) => $offer->where('offer_type', 'product')->where('product_id', $product->id)))
+            ->count();
+
+        $metadata = [
+            'product_id' => $product->id,
+            'product_title' => $product->name,
+            'active_landing_pages' => $landingCount,
+            'resources_count' => $product->resources()->count(),
+        ];
+
+        $product->forceFill(['status' => 'archived'])->save();
+        $product->delete();
+
+        $this->audit->log('product.deleted', $product, $metadata, $request);
+
+        return response()->json(['data' => ['ok' => true, 'active_landing_pages' => $landingCount]]);
+    }
+
+    public function restoreDeletedProduct(Request $request, int $id)
+    {
+        $product = Product::withTrashed()->findOrFail($id);
+        abort_unless($product->trashed(), 422, 'Product is not deleted.');
+
+        $product->restore();
+        $product->forceFill([
+            'status' => 'draft',
+            'published_at' => null,
+        ])->save();
+
+        $this->audit->log('product.restored_from_trash', $product, ['product_id' => $product->id, 'product_title' => $product->name], $request);
 
         return response()->json(['data' => $product->fresh('category')]);
     }

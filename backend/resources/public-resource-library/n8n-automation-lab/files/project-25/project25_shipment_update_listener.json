@@ -1,0 +1,211 @@
+{
+  "name": "Project 25 — Shipment Update Listener",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "topic": "fulfillments/update"
+      },
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "e3f21a2e-cc10-410a-83a5-67b83f0de17f",
+      "name": "Shopify — Fulfillment Updated",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "REPLACE_WITH_YOUR_SHOPIFY_CREDENTIAL",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const orderId=String(x.order_id||''); const shop='REPLACE_WITH_STORE_DOMAIN'; const t=(x.tracking_numbers||[])[0]||x.tracking_number||''; const u=(x.tracking_urls||[])[0]||x.tracking_url||''; return [{json:{order_key:shop+':'+orderId,order_id:orderId,tracking_number:String(t),tracking_url:String(u),status:String(x.status||'fulfilling'),updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -350,
+        0
+      ],
+      "id": "e840f6db-1259-4abd-a234-316c90e7ccf7",
+      "name": "Normalize Shipment Update"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -100,
+        0
+      ],
+      "id": "ffd253cc-ea61-4a4d-92e0-c2a0a4e1a872",
+      "name": "Get Order State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const e=$('Normalize Shipment Update').item.json; const s=$json||{}; return [{json:{...s,...e,customer_email:String(s.customer_email||''),customer_name:String(s.customer_name||'Customer'),order_name:String(s.order_name||e.order_id)}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        150,
+        0
+      ],
+      "id": "d3f69ee7-4cc4-489b-93f5-629dae371221",
+      "name": "Merge Shipment Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_key": "={{ $json.order_key }}",
+            "tracking_number": "={{ $json.tracking_number }}",
+            "tracking_url": "={{ $json.tracking_url }}",
+            "status": "fulfilling",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "4ce257ea-ab6c-465c-92e3-6137069d06a5",
+      "name": "Checkpoint Tracking"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"Merge Shipment Context\").item.json.customer_email }}",
+        "subject": "={{ \"Shipping update — \" + $(\"Merge Shipment Context\").item.json.order_name }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $(\"Merge Shipment Context\").item.json.customer_name }},</p><p>Your order is moving through fulfillment.</p><p>Tracking: <strong>{{ $(\"Merge Shipment Context\").item.json.tracking_number }}</strong></p><p><a href=\"{{ $(\"Merge Shipment Context\").item.json.tracking_url }}\">Track shipment</a></p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        650,
+        0
+      ],
+      "id": "680f4ecf-3b39-4062-b736-ab5276334e5d",
+      "name": "Send Tracking Update",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Shopify — Fulfillment Updated": {
+      "main": [
+        [
+          {
+            "node": "Normalize Shipment Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Shipment Update": {
+      "main": [
+        [
+          {
+            "node": "Get Order State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order State": {
+      "main": [
+        [
+          {
+            "node": "Merge Shipment Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Shipment Context": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Tracking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Tracking": {
+      "main": [
+        [
+          {
+            "node": "Send Tracking Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "50f7b9a4-2b61-46bf-a1f4-bf9eea11fe10",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

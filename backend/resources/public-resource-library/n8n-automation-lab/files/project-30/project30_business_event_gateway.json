@@ -1,0 +1,424 @@
+{
+  "name": "P30 FINAL — Business Event Gateway",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "p30-business-event",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "88eaf8cf-96c7-4039-a894-50ac3d8db88d",
+      "name": "Business Event Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1250,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event_id"
+            },
+            {
+              "name": "trace_id"
+            },
+            {
+              "name": "event_type"
+            },
+            {
+              "name": "schema_version"
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "entity_type"
+            },
+            {
+              "name": "entity_id"
+            },
+            {
+              "name": "occurred_at"
+            },
+            {
+              "name": "data"
+            }
+          ]
+        }
+      },
+      "id": "b41941af-a77c-4a9d-bf67-f8c157bfb670",
+      "name": "Internal Business Event",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1250,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$input.first().json||{}; const body=raw.body&&typeof raw.body==='object'?raw.body:raw; let data=body.data||{}; if(typeof data==='string'){try{data=JSON.parse(data)}catch{data={raw:data}}} const required=['event_id','event_type','entity_type','entity_id']; const missing=required.filter(k=>!String(body[k]||'').trim()); if(missing.length) throw new Error('missing_event_fields:'+missing.join(',')); const now=new Date().toISOString(); return [{json:{event_id:String(body.event_id).trim(),trace_id:String(body.trace_id||body.event_id).trim(),event_type:String(body.event_type).trim().toLowerCase(),schema_version:String(body.schema_version||'business.event.v1'),source:String(body.source||'unknown'),entity_type:String(body.entity_type).trim(),entity_id:String(body.entity_id).trim(),occurred_at:String(body.occurred_at||now),received_at:now,data,raw_event_json:JSON.stringify({...body,data})}}];"
+      },
+      "id": "8c9b0d74-c9cf-4e61-bbbd-46da62553e53",
+      "name": "Normalize Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_EVENT_LEDGER_ID",
+          "mode": "list",
+          "cachedResultName": "p30_event_ledger"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "event_id",
+              "keyValue": "={{ $json.event_id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "id": "75d1d888-d181-495e-837e-e32a8d47d65b",
+      "name": "Get Existing Event",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -700,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const e=$('Normalize Event').first().json; const old=$input.first().json||{}; const duplicate=String(old.event_id||'')===e.event_id; return [{json:{...e,duplicate,should_process:!duplicate,existing_status:String(old.status||''),route_key:String(old.route_key||''),updated_at:new Date().toISOString()}}];"
+      },
+      "id": "43c3d47d-3f64-47e8-afb0-432ca73648fd",
+      "name": "Decide New or Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -430,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7a7de815-a68d-48ed-8aee-e056b1a99412",
+              "leftValue": "={{ $json.should_process }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b4bc19d3-ebc3-4c8f-8866-de1aa30ef77a",
+      "name": "Should Process?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -170,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_EVENT_LEDGER_ID",
+          "mode": "list",
+          "cachedResultName": "p30_event_ledger"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "event_id",
+              "keyValue": "={{ $json.event_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_id": "={{ $json.event_id }}",
+            "trace_id": "={{ $json.trace_id }}",
+            "event_type": "={{ $json.event_type }}",
+            "schema_version": "={{ $json.schema_version }}",
+            "source": "={{ $json.source }}",
+            "entity_type": "={{ $json.entity_type }}",
+            "entity_id": "={{ $json.entity_id }}",
+            "occurred_at": "={{ $json.occurred_at }}",
+            "received_at": "={{ $json.received_at }}",
+            "status": "accepted",
+            "route_key": "",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "bbe9ba03-49e9-433c-a645-d109c48269c0",
+      "name": "Checkpoint Accepted",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        110,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_DISPATCHER_ID",
+          "mode": "list",
+          "cachedResultName": "P30 Dispatcher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_json": "={{ $(\"Normalize Event\").item.json.raw_event_json }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "event_json",
+              "displayName": "event_json",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "5ae7629d-dceb-438c-857f-d6b817b90c97",
+      "name": "Call Dispatcher",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_EVENT_LEDGER_ID",
+          "mode": "list",
+          "cachedResultName": "p30_event_ledger"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "event_id",
+              "keyValue": "={{ $(\"Normalize Event\").item.json.event_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_id": "={{ $(\"Normalize Event\").item.json.event_id }}",
+            "trace_id": "={{ $(\"Normalize Event\").item.json.trace_id }}",
+            "event_type": "={{ $(\"Normalize Event\").item.json.event_type }}",
+            "schema_version": "={{ $(\"Normalize Event\").item.json.schema_version }}",
+            "source": "={{ $(\"Normalize Event\").item.json.source }}",
+            "entity_type": "={{ $(\"Normalize Event\").item.json.entity_type }}",
+            "entity_id": "={{ $(\"Normalize Event\").item.json.entity_id }}",
+            "occurred_at": "={{ $(\"Normalize Event\").item.json.occurred_at }}",
+            "received_at": "={{ $(\"Normalize Event\").item.json.received_at }}",
+            "status": "={{ $json.ok === false ? \"rejected\" : \"completed\" }}",
+            "route_key": "={{ $json.route_key || \"\" }}",
+            "updated_at": "={{ $now.toISO() }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "5bb92782-9ed2-43c0-ba4d-daf872bd6efa",
+      "name": "Checkpoint Final Status",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e=$('Normalize Event').first().json; const r=$('Call Dispatcher').first().json||{}; return [{json:{ok:r.ok!==false,status:r.ok===false?'rejected':'completed',contract_version:'business.gateway.v1',event_id:e.event_id,trace_id:e.trace_id,event_type:e.event_type,route_key:r.route_key||'',dispatch:r}}];"
+      },
+      "id": "b4fb78a9-adfc-45fb-bf92-972aa84aaa0e",
+      "name": "Return Gateway Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Decide New or Duplicate').first().json; return [{json:{ok:true,status:'duplicate',contract_version:'business.gateway.v1',event_id:x.event_id,trace_id:x.trace_id,event_type:x.event_type,previous_status:x.existing_status,route_key:x.route_key,note:'No business route executed again.'}}];"
+      },
+      "id": "f28d971d-8d97-4626-8334-35d7f63e7674",
+      "name": "Return Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        150,
+        170
+      ]
+    }
+  ],
+  "connections": {
+    "Business Event Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internal Business Event": {
+      "main": [
+        [
+          {
+            "node": "Normalize Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Event": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Event": {
+      "main": [
+        [
+          {
+            "node": "Decide New or Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide New or Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Should Process?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Process?": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Accepted": {
+      "main": [
+        [
+          {
+            "node": "Call Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Final Status": {
+      "main": [
+        [
+          {
+            "node": "Return Gateway Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P30-GATEWAY-V1"
+}

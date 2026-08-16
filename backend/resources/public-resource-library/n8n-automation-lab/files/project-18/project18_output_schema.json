@@ -1,0 +1,13 @@
+{
+  "fit_score": 0,
+  "intent_score": 0,
+  "urgency_score": 0,
+  "budget_score": 0,
+  "completeness_score": 0,
+  "summary": "Short factual summary",
+  "next_action": "Recommended next action",
+  "missing_information": ["budget", "timeline"],
+  "confidence": 0.0,
+  "needs_human_review": false,
+  "review_reason": ""
+}

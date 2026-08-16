@@ -1,0 +1,249 @@
+{
+  "name": "Project 24 — Demo Completion Caller",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "a1805b00-2ca2-4111-8d3a-2390f67d739e",
+      "name": "When clicking “Test workflow”"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e521ab87-22c2-4c8e-a527-aeb9ad377fbb",
+              "name": "feedback_key",
+              "value": "7f8c3f62-6747-41f3-9a72-8cba0a0df741",
+              "type": "string"
+            },
+            {
+              "id": "102a62b3-8e94-4ec9-aa34-45d8019f038a",
+              "name": "reference_id",
+              "value": "DEAL-10042",
+              "type": "string"
+            },
+            {
+              "id": "c12a2846-dff8-41c9-a020-3e68ebaacdc7",
+              "name": "reference_type",
+              "value": "project",
+              "type": "string"
+            },
+            {
+              "id": "30c7892f-f9e6-4381-8ef8-faa861f699e8",
+              "name": "customer_name",
+              "value": "Rahim",
+              "type": "string"
+            },
+            {
+              "id": "05fee36d-2872-45c1-b1ec-cc336f192859",
+              "name": "customer_email",
+              "value": "rahim@example.com",
+              "type": "string"
+            },
+            {
+              "id": "0a081adf-cb40-4dab-8554-08ff7f4cb825",
+              "name": "context_name",
+              "value": "Rahim Foods — Website Phase 1",
+              "type": "string"
+            },
+            {
+              "id": "b6f4b01a-6a1b-403b-96c6-7bb29cca87af",
+              "name": "owner_email",
+              "value": "owner@example.com",
+              "type": "string"
+            },
+            {
+              "id": "3f8b9076-af3c-487f-8a12-ae6e61e6cb96",
+              "name": "review_policy",
+              "value": "none",
+              "type": "string"
+            },
+            {
+              "id": "9c7a022c-8cd8-4766-9781-c635aea8d3e5",
+              "name": "review_url",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "1a766466-f5eb-4ee9-bbb8-7ca5dad28fbe",
+              "name": "source",
+              "value": "project_completion",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "5d09a0c1-81cc-44eb-9c29-8f9f42ef7415",
+      "name": "Sample Completed Project"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_IMPORTED_PROJECT24_REQUESTER_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Project 24 — Feedback Requester"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={ $json.feedback_key }",
+            "reference_id": "={ $json.reference_id }",
+            "reference_type": "={ $json.reference_type }",
+            "customer_name": "={ $json.customer_name }",
+            "customer_email": "={ $json.customer_email }",
+            "context_name": "={ $json.context_name }",
+            "owner_email": "={ $json.owner_email }",
+            "review_policy": "={ $json.review_policy }",
+            "review_url": "={ $json.review_url }",
+            "source": "={ $json.source }"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "feedback_key",
+              "displayName": "feedback_key",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reference_id",
+              "displayName": "reference_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reference_type",
+              "displayName": "reference_type",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "customer_name",
+              "displayName": "customer_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "customer_email",
+              "displayName": "customer_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "context_name",
+              "displayName": "context_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "owner_email",
+              "displayName": "owner_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "review_policy",
+              "displayName": "review_policy",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "review_url",
+              "displayName": "review_url",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8c2aa1d7-3e60-4436-b565-e995f1c4038e",
+      "name": "Call Project 24 Feedback Requester"
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Sample Completed Project",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Completed Project": {
+      "main": [
+        [
+          {
+            "node": "Call Project 24 Feedback Requester",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3f3431b6-5529-4cc8-bc51-d9a0aef049d6",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,17 @@
+{
+  "execution": {
+    "id": "88421",
+    "url": "https://n8n.example.com/execution/88421",
+    "retryOf": null,
+    "error": {
+      "message": "Service unavailable - try again later",
+      "stack": "NodeApiError: 503 ..."
+    },
+    "lastNodeExecuted": "Call Shipping API",
+    "mode": "webhook"
+  },
+  "workflow": {
+    "id": "W123",
+    "name": "Order Fulfillment"
+  }
+}

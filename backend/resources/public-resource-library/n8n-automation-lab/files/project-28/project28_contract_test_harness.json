@@ -1,0 +1,197 @@
+{
+  "name": "P28 TEST-01 — Contract Harness",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6eb055f6-d9d9-4586-8a23-fd9d1dca5610",
+      "name": "When clicking “Test workflow”",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "82f6dc1c-b15a-4561-a61b-c3b96405fb88",
+              "name": "full_name",
+              "value": "Test User",
+              "type": "string"
+            },
+            {
+              "id": "594a0b81-50ba-42bf-b160-ea49c9b4113a",
+              "name": "email",
+              "value": "TEST@EXAMPLE.COM",
+              "type": "string"
+            },
+            {
+              "id": "e49ebcbf-dfe6-4968-93d3-c60186024158",
+              "name": "phone",
+              "value": "01700000000",
+              "type": "string"
+            },
+            {
+              "id": "c9c5ca06-efa7-4e2b-965c-2dd43052bf3e",
+              "name": "country_code",
+              "value": "+880",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f2ce38c3-0ed3-4dc5-b2e1-c5b8c2fd5064",
+      "name": "Test Fixture",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_UTIL01_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Normalize Contact"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "TEST-1",
+            "full_name": "={{ $json.full_name }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "country_code": "={{ $json.country_code }}",
+            "source": "contract-test"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "country_code",
+              "displayName": "country_code",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "1ed7a912-8d80-4a93-88bf-fe6a9dfdf6f2",
+      "name": "Call Normalize Contact",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json; const fail=[]; if(x.ok!==true) fail.push('ok'); if(x.contract_version!=='contact.normalize.v1') fail.push('contract_version'); if(x.contact?.email!=='test@example.com') fail.push('email normalization'); if(!String(x.contact?.phone_e164||'').startsWith('+880')) fail.push('phone'); if(fail.length) throw new Error('Contract regression: '+fail.join(', ')); return [{json:{ok:true,test:'UTIL-01 v1 contract',checked_at:new Date().toISOString(),output:x}}];"
+      },
+      "id": "1ed473ae-4387-41fe-9fd3-bbd37c5a5a1d",
+      "name": "Assert Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        210,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Test Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Fixture": {
+      "main": [
+        [
+          {
+            "node": "Call Normalize Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Normalize Contact": {
+      "main": [
+        [
+          {
+            "node": "Assert Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P28-TEST01"
+}

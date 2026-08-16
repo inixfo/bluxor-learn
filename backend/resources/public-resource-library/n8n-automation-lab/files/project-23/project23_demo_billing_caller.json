@@ -1,0 +1,354 @@
+{
+  "name": "Project 23 — Demo Billing Caller",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "f57bb463-78ed-4564-9093-5a200dfedf31",
+      "name": "When clicking “Test workflow”"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "09dbe837-36b7-4291-acfe-7b1d9fbcc8bf",
+              "name": "invoice_key",
+              "value": "DEAL-10042:PHASE-1",
+              "type": "string"
+            },
+            {
+              "id": "478e8be6-48bd-4bfb-a118-02be3bb4406f",
+              "name": "invoice_number",
+              "value": "INV-2026-1042",
+              "type": "string"
+            },
+            {
+              "id": "a572d2e9-bb99-40f2-bc5c-14770114c029",
+              "name": "deal_id",
+              "value": "DEAL-10042",
+              "type": "string"
+            },
+            {
+              "id": "8756474b-81c1-4528-b896-c1328d823206",
+              "name": "client_name",
+              "value": "Rahim Ahmed",
+              "type": "string"
+            },
+            {
+              "id": "69ee9b70-1b3b-458f-8b65-de01db3e6692",
+              "name": "client_email",
+              "value": "rahim@example.com",
+              "type": "string"
+            },
+            {
+              "id": "d08f69fd-9a90-49d6-bca0-d9eaa3655e52",
+              "name": "client_company",
+              "value": "Rahim Foods Ltd.",
+              "type": "string"
+            },
+            {
+              "id": "1713259e-b6e3-43b7-840f-aba617769680",
+              "name": "currency",
+              "value": "USD",
+              "type": "string"
+            },
+            {
+              "id": "2a8d08ce-6eff-4606-a576-94cbf2039b0e",
+              "name": "line_items_json",
+              "value": "[{\"description\": \"Website Development — Phase 1\", \"quantity\": 1, \"unit_price\": 1000}, {\"description\": \"Maintenance — Month 1\", \"quantity\": 1, \"unit_price\": 250}]",
+              "type": "string"
+            },
+            {
+              "id": "fdba3ffb-472e-4321-af89-81a497089362",
+              "name": "discount_amount",
+              "value": "50",
+              "type": "string"
+            },
+            {
+              "id": "6906c90e-265f-4c8c-9150-daced1875428",
+              "name": "tax_rate",
+              "value": "0",
+              "type": "string"
+            },
+            {
+              "id": "a92e7e58-44a4-4725-90df-f789e4c5db8e",
+              "name": "issue_date",
+              "value": "2026-08-13",
+              "type": "string"
+            },
+            {
+              "id": "22537975-7b6e-485e-8152-8f5bae46ee59",
+              "name": "due_date",
+              "value": "2026-08-20",
+              "type": "string"
+            },
+            {
+              "id": "f7fe16ef-3d8b-41f8-b55b-cc6f25c04e7c",
+              "name": "payment_link",
+              "value": "https://pay.example.com/inv/INV-2026-1042",
+              "type": "string"
+            },
+            {
+              "id": "6cde7120-32c8-4966-80a1-593b20efa1eb",
+              "name": "billing_address",
+              "value": "Dhaka, Bangladesh",
+              "type": "string"
+            },
+            {
+              "id": "0dbba576-b801-47e9-b8df-d79b983817d7",
+              "name": "notes",
+              "value": "Thank you for your business.",
+              "type": "string"
+            },
+            {
+              "id": "6a99e1b1-1168-4a53-b434-d75b7fbab9a3",
+              "name": "owner_email",
+              "value": "billing@example.com",
+              "type": "string"
+            },
+            {
+              "id": "7d646110-5046-4a0f-8e11-6f1ba3d4cee7",
+              "name": "source",
+              "value": "Approved billing record",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "a5ebea3b-bb27-4aa2-a798-5ac94ace48c3",
+      "name": "Sample Approved Billing Handoff"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_IMPORTED_PROJECT23_ISSUER_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Project 23 — Automatic Invoice Issuer"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_key": "={ $json.invoice_key }",
+            "invoice_number": "={ $json.invoice_number }",
+            "deal_id": "={ $json.deal_id }",
+            "client_name": "={ $json.client_name }",
+            "client_email": "={ $json.client_email }",
+            "client_company": "={ $json.client_company }",
+            "currency": "={ $json.currency }",
+            "line_items_json": "={ $json.line_items_json }",
+            "discount_amount": "={ $json.discount_amount }",
+            "tax_rate": "={ $json.tax_rate }",
+            "issue_date": "={ $json.issue_date }",
+            "due_date": "={ $json.due_date }",
+            "payment_link": "={ $json.payment_link }",
+            "billing_address": "={ $json.billing_address }",
+            "notes": "={ $json.notes }",
+            "owner_email": "={ $json.owner_email }",
+            "source": "={ $json.source }"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "invoice_key",
+              "displayName": "invoice_key",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "invoice_number",
+              "displayName": "invoice_number",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "deal_id",
+              "displayName": "deal_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_company",
+              "displayName": "client_company",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "line_items_json",
+              "displayName": "line_items_json",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "discount_amount",
+              "displayName": "discount_amount",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tax_rate",
+              "displayName": "tax_rate",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "issue_date",
+              "displayName": "issue_date",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "payment_link",
+              "displayName": "payment_link",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "billing_address",
+              "displayName": "billing_address",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "owner_email",
+              "displayName": "owner_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b46d9728-05fa-40e7-ae8d-0a88e09a0c18",
+      "name": "Call Project 23 Invoice Issuer"
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Sample Approved Billing Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Approved Billing Handoff": {
+      "main": [
+        [
+          {
+            "node": "Call Project 23 Invoice Issuer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "611cf497-c64b-4698-940e-ba2b570943de",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

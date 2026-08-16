@@ -1,0 +1,9 @@
+﻿column,type,required,purpose
+task_key,string,yes,idempotency key
+customer_id,string,yes,owner object
+title,string,yes,task title
+due_at,datetime,no,due time
+priority,string,yes,low/normal/high
+status,string,yes,open/done
+created_by,string,yes,agent/manual
+created_at,datetime,yes,audit

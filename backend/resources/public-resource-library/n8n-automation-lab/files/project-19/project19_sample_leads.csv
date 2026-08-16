@@ -1,0 +1,6 @@
+lead_id,email,first_name,service,sequence_status,followup_step,expected_next_action
+lead_001,rahim@example.com,Rahim,n8n automation,active,0,Send follow-up 1 after wait
+lead_002,samira@example.com,Samira,website automation,replied,1,Stop sequence
+lead_003,farhan@example.com,Farhan,AI chatbot,converted,1,Stop sequence
+lead_004,nabila@example.com,Nabila,CRM setup,unsubscribed,0,Stop sequence
+lead_005,hasan@example.com,Hasan,server automation,active,2,Send final follow-up after wait

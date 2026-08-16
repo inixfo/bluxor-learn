@@ -44,7 +44,7 @@ class OrderPricingService
         }
 
         if (! empty($payload['bundle_id'])) {
-            $bundle = Bundle::with('products.files')->whereKey($payload['bundle_id'])->where('status', 'published')->first();
+            $bundle = $this->availableBundleQuery('products.files')->whereKey($payload['bundle_id'])->first();
 
             if (! $bundle) {
                 throw ValidationException::withMessages(['bundle_id' => ['Bundle is not available.']]);
@@ -90,7 +90,7 @@ class OrderPricingService
         $payload['_landing_page_version'] = $page->publishedVersion;
 
         if ($offer->offer_type === 'bundle') {
-            $bundle = Bundle::with('products.files')->whereKey($offer->bundle_id)->where('status', 'published')->first();
+            $bundle = $this->availableBundleQuery('products.files')->whereKey($offer->bundle_id)->first();
             if (! $bundle) {
                 throw ValidationException::withMessages(['offer_key' => ['Landing page bundle offer is not available.']]);
             }
@@ -145,5 +145,12 @@ class OrderPricingService
         }
 
         return min($subtotal, (int) $coupon->amount_minor);
+    }
+
+    private function availableBundleQuery(string|array $relations)
+    {
+        return Bundle::with($relations)
+            ->where('status', 'published')
+            ->whereDoesntHave('products', fn ($query) => $query->where('products.status', '!=', 'published'));
     }
 }

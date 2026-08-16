@@ -1,0 +1,596 @@
+{
+  "name": "Project 25 — Paid Order Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "topic": "orders/paid"
+      },
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "db64734a-5f00-4870-9857-35cddc9a5e82",
+      "name": "Shopify — Order Paid",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "REPLACE_WITH_YOUR_SHOPIFY_CREDENTIAL",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const items=(x.line_items||[]).map(i=>({id:i.id,sku:String(i.sku||'').trim(),title:i.title,quantity:Number(i.quantity||0),requires_shipping:Boolean(i.requires_shipping)})); const shop=String($json.shop_domain||'REPLACE_WITH_STORE_DOMAIN'); const orderId=String(x.id||x.admin_graphql_api_id||''); const prefixes=items.map(i=>i.sku); const digital=items.some(i=>!i.requires_shipping || /^(DIGITAL-|PDF-|COURSE-)/i.test(i.sku)); const physical=items.some(i=>i.requires_shipping || /^(PHYS-|TEE-)/i.test(i.sku)); const unknown=items.some(i=>!i.sku); let route=unknown?'review':(digital&&physical?'mixed':digital?'digital':physical?'physical':'review'); const name=(x.customer?.first_name||x.shipping_address?.first_name||'')+' '+(x.customer?.last_name||x.shipping_address?.last_name||''); return [{json:{order_key:shop+':'+orderId,shop_domain:shop,order_id:orderId,order_name:String(x.name||x.order_number||orderId),financial_status:String(x.financial_status||'paid'),currency:String(x.currency||''),total_price:Number(x.current_total_price||x.total_price||0),customer_name:name.trim()||'Customer',customer_email:String(x.email||x.contact_email||'').toLowerCase(),route,status:'paid',line_items:items,line_items_json:JSON.stringify(items),items_summary:items.map(i=>`${i.sku||'(no sku)'} x${i.quantity}`).join(', '),last_event_at:String(x.updated_at||x.created_at||new Date().toISOString()),updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -650,
+        0
+      ],
+      "id": "cdfc65b5-38e7-4c21-9a8d-859052f0a5d4",
+      "name": "Normalize Paid Order"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "b12f039f-f212-4a30-951f-51b54d8f06a0",
+      "name": "Get Existing Order State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming=$('Normalize Paid Order').item.json; const s=$json||{}; const existing=Boolean(s.order_key); const already=existing && ['accepted','routed','fulfilling','complete','cancelled'].includes(String(s.status||'')); return [{json:{...incoming,existing_state_found:existing,already_processed:already,existing_status:String(s.status||'')}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "ad958466-1fe8-4512-bd89-59a3220bb6ae",
+      "name": "Resolve Existing State"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dup",
+              "leftValue": "={{ $json.already_processed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        0
+      ],
+      "id": "b4da6b38-9ad5-406f-89a9-93d3e9fe700f",
+      "name": "Already Processed?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,reused:true,order_key:$json.order_key,status:$json.existing_status}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        330,
+        -160
+      ],
+      "id": "4bb2e43a-e4af-4179-9705-d53c414cf88c",
+      "name": "Return Existing Order"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_key": "={{ $json.order_key }}",
+            "shop_domain": "={{ $json.shop_domain }}",
+            "order_id": "={{ $json.order_id }}",
+            "order_name": "={{ $json.order_name }}",
+            "webhook_topic": "orders/paid",
+            "financial_status": "={{ $json.financial_status }}",
+            "currency": "={{ $json.currency }}",
+            "total_price": "={{ $json.total_price }}",
+            "customer_name": "={{ $json.customer_name }}",
+            "customer_email": "={{ $json.customer_email }}",
+            "route": "={{ $json.route }}",
+            "status": "accepted",
+            "line_items_json": "={{ $json.line_items_json }}",
+            "warehouse_notified": "no",
+            "digital_delivered": "no",
+            "customer_confirmed": "no",
+            "last_event_at": "={{ $json.last_event_at }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        330,
+        80
+      ],
+      "id": "56dd25b7-9fff-444a-83c7-2e7d5073bb35",
+      "name": "Checkpoint Accepted Order"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{...$('Resolve Existing State').item.json,status:'routed',updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        570,
+        80
+      ],
+      "id": "849055b1-300d-4e5b-912d-672d06fb6604",
+      "name": "Prepare Routed Order"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "r",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        80
+      ],
+      "id": "464c52df-99ec-4871-9c62-f85ea96f29a2",
+      "name": "Route = Review?"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=⚠️ Ecommerce order needs review\nOrder: {{ $json.order_name }}\nRoute: {{ $json.route }}\nItems: {{ $json.items_summary }}\nTotal: {{ $json.currency }} {{ $json.total_price }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        -60
+      ],
+      "id": "90975ff0-99ef-4e52-b05c-974914daedf7",
+      "name": "Order Review Alert",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "p",
+              "leftValue": "={{ [\"physical\",\"mixed\"].includes($json.route) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        140
+      ],
+      "id": "ae98d6b6-2a0a-4ad0-93f6-33a8baa70554",
+      "name": "Physical or Mixed?"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=📦 Paid order ready for warehouse\nOrder: {{ $json.order_name }}\nItems: {{ $json.items_summary }}\nCustomer: {{ $json.customer_name }}\nDo not mark fulfilled until the real warehouse action succeeds.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1280,
+        60
+      ],
+      "id": "d5182644-bd24-42bc-8827-46c3fdcb3f4c",
+      "name": "Warehouse Paid Order Alert",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d",
+              "leftValue": "={{ [\"digital\",\"mixed\"].includes($json.route) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        220
+      ],
+      "id": "b0f66eab-4a20-49f3-b413-d21a1a5b27c0",
+      "name": "Digital or Mixed?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Replace this with your real entitlement/account/file-delivery sub-workflow.\n// Keep the action idempotent using order_id + line_item_id.\nreturn [{json:{...$json,digital_action_required:['digital','mixed'].includes($json.route),digital_delivered:'no'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        220
+      ],
+      "id": "f687005c-ff4b-4936-9aad-4d4043124d43",
+      "name": "Digital Provisioning Placeholder"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.customer_email }}",
+        "subject": "={{ \"Payment confirmed — \" + $json.order_name }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $json.customer_name }},</p><p>Thanks — payment for <strong>{{ $json.order_name }}</strong> has been confirmed.</p><p>We are now processing your order. Digital access and physical shipping updates may arrive separately.</p><p>Total: {{ $json.currency }} {{ $json.total_price }}</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        160
+      ],
+      "id": "b5433ba8-21c3-43b9-bf0e-82c2e94edefe",
+      "name": "Send Order Confirmation",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_key": "={{ $json.order_key }}",
+            "route": "={{ $json.route }}",
+            "status": "routed",
+            "warehouse_notified": "={{ [\"physical\",\"mixed\"].includes($json.route) ? \"yes\" : \"no\" }}",
+            "customer_confirmed": "yes",
+            "updated_at": "={{ new Date().toISOString() }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        160
+      ],
+      "id": "27f451a9-719a-41dd-8d9c-5b860ad70a38",
+      "name": "Checkpoint Routed State"
+    }
+  ],
+  "connections": {
+    "Shopify — Order Paid": {
+      "main": [
+        [
+          {
+            "node": "Normalize Paid Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Paid Order": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Order State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Order State": {
+      "main": [
+        [
+          {
+            "node": "Resolve Existing State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Existing State": {
+      "main": [
+        [
+          {
+            "node": "Already Processed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Processed?": {
+      "main": [
+        [
+          {
+            "node": "Return Existing Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Checkpoint Accepted Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Accepted Order": {
+      "main": [
+        [
+          {
+            "node": "Prepare Routed Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Routed Order": {
+      "main": [
+        [
+          {
+            "node": "Route = Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route = Review?": {
+      "main": [
+        [
+          {
+            "node": "Order Review Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Physical or Mixed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Physical or Mixed?": {
+      "main": [
+        [
+          {
+            "node": "Warehouse Paid Order Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Digital or Mixed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Warehouse Paid Order Alert": {
+      "main": [
+        [
+          {
+            "node": "Digital or Mixed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digital or Mixed?": {
+      "main": [
+        [
+          {
+            "node": "Digital Provisioning Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digital Provisioning Placeholder": {
+      "main": [
+        [
+          {
+            "node": "Send Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Order Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Routed State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d6ea35c8-1045-43a7-86c0-de6a2a2b0fa4",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

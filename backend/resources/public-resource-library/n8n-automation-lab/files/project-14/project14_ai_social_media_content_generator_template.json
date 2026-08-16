@@ -1,0 +1,333 @@
+{
+  "name": "Project 14 - AI Social Media Content Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Briefs",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "READY"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": false
+        }
+      },
+      "id": "get",
+      "name": "Get READY Briefs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "brief_id",
+              "name": "brief_id",
+              "value": "={{ $json.brief_id }}",
+              "type": "string"
+            },
+            {
+              "id": "content_brief",
+              "name": "content_brief",
+              "value": "=PRODUCT: {{ $json.product }}\\nAUDIENCE: {{ $json.audience }}\\nOFFER: {{ $json.offer }}\\nGOAL: {{ $json.goal }}\\nTONE: {{ $json.tone }}\\nKEY POINTS: {{ $json.key_points }}\\nLANGUAGE: {{ $json.language }}\\nBRAND VOICE: {{ $json.brand_voice }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prep",
+      "name": "Prepare Content Brief",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a social media copywriter. Create draft content ONLY from the approved facts below.\\n\\nRULES:\\n- Never invent product features, prices, discounts, deadlines, guarantees, statistics, testimonials, or availability.\\n- If a required fact is missing or the brief could create a misleading claim, set needs_review=true.\\n- Keep the core offer consistent across platforms, but adapt the writing style to each platform.\\n- Follow the requested language and brand voice.\\n- Facebook caption: clear, conversational, useful context, one CTA.\\n- Instagram caption: stronger opening hook, tighter body, scannable line breaks, one CTA.\\n- Hashtags must be relevant and specific; do not add random trending tags.\\n- visual_idea should be a simple production idea, not a promise that an image has been created.\\n\\nAPPROVED BRIEF:\\n{{ $json.content_brief }}\\n\\nReturn the required structured output.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "id": "chain",
+      "name": "Generate Social Content",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-terra",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-terra"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "id": "model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -30,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\\n  \"hook\": \"Short opening hook\",\\n  \"facebook_caption\": \"Facebook draft\",\\n  \"instagram_caption\": \"Instagram draft\",\\n  \"cta\": \"One clear CTA\",\\n  \"hashtags\": [\"#Example\", \"#Relevant\"],\\n  \"visual_idea\": \"Simple visual concept\",\\n  \"needs_review\": false,\\n  \"review_reason\": \"\"\\n}"
+      },
+      "id": "parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "brief_id2",
+              "name": "brief_id",
+              "value": "={{ $(\"Prepare Content Brief\").item.json.brief_id }}",
+              "type": "string"
+            },
+            {
+              "id": "hook",
+              "name": "hook",
+              "value": "={{ $json.output.hook || $json.hook }}",
+              "type": "string"
+            },
+            {
+              "id": "fb",
+              "name": "facebook_caption",
+              "value": "={{ $json.output.facebook_caption || $json.facebook_caption }}",
+              "type": "string"
+            },
+            {
+              "id": "ig",
+              "name": "instagram_caption",
+              "value": "={{ $json.output.instagram_caption || $json.instagram_caption }}",
+              "type": "string"
+            },
+            {
+              "id": "cta",
+              "name": "cta",
+              "value": "={{ $json.output.cta || $json.cta }}",
+              "type": "string"
+            },
+            {
+              "id": "hashtags",
+              "name": "hashtags",
+              "value": "={{ ($json.output.hashtags || $json.hashtags || []).join(\" \") }}",
+              "type": "string"
+            },
+            {
+              "id": "visual",
+              "name": "visual_idea",
+              "value": "={{ $json.output.visual_idea || $json.visual_idea }}",
+              "type": "string"
+            },
+            {
+              "id": "review",
+              "name": "needs_review",
+              "value": "={{ $json.output.needs_review ?? $json.needs_review ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "reason",
+              "name": "review_reason",
+              "value": "={{ $json.output.review_reason || $json.review_reason || \"\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format",
+      "name": "Format Draft Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Briefs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brief_id": "={{ $json.brief_id }}",
+            "hook": "={{ $json.hook }}",
+            "facebook_caption": "={{ $json.facebook_caption }}",
+            "instagram_caption": "={{ $json.instagram_caption }}",
+            "cta": "={{ $json.cta }}",
+            "hashtags": "={{ $json.hashtags }}",
+            "visual_idea": "={{ $json.visual_idea }}",
+            "needs_review": "={{ $json.needs_review }}",
+            "review_reason": "={{ $json.review_reason }}",
+            "status": "AI_DRAFT",
+            "generated_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "brief_id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "update",
+      "name": "Save Draft to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        560,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get READY Briefs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get READY Briefs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Content Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Content Brief": {
+      "main": [
+        [
+          {
+            "node": "Generate Social Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Social Content",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate Social Content",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Social Content": {
+      "main": [
+        [
+          {
+            "node": "Format Draft Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Draft Output": {
+      "main": [
+        [
+          {
+            "node": "Save Draft to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "00000000-0000-0000-0000-000000000014",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

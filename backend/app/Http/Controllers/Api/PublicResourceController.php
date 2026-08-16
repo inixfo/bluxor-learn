@@ -84,7 +84,7 @@ class PublicResourceController extends Controller
             return true;
         }
 
-        $productIds = $resource->products->pluck('id')->all();
+        $productIds = $resource->products()->withTrashed()->pluck('products.id')->all();
         if ($productIds === []) {
             return false;
         }

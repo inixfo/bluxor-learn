@@ -1,0 +1,143 @@
+{
+  "name": "Project 25 — Cancelled Order Listener",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "topic": "orders/cancelled"
+      },
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "419b2056-59be-4d05-bbf6-e8d0e0389605",
+      "name": "Shopify — Order Cancelled",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "REPLACE_WITH_YOUR_SHOPIFY_CREDENTIAL",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const orderId=String(x.id||x.order_id||''); const shop='REPLACE_WITH_STORE_DOMAIN'; return [{json:{order_key:shop+':'+orderId,order_id:orderId,order_name:String(x.name||orderId),cancelled_at:String(x.cancelled_at||new Date().toISOString()),cancel_reason:String(x.cancel_reason||''),updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -250,
+        0
+      ],
+      "id": "e99c5676-9d10-4e7c-b4d0-e87b9d4b5934",
+      "name": "Normalize Cancellation"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_key": "={{ $json.order_key }}",
+            "status": "cancelled",
+            "cancelled_at": "={{ $json.cancelled_at }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9a72efd9-61e1-4ffd-8f41-849c71162c9a",
+      "name": "Mark Order Cancelled"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=🛑 Order cancelled\nOrder: {{ $(\"Normalize Cancellation\").item.json.order_name }}\nReason: {{ $(\"Normalize Cancellation\").item.json.cancel_reason }}\nReview warehouse/digital actions and refund state separately.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        0
+      ],
+      "id": "1dba3413-22cc-4a62-89e1-7af0aac67800",
+      "name": "Cancellation Review Alert",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Shopify — Order Cancelled": {
+      "main": [
+        [
+          {
+            "node": "Normalize Cancellation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Cancellation": {
+      "main": [
+        [
+          {
+            "node": "Mark Order Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Order Cancelled": {
+      "main": [
+        [
+          {
+            "node": "Cancellation Review Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ea8b5ede-0840-44a1-a9a0-0bc640332d00",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

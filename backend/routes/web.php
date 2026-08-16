@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\LandingPageController;
+use App\Http\Controllers\Api\N8nAutomationLabResourceController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 
@@ -45,6 +46,14 @@ Route::get('/reset-password/{token}', function (string $token) {
 })->name('password.reset');
 
 Route::get('/landing-runtime/lbx-runtime.v2.js', [LandingPageController::class, 'runtime'])->name('landing.runtime');
+Route::get('/resources/n8n-automation-lab/manifest.json', [N8nAutomationLabResourceController::class, 'manifest'])->name('n8n.resource.manifest');
+Route::get('/resources/n8n-automation-lab/download/master-pack', [N8nAutomationLabResourceController::class, 'downloadMasterPack'])
+    ->middleware('throttle:1000,1')
+    ->name('n8n.resource.download.master');
+Route::get('/resources/n8n-automation-lab/download/{projectSlug}/{fileName}', [N8nAutomationLabResourceController::class, 'downloadProjectResource'])
+    ->where(['projectSlug' => 'project-\d{2}', 'fileName' => '[^/]+'])
+    ->middleware('throttle:1000,1')
+    ->name('n8n.resource.download.project');
 Route::get('/go/{slug}', [LandingPageController::class, 'serve'])->where('slug', '[A-Za-z0-9-]+')->name('landing.serve');
 Route::get('/go/{slug}/{path}', [LandingPageController::class, 'asset'])->where(['slug' => '[A-Za-z0-9-]+', 'path' => '.*'])->name('landing.asset');
 Route::get('/lp/{slug}', fn (string $slug) => redirect('/go/'.$slug, 301))->where('slug', '[A-Za-z0-9-]+');

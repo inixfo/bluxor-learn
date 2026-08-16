@@ -1,0 +1,7 @@
+sku_prefix,route,action
+DIGITAL-,digital,Deliver entitlement/account; no warehouse task
+PDF-,digital,Deliver digital file/access once
+COURSE-,digital,Provision course access once
+PHYS-,physical,Warehouse/shipping
+TEE-,physical,Warehouse/shipping
+BUNDLE-,mixed,Split item responsibilities

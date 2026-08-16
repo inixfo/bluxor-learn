@@ -1,0 +1,195 @@
+{
+  "name": "P29 TOOL-03 — Send Customer Email v1 — REQUIRES HUMAN REVIEW",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "customer_id"
+            },
+            {
+              "name": "to_email"
+            },
+            {
+              "name": "subject"
+            },
+            {
+              "name": "body"
+            },
+            {
+              "name": "request_id"
+            }
+          ]
+        }
+      },
+      "id": "bbfd8d47-621f-4248-8831-026cdc9bd92b",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; const to=String(x.to_email||'').trim().toLowerCase(); const subject=String(x.subject||'').trim().slice(0,180); const body=String(x.body||'').trim().slice(0,6000); const request_id=String(x.request_id||'').trim(); const customer_id=String(x.customer_id||'').trim(); if(!/^[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+$/.test(to)) throw new Error('valid to_email is required'); if(!subject||!body||!request_id||!customer_id) throw new Error('subject, body, request_id and customer_id are required'); return [{json:{request_id,customer_id,to_email:to,subject,body,status:'prepared',prepared_at:new Date().toISOString()}}];"
+      },
+      "id": "85de3718-c5c0-4183-9246-33580f97ce6b",
+      "name": "Prepare Approved Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "3df053c5-1fd5-4c32-b943-805937b6d884",
+      "name": "Send Customer Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -210,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Prepare Approved Email').first().json; const r=$input.first().json||{}; return [{json:{...x,status:'sent',message_id:String(r.id||r.messageId||''),sent_at:new Date().toISOString()}}];"
+      },
+      "id": "e768f6de-3bad-4877-bbf4-fc3aaab1fcc5",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P29_EMAIL_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "p29_email_delivery"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "request_id",
+              "keyValue": "={{ $json.request_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "customer_id": "={{ $json.customer_id }}",
+            "to_email": "={{ $json.to_email }}",
+            "subject": "={{ $json.subject }}",
+            "status": "={{ $json.status }}",
+            "message_id": "={{ $json.message_id }}",
+            "sent_at": "={{ $json.sent_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "c3377292-7f05-438b-a1d5-b9e01c948f73",
+      "name": "Checkpoint Delivery",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        340,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json; return [{json:{ok:true,contract_version:'email.send.v1',delivered:x.status==='sent',request_id:x.request_id,customer_id:x.customer_id,to_email:x.to_email,message_id:x.message_id||'',sent_at:x.sent_at||''}}];"
+      },
+      "id": "7a862035-79c6-4a5c-9a2e-894ee940a3fe",
+      "name": "Return Contract v1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Approved Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Approved Email": {
+      "main": [
+        [
+          {
+            "node": "Send Customer Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Customer Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Sent": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Delivery": {
+      "main": [
+        [
+          {
+            "node": "Return Contract v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P29-TOOL03-V1"
+}

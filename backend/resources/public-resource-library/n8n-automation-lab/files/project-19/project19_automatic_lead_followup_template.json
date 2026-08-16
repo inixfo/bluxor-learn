@@ -1,0 +1,1714 @@
+{
+  "name": "Project 19 - Automatic Lead Follow-Up",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1120,
+        0
+      ],
+      "id": "035b6969-a0b7-488e-92cf-8156c3eef7a7",
+      "name": "When Called by Lead Workflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4a7e1b6b-a65f-4eb8-b8fa-d55b58a54be3",
+              "leftValue": "={{ Boolean($json.email && $json.allow_sales_followup !== false) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "f6dbd361-2e82-4c95-addd-336bc79c4e25",
+      "name": "Follow-up Allowed?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2d8b1aef-5fdc-443c-bab0-368ad129d9d7",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id || $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "3519e7f4-8655-4740-8e59-22b308627e7d",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "056d05eb-4f73-4972-b9bd-85b998e6ee87",
+              "name": "first_name",
+              "value": "={{ $json.first_name || \"there\" }}",
+              "type": "string"
+            },
+            {
+              "id": "2b65539d-4820-4e5b-8d79-495e313c387c",
+              "name": "service",
+              "value": "={{ $json.service || \"your request\" }}",
+              "type": "string"
+            },
+            {
+              "id": "643754c5-5265-4f4a-8389-441f00e5f0e3",
+              "name": "sequence_status",
+              "value": "active",
+              "type": "string"
+            },
+            {
+              "id": "a9f61169-de6e-426f-83f9-9aac50d69355",
+              "name": "followup_step",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "2bcbd532-ad36-42e5-9e21-723d4912a18b",
+              "name": "started_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "67b4875d-f5be-48fe-92bc-f8eb3ccaee73",
+              "name": "last_sent_at",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "c8f5ad6a-283a-4645-8be7-ff13235ce10c",
+              "name": "replied_at",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "84c679f8-4cd5-4066-b1d3-22c96d4dad45",
+              "name": "completed_at",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -680,
+        -80
+      ],
+      "id": "d43124b9-8ec4-4e8e-bb5a-05a616e3f39e",
+      "name": "Initialize Sequence"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $json.lead_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "email": "={{ $json.email }}",
+            "first_name": "={{ $json.first_name }}",
+            "service": "={{ $json.service }}",
+            "sequence_status": "={{ $json.sequence_status }}",
+            "followup_step": "={{ $json.followup_step }}",
+            "started_at": "={{ $json.started_at }}",
+            "last_sent_at": "",
+            "replied_at": "",
+            "completed_at": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sequence_status",
+              "displayName": "sequence_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "followup_step",
+              "displayName": "followup_step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "started_at",
+              "displayName": "started_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_sent_at",
+              "displayName": "last_sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "replied_at",
+              "displayName": "replied_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completed_at",
+              "displayName": "completed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -430,
+        -80
+      ],
+      "id": "c55a4e5e-1103-4355-b2d9-c3c4c93dec59",
+      "name": "Upsert Initial State"
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -170,
+        -80
+      ],
+      "id": "0941ecf0-2bbc-4424-be11-21c80d8bd8f2",
+      "name": "Wait 1 Day"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $(\"Initialize Sequence\").item.json.lead_id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        -80
+      ],
+      "id": "c98da7cb-3dbe-45e0-b023-3a4174c52373",
+      "name": "Get State Day 1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3842b866-b2ed-4327-9890-ceff53521fc1",
+              "leftValue": "={{ $json.sequence_status }}",
+              "rightValue": "active",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "4596e835-3bf4-42c3-9881-c4afd441ba32",
+              "leftValue": "={{ Number($json.followup_step) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        330,
+        -80
+      ],
+      "id": "d5911714-bff4-4ccc-a66e-51e8b548e036",
+      "name": "Still Active Day 1?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1707940-1a46-4d5d-87f9-339d97e07274",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "08da2e7f-0d41-4e03-b388-0b9ab77ffee9",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "c0d4a611-ffa7-4380-b128-2bded7b87d33",
+              "name": "first_name",
+              "value": "={{ $json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "4de11020-ee3f-4865-a845-e8d74a817fc8",
+              "name": "service",
+              "value": "={{ $json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "3f0f84b3-4735-43b2-8e07-ef03c3beb67d",
+              "name": "subject",
+              "value": "={{ `Quick follow-up on your ${$json.service} request` }}",
+              "type": "string"
+            },
+            {
+              "id": "abb1b516-8918-4678-96b1-acc99390c7d3",
+              "name": "email_body",
+              "value": "={{ `Hi ${$json.first_name || \"there\"},\\n\\nJust checking in on your ${$json.service || \"request\"}. If you’re still working on it, I can send the next step or answer any question that’s blocking you.\\n\\nWould you like me to keep this open?\\n\\nBest,\\nYour Name` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        580,
+        -150
+      ],
+      "id": "b616e35a-91e5-438f-8000-39459757ceca",
+      "name": "Prepare Follow-up 1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        830,
+        -150
+      ],
+      "id": "86d3aa54-c7f4-4444-940f-27f12f6d9e0e",
+      "name": "Send Follow-up 1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "46eeef0a-d2ce-4a9a-be2a-41c86cc622c7",
+              "name": "lead_id",
+              "value": "={{ $(\"Prepare Follow-up 1\").item.json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "9d27ebae-9396-4a11-afbe-a839b4aba021",
+              "name": "email",
+              "value": "={{ $(\"Prepare Follow-up 1\").item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "3bc7d6e5-3ea2-4415-ad0c-b2c162e48d1c",
+              "name": "first_name",
+              "value": "={{ $(\"Prepare Follow-up 1\").item.json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "85e13211-4425-4c53-a2e2-04ff15b97fe0",
+              "name": "service",
+              "value": "={{ $(\"Prepare Follow-up 1\").item.json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "90cca7f1-4454-4d46-8131-5245f34b01a1",
+              "name": "sequence_status",
+              "value": "active",
+              "type": "string"
+            },
+            {
+              "id": "768f5a7b-e17f-4fdd-882c-f269da72e0cf",
+              "name": "followup_step",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "840cc5a2-d798-475d-81f5-2d0240925dd8",
+              "name": "started_at",
+              "value": "={{ $(\"Initialize Sequence\").item.json.started_at }}",
+              "type": "string"
+            },
+            {
+              "id": "3feeb784-ea6a-4eb2-8edd-4bf36f609047",
+              "name": "last_sent_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "97c99c8c-6c67-4a28-a8ba-7c069319f0f5",
+              "name": "replied_at",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "ed3f7c0d-c781-4dd9-969b-3ece1256d47f",
+              "name": "completed_at",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1080,
+        -150
+      ],
+      "id": "1dde67a4-5733-4bd5-881d-cf0640ea326a",
+      "name": "State After Follow-up 1"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $json.lead_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "email": "={{ $json.email }}",
+            "first_name": "={{ $json.first_name }}",
+            "service": "={{ $json.service }}",
+            "sequence_status": "active",
+            "followup_step": 1,
+            "started_at": "={{ $json.started_at }}",
+            "last_sent_at": "={{ $json.last_sent_at }}",
+            "replied_at": "",
+            "completed_at": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sequence_status",
+              "displayName": "sequence_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "followup_step",
+              "displayName": "followup_step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "started_at",
+              "displayName": "started_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_sent_at",
+              "displayName": "last_sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "replied_at",
+              "displayName": "replied_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completed_at",
+              "displayName": "completed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1330,
+        -150
+      ],
+      "id": "7e87a953-3842-48ff-80e1-60e581a4d767",
+      "name": "Save State Step 1"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1580,
+        -150
+      ],
+      "id": "2f35b815-3935-4da9-ae17-d53d8e7136b7",
+      "name": "Wait 2 More Days"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $(\"Initialize Sequence\").item.json.lead_id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1830,
+        -150
+      ],
+      "id": "40e2b80b-847b-4358-9519-b1b9368e5cfa",
+      "name": "Get State Day 3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c4e64634-45f1-4a24-a68f-fe80deaa0a9f",
+              "leftValue": "={{ $json.sequence_status }}",
+              "rightValue": "active",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "fecbaf75-65e0-46d9-b5cf-3cd05837dfa3",
+              "leftValue": "={{ Number($json.followup_step) }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        -150
+      ],
+      "id": "0c5b85bc-298e-49ca-a227-556ca4f429f3",
+      "name": "Still Active Day 3?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2f62f5d7-5531-49b4-81ec-6f26e21e468f",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "bc39d75f-2377-45e8-9e87-2facaf00d0b4",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "bf97466e-4d83-4162-9ba9-7303ce0323af",
+              "name": "first_name",
+              "value": "={{ $json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "3f0c7489-a2ed-4b5b-a0f3-597c7f8563b8",
+              "name": "service",
+              "value": "={{ $json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "7134d29b-bb23-47ae-898f-feb279845290",
+              "name": "subject",
+              "value": "={{ `One more note on your ${$json.service} request` }}",
+              "type": "string"
+            },
+            {
+              "id": "e1b346a5-01ec-4595-953c-caab4b3ecdeb",
+              "name": "email_body",
+              "value": "={{ `Hi ${$json.first_name || \"there\"},\\n\\nI wanted to follow up once more. Based on your original request, the easiest next step is usually a short clarification on scope, timeline, and access.\\n\\nIf you want, reply with what you’re trying to achieve and I’ll point you in the right direction.\\n\\nBest,\\nYour Name` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2330,
+        -220
+      ],
+      "id": "782b09d5-6406-4c67-b2a6-5d2f5bcf9dae",
+      "name": "Prepare Follow-up 2"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2580,
+        -220
+      ],
+      "id": "e21c680a-5ed2-4a28-ad15-c8e9c02150c6",
+      "name": "Send Follow-up 2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba8c4159-65cb-42d6-baf6-330bdea538e4",
+              "name": "lead_id",
+              "value": "={{ $(\"Prepare Follow-up 2\").item.json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "7c4ec457-54f9-4933-8cf1-1644eff1cee4",
+              "name": "email",
+              "value": "={{ $(\"Prepare Follow-up 2\").item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "7adf6359-4240-4240-89d3-204d28675741",
+              "name": "first_name",
+              "value": "={{ $(\"Prepare Follow-up 2\").item.json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "dabf864b-b257-4a52-9ab8-076cde74a688",
+              "name": "service",
+              "value": "={{ $(\"Prepare Follow-up 2\").item.json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "45ef8239-8ecf-415c-b176-fb6c6cd40c80",
+              "name": "sequence_status",
+              "value": "active",
+              "type": "string"
+            },
+            {
+              "id": "49dec176-0eb8-43bc-ae98-6c5eaea6825c",
+              "name": "followup_step",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "09631fcc-ef79-40cf-bf8c-d7214aa83ac6",
+              "name": "started_at",
+              "value": "={{ $(\"Initialize Sequence\").item.json.started_at }}",
+              "type": "string"
+            },
+            {
+              "id": "1ebf3a48-f79b-42c7-ab3f-9a79279f5162",
+              "name": "last_sent_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "5d490e30-07b6-4211-904b-6ea3ecb6c1d3",
+              "name": "replied_at",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "d6990f6c-ea12-4adb-b2c6-c36d3ac69820",
+              "name": "completed_at",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2830,
+        -220
+      ],
+      "id": "9f4a47a4-13f4-4be6-86bb-6edb5d9259d1",
+      "name": "State After Follow-up 2"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $json.lead_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "email": "={{ $json.email }}",
+            "first_name": "={{ $json.first_name }}",
+            "service": "={{ $json.service }}",
+            "sequence_status": "active",
+            "followup_step": 2,
+            "started_at": "={{ $json.started_at }}",
+            "last_sent_at": "={{ $json.last_sent_at }}",
+            "replied_at": "",
+            "completed_at": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sequence_status",
+              "displayName": "sequence_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "followup_step",
+              "displayName": "followup_step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "started_at",
+              "displayName": "started_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_sent_at",
+              "displayName": "last_sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "replied_at",
+              "displayName": "replied_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completed_at",
+              "displayName": "completed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3080,
+        -220
+      ],
+      "id": "595243b4-7265-44fd-8b22-bd8063675b10",
+      "name": "Save State Step 2"
+    },
+    {
+      "parameters": {
+        "amount": 4,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3330,
+        -220
+      ],
+      "id": "3325b4c8-0812-4a16-9778-d83b0c5ed0e1",
+      "name": "Wait 4 More Days"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $(\"Initialize Sequence\").item.json.lead_id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3580,
+        -220
+      ],
+      "id": "cffc566f-4436-4fd8-a581-2ba9453ae296",
+      "name": "Get State Day 7"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bc0ead3a-f867-4b9a-a10d-008841e619d4",
+              "leftValue": "={{ $json.sequence_status }}",
+              "rightValue": "active",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "631f925c-983c-49d9-9a4a-5118cedc4649",
+              "leftValue": "={{ Number($json.followup_step) }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3830,
+        -220
+      ],
+      "id": "8bb24934-2fec-47d9-ac89-306295b7846a",
+      "name": "Still Active Day 7?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff5a4866-a5cb-476b-b6fd-4edaaf41d605",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "be011581-1f53-415a-8b73-dd3f05f8021e",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "184f8d88-3301-4179-9d11-fd3dd7fdb02a",
+              "name": "first_name",
+              "value": "={{ $json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "2122ff44-1446-4116-b389-30982fa20ffc",
+              "name": "service",
+              "value": "={{ $json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "8255626e-b532-4655-834f-41092521ea12",
+              "name": "subject",
+              "value": "={{ `Closing the loop on your ${$json.service} request` }}",
+              "type": "string"
+            },
+            {
+              "id": "8f1924b0-c70c-4f72-9050-7de139f6b822",
+              "name": "email_body",
+              "value": "={{ `Hi ${$json.first_name || \"there\"},\\n\\nI haven’t heard back, so I’ll close this follow-up sequence for now. No problem at all.\\n\\nIf you still need help later, just reply to this email and we can continue from there.\\n\\nBest,\\nYour Name` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4080,
+        -290
+      ],
+      "id": "122c4239-efd5-49fa-9824-0d3cf5e793d1",
+      "name": "Prepare Final Follow-up"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4330,
+        -290
+      ],
+      "id": "265bfd9b-c352-4cc8-b666-7ac70a553d29",
+      "name": "Send Final Follow-up",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8e030ab9-d218-4335-9c11-ab74816f8c3a",
+              "name": "lead_id",
+              "value": "={{ $(\"Prepare Final Follow-up\").item.json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "45157142-9f6a-4898-97b7-aa0d68124b0f",
+              "name": "email",
+              "value": "={{ $(\"Prepare Final Follow-up\").item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "f6045f30-09a2-4ed0-abd4-50af87f5fc09",
+              "name": "first_name",
+              "value": "={{ $(\"Prepare Final Follow-up\").item.json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "8830a6ab-677a-4e62-92ed-2886956c29b8",
+              "name": "service",
+              "value": "={{ $(\"Prepare Final Follow-up\").item.json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "3ac74321-54eb-4811-933d-4883fe58bedf",
+              "name": "sequence_status",
+              "value": "closed_no_response",
+              "type": "string"
+            },
+            {
+              "id": "4b04d610-d53a-46a1-8e4e-836277177103",
+              "name": "followup_step",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "bc370ee3-0a68-4460-bfd3-5ef9b85f48d6",
+              "name": "started_at",
+              "value": "={{ $(\"Initialize Sequence\").item.json.started_at }}",
+              "type": "string"
+            },
+            {
+              "id": "1cfd9bb6-a235-4848-a81f-418b0255fe8e",
+              "name": "last_sent_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "c91e72c1-2d68-447b-9fdf-20274c3cc703",
+              "name": "replied_at",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "02caa71a-bb0b-4e87-a2b8-622b53466003",
+              "name": "completed_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4580,
+        -290
+      ],
+      "id": "b427b2b6-9ad5-4630-925e-7d9fc4544b6d",
+      "name": "Close No Response"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $json.lead_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "email": "={{ $json.email }}",
+            "first_name": "={{ $json.first_name }}",
+            "service": "={{ $json.service }}",
+            "sequence_status": "closed_no_response",
+            "followup_step": 3,
+            "started_at": "={{ $json.started_at }}",
+            "last_sent_at": "={{ $json.last_sent_at }}",
+            "replied_at": "",
+            "completed_at": "={{ $json.completed_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sequence_status",
+              "displayName": "sequence_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "followup_step",
+              "displayName": "followup_step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "started_at",
+              "displayName": "started_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_sent_at",
+              "displayName": "last_sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "replied_at",
+              "displayName": "replied_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completed_at",
+              "displayName": "completed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4830,
+        -290
+      ],
+      "id": "35eac6db-5130-4568-aecd-97eed7232d14",
+      "name": "Save Closed State"
+    }
+  ],
+  "connections": {
+    "When Called by Lead Workflow": {
+      "main": [
+        [
+          {
+            "node": "Follow-up Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Initialize Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Initialize Sequence": {
+      "main": [
+        [
+          {
+            "node": "Upsert Initial State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Initial State": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1 Day": {
+      "main": [
+        [
+          {
+            "node": "Get State Day 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get State Day 1": {
+      "main": [
+        [
+          {
+            "node": "Still Active Day 1?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still Active Day 1?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Follow-up 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Follow-up 1": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up 1": {
+      "main": [
+        [
+          {
+            "node": "State After Follow-up 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "State After Follow-up 1": {
+      "main": [
+        [
+          {
+            "node": "Save State Step 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save State Step 1": {
+      "main": [
+        [
+          {
+            "node": "Wait 2 More Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2 More Days": {
+      "main": [
+        [
+          {
+            "node": "Get State Day 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get State Day 3": {
+      "main": [
+        [
+          {
+            "node": "Still Active Day 3?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still Active Day 3?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Follow-up 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Follow-up 2": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up 2": {
+      "main": [
+        [
+          {
+            "node": "State After Follow-up 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "State After Follow-up 2": {
+      "main": [
+        [
+          {
+            "node": "Save State Step 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save State Step 2": {
+      "main": [
+        [
+          {
+            "node": "Wait 4 More Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 4 More Days": {
+      "main": [
+        [
+          {
+            "node": "Get State Day 7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get State Day 7": {
+      "main": [
+        [
+          {
+            "node": "Still Active Day 7?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still Active Day 7?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Final Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Send Final Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Final Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Close No Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close No Response": {
+      "main": [
+        [
+          {
+            "node": "Save Closed State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "cd7ec1a8-de01-411c-84de-9d573b176e43"
+}

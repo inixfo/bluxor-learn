@@ -1,0 +1,231 @@
+{
+  "name": "PROJECT 04 — Google Sheets to Personalized Emails",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "4d165c4d-d75d-43c8-aad6-3a31ed264001",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contacts",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "READY"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": false
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -450,
+        0
+      ],
+      "id": "4d165c4d-d75d-43c8-aad6-3a31ed264002",
+      "name": "Get Ready Contacts",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p04-a",
+              "name": "contact_id",
+              "value": "={{ $json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "p04-b",
+              "name": "email_to",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "p04-c",
+              "name": "first_name",
+              "value": "={{ $json.first_name || 'বন্ধু' }}",
+              "type": "string"
+            },
+            {
+              "id": "p04-d",
+              "name": "company",
+              "value": "={{ $json.company || 'your team' }}",
+              "type": "string"
+            },
+            {
+              "id": "p04-e",
+              "name": "subject",
+              "value": "=Hi {{ $json.first_name || 'there' }}, quick idea for {{ $json.company || 'your team' }}",
+              "type": "string"
+            },
+            {
+              "id": "p04-f",
+              "name": "email_body",
+              "value": "=Hi {{ $json.first_name || 'there' }},\\n\\nI prepared a short {{ $json.offer || 'automation' }} idea for {{ $json.company || 'your team' }}.\\n\\nIf useful, reply and I’ll send the details.\\n\\n— Your Name",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "4d165c4d-d75d-43c8-aad6-3a31ed264003",
+      "name": "Prepare Email"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email_to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        150,
+        0
+      ],
+      "id": "4d165c4d-d75d-43c8-aad6-3a31ed264004",
+      "name": "Send Personalized Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contacts",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $('Prepare Email').item.json.contact_id }}",
+            "status": "SENT",
+            "sent_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "contact_id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        470,
+        0
+      ],
+      "id": "4d165c4d-d75d-43c8-aad6-3a31ed264005",
+      "name": "Mark as Sent",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Ready Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Ready Contacts": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Send Personalized Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Personalized Email": {
+      "main": [
+        [
+          {
+            "node": "Mark as Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,4 @@
+﻿module,version,inputs,outputs,class
+UTIL-01 Normalize Contact,v1,"contact_id, full_name, email, phone, country_code, source","ok, contact, warnings, contract_version",pure/deterministic
+UTIL-02 Idempotency Gate,v1,"namespace, event_key, source, occurred_at","ok, should_process, idempotency_key, first_seen_at",stateful/Data Table
+UTIL-03 Team Alert,v1,"event_key, severity, title, message, workflow_name, execution_url","ok, delivered, channel, event_key",side effect/Telegram

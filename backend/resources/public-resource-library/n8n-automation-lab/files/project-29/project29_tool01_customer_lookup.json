@@ -1,0 +1,124 @@
+{
+  "name": "P29 TOOL-01 — Customer Lookup v1",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "customer_email"
+            },
+            {
+              "name": "customer_id"
+            }
+          ]
+        }
+      },
+      "id": "04c2e174-d047-4859-abf8-cb33348ad7cf",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; const email=String(x.customer_email||'').trim().toLowerCase(); const id=String(x.customer_id||'').trim(); if(!email&&!id) throw new Error('customer_email or customer_id is required'); return [{json:{customer_email:email,customer_id:id,lookup_key:id?'customer_id':'email',lookup_value:id||email}}];"
+      },
+      "id": "fac8f4c2-3a25-4491-9f9a-0acd6a8f0cb9",
+      "name": "Validate Lookup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P29_CUSTOMER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "p29_customer_directory"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $json.lookup_key }}",
+              "keyValue": "={{ $json.lookup_value }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "id": "3a6420fb-0ac3-466e-bb29-474f368fc4d5",
+      "name": "Find Customer",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        20,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const q=$('Validate Lookup').first().json; const row=$input.first().json||{}; const found=Boolean(row.customer_id); return [{json:{ok:true,contract_version:'customer.lookup.v1',found,customer:found?{customer_id:String(row.customer_id),email:String(row.email||''),full_name:String(row.full_name||''),company:String(row.company||''),status:String(row.status||''),plan:String(row.plan||''),owner_email:String(row.owner_email||''),last_contact_at:String(row.last_contact_at||'')}:null,lookup:{key:q.lookup_key,value:q.lookup_value}}}];"
+      },
+      "id": "2e02d24f-dc5b-45a2-b6be-adaf1c3f2f89",
+      "name": "Return Contract v1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        310,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Lookup": {
+      "main": [
+        [
+          {
+            "node": "Find Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Customer": {
+      "main": [
+        [
+          {
+            "node": "Return Contract v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P29-TOOL01-V1"
+}

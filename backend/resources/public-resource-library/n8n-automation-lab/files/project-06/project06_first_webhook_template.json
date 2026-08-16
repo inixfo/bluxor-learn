@@ -1,0 +1,203 @@
+{
+  "name": "Project 06 — First Webhook API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -620,
+        0
+      ],
+      "id": "dcf87406-f00f-43f6-b7d9-aae33aa36b91",
+      "name": "New Lead Webhook",
+      "webhookId": "2fe2165c-c437-4425-8cf4-677d84cf8671"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d52ccff0-b494-41f2-bc3e-8a9a3f8a9d97",
+              "name": "name",
+              "value": "={{ $json.body?.name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "1747dc72-8045-4c7b-a903-01f14fc179d9",
+              "name": "email",
+              "value": "={{ $json.body?.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f95e03b0-4a81-4258-a866-8d8a3a3171ed",
+              "name": "company",
+              "value": "={{ $json.body?.company || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "2b40e36b-a188-4faa-b920-0a70cf5368f9",
+              "name": "message",
+              "value": "={{ $json.body?.message || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "afaf18c4-db46-40f0-9f79-2eae32394bc2",
+              "name": "source",
+              "value": "={{ $json.query?.source || 'webhook' }}",
+              "type": "string"
+            },
+            {
+              "id": "d028763e-9a07-4934-bd0c-8d6c6c2a8f91",
+              "name": "receivedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "e7ac6d32-6dc7-444a-9123-4c6d868cfbc5",
+      "name": "Prepare Lead"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c8f79a03-640a-4f25-bba0-7410345efe00",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "669cd925-48b8-49b5-86c0-a55c07b959e5",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "822145d6-74de-429e-9472-a9d06ae73c10",
+      "name": "Required Fields Present?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, message: 'Lead received', lead: $json, executionId: $execution.id }) }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        180,
+        -100
+      ],
+      "id": "544e5055-d21b-4810-98b4-dd505fa10e92",
+      "name": "Respond 201 — Created"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'name and email are required' }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        180,
+        110
+      ],
+      "id": "78e6a930-ffac-40b8-a310-1de048ecf8e8",
+      "name": "Respond 422 — Missing Fields"
+    }
+  ],
+  "connections": {
+    "New Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Lead": {
+      "main": [
+        [
+          {
+            "node": "Required Fields Present?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Required Fields Present?": {
+      "main": [
+        [
+          {
+            "node": "Respond 201 — Created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 422 — Missing Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

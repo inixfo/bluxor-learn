@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700"><rect width="1200" height="700" rx="28" fill="#17181d"/>
+<text x="70" y="85" fill="#9ca0aa" font-family="Arial" font-size="28" font-weight="700">PROJECT 02 · WORKFLOW MAP</text>
+<g font-family="Arial" font-weight="700" text-anchor="middle">
+<rect x="100" y="250" width="250" height="150" rx="28" fill="#2a2b31" stroke="#ea4335" stroke-width="4"/><circle cx="225" cy="295" r="28" fill="#ea4335"/><text x="225" y="305" fill="#fff" font-size="28">M</text><text x="225" y="355" fill="#fff" font-size="28">Gmail Trigger</text><text x="225" y="385" fill="#aeb0b8" font-size="18" font-weight="400">New email arrives</text>
+<path d="M350 325 H475" stroke="#777b86" stroke-width="8" stroke-linecap="round"/><path d="M465 310 L490 325 L465 340" fill="none" stroke="#777b86" stroke-width="8"/>
+<rect x="485" y="250" width="250" height="150" rx="28" fill="#2a2b31" stroke="#ff6d5a" stroke-width="4"/><circle cx="610" cy="295" r="28" fill="#ff6d5a"/><text x="610" y="305" fill="#fff" font-size="24">n8n</text><text x="610" y="355" fill="#fff" font-size="28">Prepare Alert</text><text x="610" y="385" fill="#aeb0b8" font-size="18" font-weight="400">Map + format fields</text>
+<path d="M735 325 H860" stroke="#777b86" stroke-width="8" stroke-linecap="round"/><path d="M850 310 L875 325 L850 340" fill="none" stroke="#777b86" stroke-width="8"/>
+<rect x="870" y="250" width="250" height="150" rx="28" fill="#2a2b31" stroke="#229ed9" stroke-width="4"/><circle cx="995" cy="295" r="28" fill="#229ed9"/><text x="995" y="305" fill="#fff" font-size="28">✈</text><text x="995" y="355" fill="#fff" font-size="28">Telegram</text><text x="995" y="385" fill="#aeb0b8" font-size="18" font-weight="400">Instant notification</text>
+</g><text x="600" y="520" text-anchor="middle" fill="#d9dae0" font-family="Arial" font-size="24">Inbox check করার বদলে গুরুত্বপূর্ণ email আপনার Telegram-এ চলে আসবে</text></svg>

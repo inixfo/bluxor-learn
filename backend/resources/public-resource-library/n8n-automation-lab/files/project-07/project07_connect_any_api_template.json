@@ -1,0 +1,155 @@
+{
+  "name": "Project 07 — Connect Any API to n8n",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -660,
+        0
+      ],
+      "id": "bfe7802b-773e-47d1-a4da-60151fd0c8cc",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://jsonplaceholder.typicode.com/users/1",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -430,
+        0
+      ],
+      "id": "6eb8af7f-8c72-47d1-ad65-46ddc18f9620",
+      "name": "Get Demo User"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "43b4e4e7-e7b0-4c77-9b75-b34f94ce044d",
+              "name": "user_id",
+              "value": "={{ $json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "fe89cd92-01f1-4e25-b4df-0d1a36611bcb",
+              "name": "name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "835f3f14-c37e-471b-a802-e03a41ed5713",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "a0e3a40a-fd51-48a9-a971-ab19c253131a",
+              "name": "city",
+              "value": "={{ $json.address.city }}",
+              "type": "string"
+            },
+            {
+              "id": "40403f0a-9b9d-4198-a9f1-84c1b20a13f2",
+              "name": "company",
+              "value": "={{ $json.company.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -170,
+        0
+      ],
+      "id": "5d7d64ff-ad76-453f-83b0-42d8a1d457fb",
+      "name": "Prepare User"
+    },
+    {
+      "parameters": {
+        "url": "https://jsonplaceholder.typicode.com/posts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "userId",
+              "value": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        110,
+        0
+      ],
+      "id": "a3762dbf-81d2-4441-8ea0-a589699a7c53",
+      "name": "Get User Posts"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Demo User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Demo User": {
+      "main": [
+        [
+          {
+            "node": "Prepare User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare User": {
+      "main": [
+        [
+          {
+            "node": "Get User Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

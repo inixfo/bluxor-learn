@@ -1,0 +1,6 @@
+﻿source,date_fields,report_metrics,owner
+sales_daily_snapshot,snapshot_date,"leads_new, leads_hot, deals_won, won_value",Project 17-21 adapter output
+client_onboarding,created_at / updated_at,"new, ready, review, aging",Project 22
+invoice_state,issued_at / paid_at / due_date,"issued, paid, overdue, A/R",Project 23
+feedback_state,responded_at / updated_at,"responses, avg rating, recovery",Project 24
+order_state,last_event_at / updated_at,"paid revenue, routes, exceptions",Project 25

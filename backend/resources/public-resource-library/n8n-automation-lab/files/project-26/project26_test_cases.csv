@@ -1,0 +1,11 @@
+﻿case,setup,expected_status,expected_result
+Normal day,all sources have rows,delivered,all KPI sections populated
+Zero activity,sources available but no matching rows,delivered,"zeros are explicit, not missing"
+Missing feedback table,feedback query unavailable,degraded,feedback shown unknown; other data continues
+Overdue invoice,unpaid invoice due before report end,delivered,overdue anomaly included
+Open recovery,feedback recovery_status=open,delivered,customer recovery attention flag
+Order review,order route/status review,delivered,ecommerce exception flag
+Duplicate run,same report_key already delivered,skip/reuse,no second email
+AI parser fail,invalid structured output,delivered,deterministic fallback summary
+Different currencies,money sections disagree,degraded/review,do not sum currencies blindly
+Timezone boundary,event 23:59/00:01,delivered,correct business date inclusion

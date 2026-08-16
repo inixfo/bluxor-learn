@@ -1,0 +1,13 @@
+subject,from,snippet,expected_category
+Pricing for automation setup,alex@smallbiz.com,Can you send a quote for automating lead follow-up for three sales reps?,Sales
+Need a demo next week,maria@company.com,We are comparing automation vendors and would like a short demo.,Sales
+Workflow stopped after update,client@example.com,Our lead workflow is failing after the latest update. Can you help?,Support
+Cannot access dashboard,user@example.com,I am an existing customer and my dashboard says permission denied.,Support
+Invoice #1042 attached,billing@vendor.com,Please find invoice 1042. Payment is due next Tuesday.,Invoice
+Payment confirmation,accounts@example.com,We received your payment and attached the receipt.,Invoice
+URGENT: suspicious login,security@example.com,We detected a suspicious login and need confirmation immediately.,Important
+Contract deadline today,legal@example.com,Please review before 5 PM today. This deadline cannot move.,Important
+Weekly product newsletter,news@example.com,Here are this week’s product updates and promotions.,Review
+50% off this weekend,promo@example.com,Limited time promotional offer for subscribers.,Review
+Thanks for the meeting,sam@example.com,Thanks for your time yesterday. Great to meet you.,Other
+Office holiday notice,hr@example.com,Our office will be closed next Monday for a public holiday.,Other

@@ -1,0 +1,222 @@
+{
+  "name": "PROJECT 03 — Daily Automated Sales Email Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 21,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -620,
+        0
+      ],
+      "id": "94f6fdcf-aa57-4c65-9916-6ef2bcc986f3",
+      "name": "Every day at 9 PM"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sales",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "report_date",
+              "lookupValue": "={{ $now.format('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": false
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -360,
+        0
+      ],
+      "id": "9b5ded81-61f7-425f-be6d-cf600277e47c",
+      "name": "Get Today's Sales",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "count",
+              "field": "order_id"
+            },
+            {
+              "aggregation": "sum",
+              "field": "revenue"
+            },
+            {
+              "aggregation": "average",
+              "field": "revenue"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "6cad80d5-bdea-4cd3-8c74-0dc7167efab7",
+      "name": "Summarize Sales"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0289de6d-ebf0-421a-acd8-d4257675eea0",
+              "name": "report_date",
+              "value": "={{ $now.format('dd LLL yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "68f30548-9f70-42ea-9e19-ed6d3d8c0cb4",
+              "name": "orders",
+              "value": "={{ $json.count_order_id }}",
+              "type": "number"
+            },
+            {
+              "id": "ab9ffa10-cc5a-4574-81cc-338739cc5c4c",
+              "name": "revenue",
+              "value": "={{ $json.sum_revenue }}",
+              "type": "number"
+            },
+            {
+              "id": "a9f4c868-073b-4321-ac29-49952d8bd95e",
+              "name": "avg_order",
+              "value": "={{ $json.average_revenue }}",
+              "type": "number"
+            },
+            {
+              "id": "92dbe532-8b66-45b6-87ce-929abdf7df75",
+              "name": "report_text",
+              "value": "=📊 Daily Sales Report — {{ $now.format('dd LLL yyyy') }}\\n\\nOrders: {{ $json.count_order_id }}\\nRevenue: ৳{{ $json.sum_revenue }}\\nAverage Order: ৳{{ Math.round($json.average_revenue || 0) }}\\n\\nGenerated automatically by n8n.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        0
+      ],
+      "id": "f97bf53c-6638-4f8c-9c36-3ae921529edd",
+      "name": "Prepare Report"
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "=Daily Sales Report — {{ $json.report_date }}",
+        "emailType": "text",
+        "message": "={{ $json.report_text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        500,
+        0
+      ],
+      "id": "33d3ec93-5c87-442b-b027-76a72969814d",
+      "name": "Send Daily Report",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every day at 9 PM": {
+      "main": [
+        [
+          {
+            "node": "Get Today's Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today's Sales": {
+      "main": [
+        [
+          {
+            "node": "Summarize Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Sales": {
+      "main": [
+        [
+          {
+            "node": "Prepare Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Report": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

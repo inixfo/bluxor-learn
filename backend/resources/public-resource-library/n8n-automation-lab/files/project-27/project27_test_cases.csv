@@ -1,0 +1,11 @@
+id,scenario,expected_class,expected_action
+T01,503 from HTTP API,transient,queued/retry
+T02,429 rate limit,rate_limit,queued/backoff
+T03,401 bad credential,auth,escalated
+T04,400 invalid request,validation,escalated
+T05,ETIMEDOUT,transient,queued/retry
+T06,Stop And Error business rule,business,escalated
+T07,same error event twice,same incident key,one incident/alert policy
+T08,attempt count reaches max,transient,escalated
+T09,retry succeeds,recovery,mark recovered manually/observer
+T10,missing node/error fields,unknown,safe normalized incident

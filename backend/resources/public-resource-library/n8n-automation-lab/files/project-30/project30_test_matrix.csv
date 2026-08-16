@@ -1,0 +1,17 @@
+﻿id,test,expected
+T01,valid lead event,accepted once and routed lead_intake
+T02,same event_id delivered twice,one business processing path; duplicate response on second
+T03,unsupported event_type,rejected/unsupported; no domain side effect
+T04,closed won billing_approved=false,onboarding may run; invoice does not
+T05,closed won billing_approved=true,onboarding then invoice contract executes
+T06,module fails after accepted checkpoint,event remains diagnosable and P27 incident fires
+T07,safe replay after transient failure,no duplicate prior side effect
+T08,malformed event missing entity_id,validation failure; no dispatch
+T09,agent asks status,read-only ledger tool returns authoritative result
+T10,agent requests sensitive action,P29 approval policy still applies
+T11,stale accepted event,health monitor flags
+T12,staging→production promotion,credentials/variables remain environment-specific
+T13,burst traffic,no uncontrolled duplicate effects
+T14,contract additive field,v1 consumers continue
+T15,breaking contract v2,explicit adapter/version migration
+T16,rollback drill,old version restored and ledger reconciled

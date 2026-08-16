@@ -1,0 +1,453 @@
+{
+  "name": "P28 — Demo Parent Caller",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "05e5a369-6a58-48de-bd5c-5b89e4b69f22",
+      "name": "When clicking “Test workflow”",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -950,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "27d3f28c-a20d-41bf-8e2a-2266e75da8a9",
+              "name": "contact_id",
+              "value": "C-1007",
+              "type": "string"
+            },
+            {
+              "id": "6fd09cc0-2c70-4d8b-96a2-be5732acecf2",
+              "name": "full_name",
+              "value": " Rahim Ahmed ",
+              "type": "string"
+            },
+            {
+              "id": "99e131e5-8d1a-4efc-8960-ce2fed8b1fe8",
+              "name": "email",
+              "value": " RAHIM@EXAMPLE.COM ",
+              "type": "string"
+            },
+            {
+              "id": "846ff4bb-7fad-42e6-8cea-b5317e7178dc",
+              "name": "phone",
+              "value": "01712 345 678",
+              "type": "string"
+            },
+            {
+              "id": "f92b026d-ffab-4bec-b923-1d6d966ea3ad",
+              "name": "country_code",
+              "value": "+880",
+              "type": "string"
+            },
+            {
+              "id": "0405e5ee-c2e3-4392-ada2-2c66aa3fb82e",
+              "name": "source",
+              "value": "demo-parent",
+              "type": "string"
+            },
+            {
+              "id": "10bd476e-115b-4f8b-ad7e-1d66d1e128c1",
+              "name": "event_key",
+              "value": "ORDER-9001",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f872d479-4205-4a71-a07f-a72c633b3952",
+      "name": "Demo Business Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_UTIL01_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Normalize Contact"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "full_name": "={{ $json.full_name }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "country_code": "={{ $json.country_code }}",
+            "source": "={{ $json.source }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "country_code",
+              "displayName": "country_code",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "7ac13f08-2d87-41e8-af08-1697b13473ac",
+      "name": "Call Normalize Contact",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_UTIL02_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Idempotency Gate"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "namespace": "demo-order",
+            "event_key": "={{ $(\"Demo Business Event\").item.json.event_key }}",
+            "source": "project28-demo",
+            "occurred_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "namespace",
+              "displayName": "namespace",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "event_key",
+              "displayName": "event_key",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "occurred_at",
+              "displayName": "occurred_at",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "12b10ee0-9359-4a28-b8d2-f9bfb182ea3e",
+      "name": "Call Idempotency Gate",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8d1ffa2e-e440-40f5-962c-8ad4afd96c77",
+              "leftValue": "={{ $json.should_process }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1ccaa828-5c7e-4bb9-baea-0a73d6e1c526",
+      "name": "Should Process?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_UTIL03_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Team Alert"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_key": "={{ $(\"Demo Business Event\").item.json.event_key }}",
+            "severity": "info",
+            "title": "P28 demo accepted",
+            "message": "={{ \"Reusable modules completed for \" + $(\"Call Normalize Contact\").item.json.contact.email }}",
+            "workflow_name": "P28 Demo Parent Caller",
+            "execution_url": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "event_key",
+              "displayName": "event_key",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "execution_url",
+              "displayName": "execution_url",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "e392ddec-e875-4beb-9fb0-2333dd2488f9",
+      "name": "Call Team Alert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        430,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "48c30ed2-2478-4b83-9a75-160c9042f329",
+              "name": "ok",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "e4e6e456-8715-4b68-8dad-634862d79681",
+              "name": "skipped",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "b67e14cb-cb04-4b57-9bdd-4188b817c2c7",
+              "name": "reason",
+              "value": "duplicate_event",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "555b151a-8897-449c-992a-d93a5c0e73c9",
+      "name": "Duplicate — Skip Side Effects",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        430,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Demo Business Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demo Business Event": {
+      "main": [
+        [
+          {
+            "node": "Call Normalize Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Normalize Contact": {
+      "main": [
+        [
+          {
+            "node": "Call Idempotency Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Idempotency Gate": {
+      "main": [
+        [
+          {
+            "node": "Should Process?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Process?": {
+      "main": [
+        [
+          {
+            "node": "Call Team Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate — Skip Side Effects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P28-DEMO-PARENT"
+}

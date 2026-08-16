@@ -1,0 +1,8 @@
+case,event_stage,current_stage,attempt,expected
+qualified,QUALIFIED,QUALIFIED,0,Create contact task
+duplicate_retry,QUALIFIED,QUALIFIED,1,Deduped if same event_key
+stale,PROPOSAL_SENT,NEGOTIATION,0,Ignore stale event
+won,CLOSED_WON,CLOSED_WON,0,Notify + onboarding handoff
+lost,CLOSED_LOST,CLOSED_LOST,0,Create loss review task
+unknown,UNKNOWN_ID,UNKNOWN_ID,0,Fallback/review
+backwards,DISCOVERY,DISCOVERY,0,Valid DISCOVERY action

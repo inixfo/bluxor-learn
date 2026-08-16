@@ -1,0 +1,341 @@
+{
+  "name": "Project 15 - AI Product Description Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Product Catalog",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "READY"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": false
+        }
+      },
+      "id": "get",
+      "name": "Get READY Products",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sku",
+              "name": "sku",
+              "value": "={{ $json.sku }}",
+              "type": "string"
+            },
+            {
+              "id": "facts",
+              "name": "product_facts",
+              "value": "=PRODUCT NAME: {{ $json.product_name }}\nBRAND: {{ $json.brand }}\nCATEGORY: {{ $json.category }}\nAUDIENCE: {{ $json.audience }}\nMATERIAL: {{ $json.material }}\nDIMENSIONS: {{ $json.dimensions }}\nCOLOR: {{ $json.color }}\nFEATURES: {{ $json.features }}\nSPECS: {{ $json.specs }}\nUSE CASE: {{ $json.use_case }}\nAPPROVED CLAIMS: {{ $json.approved_claims }}\nPROHIBITED CLAIMS: {{ $json.prohibited_claims }}\nTONE: {{ $json.tone }}\nLANGUAGE: {{ $json.language }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prep",
+      "name": "Prepare Product Facts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -310,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an ecommerce product copywriter. Create useful product copy ONLY from the approved facts below.\n\nSTRICT RULES:\n- Never invent material, dimensions, compatibility, warranty, certifications, test results, health/safety benefits, discounts, stock, delivery promises, ratings, reviews, environmental claims, or performance statistics.\n- Never use any claim listed under PROHIBITED CLAIMS.\n- Convert features into practical benefits only when the benefit follows directly from the fact.\n- Avoid fake urgency, keyword stuffing, exaggerated superlatives, and unsupported words such as best, guaranteed, premium-grade, medical-grade, waterproof, unbreakable, or certified unless explicitly approved.\n- SEO title must be concise and descriptive. Do not promise that Google will display it exactly.\n- Meta description must be a short, relevant summary.\n- Image alt text must objectively describe the product using known visual facts; do not add marketing language.\n- If important information is missing, facts conflict, or safe copy cannot be produced, set needs_review=true and explain why.\n- Follow the requested language and tone.\n\nAPPROVED PRODUCT FACTS:\n{{ $json.product_facts }}\n\nReturn the required structured output.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "id": "chain",
+      "name": "Generate Product Copy",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-terra",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-terra"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.35
+        }
+      },
+      "id": "model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -50,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"short_description\": \"1-2 sentence summary\",\n  \"full_description\": \"Clear ecommerce description\",\n  \"key_benefits\": [\"Benefit 1\", \"Benefit 2\", \"Benefit 3\"],\n  \"seo_title\": \"Concise descriptive title\",\n  \"meta_description\": \"Short relevant summary\",\n  \"marketplace_bullets\": [\"Bullet 1\", \"Bullet 2\", \"Bullet 3\"],\n  \"image_alt_text\": \"Objective product image description\",\n  \"needs_review\": false,\n  \"review_reason\": \"\"\n}"
+      },
+      "id": "parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sku2",
+              "name": "sku",
+              "value": "={{ $(\"Prepare Product Facts\").item.json.sku }}",
+              "type": "string"
+            },
+            {
+              "id": "short",
+              "name": "short_description",
+              "value": "={{ $json.output.short_description || $json.short_description }}",
+              "type": "string"
+            },
+            {
+              "id": "full",
+              "name": "full_description",
+              "value": "={{ $json.output.full_description || $json.full_description }}",
+              "type": "string"
+            },
+            {
+              "id": "benefits",
+              "name": "key_benefits",
+              "value": "={{ ($json.output.key_benefits || $json.key_benefits || []).join(\" | \") }}",
+              "type": "string"
+            },
+            {
+              "id": "seo",
+              "name": "seo_title",
+              "value": "={{ $json.output.seo_title || $json.seo_title }}",
+              "type": "string"
+            },
+            {
+              "id": "meta",
+              "name": "meta_description",
+              "value": "={{ $json.output.meta_description || $json.meta_description }}",
+              "type": "string"
+            },
+            {
+              "id": "bullets",
+              "name": "marketplace_bullets",
+              "value": "={{ ($json.output.marketplace_bullets || $json.marketplace_bullets || []).join(\" | \") }}",
+              "type": "string"
+            },
+            {
+              "id": "alt",
+              "name": "image_alt_text",
+              "value": "={{ $json.output.image_alt_text || $json.image_alt_text }}",
+              "type": "string"
+            },
+            {
+              "id": "review",
+              "name": "needs_review",
+              "value": "={{ $json.output.needs_review ?? $json.needs_review ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "reason",
+              "name": "review_reason",
+              "value": "={{ $json.output.review_reason || $json.review_reason || \"\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format",
+      "name": "Format Product Copy",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        290,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Product Catalog",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sku": "={{ $json.sku }}",
+            "short_description": "={{ $json.short_description }}",
+            "full_description": "={{ $json.full_description }}",
+            "key_benefits": "={{ $json.key_benefits }}",
+            "seo_title": "={{ $json.seo_title }}",
+            "meta_description": "={{ $json.meta_description }}",
+            "marketplace_bullets": "={{ $json.marketplace_bullets }}",
+            "image_alt_text": "={{ $json.image_alt_text }}",
+            "needs_review": "={{ $json.needs_review }}",
+            "review_reason": "={{ $json.review_reason }}",
+            "status": "={{ $json.needs_review ? \"NEEDS_REVIEW\" : \"AI_DRAFT\" }}",
+            "generated_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "sku"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "update",
+      "name": "Save Product Draft",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        570,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get READY Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get READY Products": {
+      "main": [
+        [
+          {
+            "node": "Prepare Product Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Product Facts": {
+      "main": [
+        [
+          {
+            "node": "Generate Product Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Product Copy",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate Product Copy",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Product Copy": {
+      "main": [
+        [
+          {
+            "node": "Format Product Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Product Copy": {
+      "main": [
+        [
+          {
+            "node": "Save Product Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "00000000-0000-4000-8000-000000000015",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

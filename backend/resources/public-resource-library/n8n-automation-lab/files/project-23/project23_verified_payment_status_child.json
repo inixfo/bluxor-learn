@@ -1,0 +1,145 @@
+{
+  "name": "Project 23 — Verified Payment Status Child",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "invoice_key"
+            },
+            {
+              "name": "payment_status"
+            },
+            {
+              "name": "payment_reference"
+            },
+            {
+              "name": "paid_at"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -520,
+        0
+      ],
+      "id": "09f73850-dde2-4a3f-8092-ed68543f3609",
+      "name": "When Called After Payment Verification"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const key=String(x.invoice_key||'').trim(); const status=String(x.payment_status||'').trim().toLowerCase(); if(!key) throw new Error('invoice_key required'); if(status!=='paid') throw new Error('This child workflow only accepts verified PAID events'); return [{json:{invoice_key:key,status:'paid',payment_reference:String(x.payment_reference||''),paid_at:String(x.paid_at||new Date().toISOString()),source:String(x.source||'verified_payment_adapter'),updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        0
+      ],
+      "id": "a672b60a-9151-41b2-a508-149160a61803",
+      "name": "Normalize Verified Payment"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_key",
+              "keyValue": "={{ $json.invoice_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_key": "={{ $json.invoice_key }}",
+            "status": "paid",
+            "paid_at": "={{ $json.paid_at }}",
+            "payment_reference": "={{ $json.payment_reference }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -40,
+        0
+      ],
+      "id": "c2ea888d-f877-4f8a-9216-2b7840c37004",
+      "name": "Mark Invoice PAID"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,invoice_key:$json.invoice_key,status:'paid',paid_at:$json.paid_at,payment_reference:$json.payment_reference}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ],
+      "id": "749eb3c2-8d2a-4845-86ba-eead23a294a1",
+      "name": "Return Paid Result"
+    }
+  ],
+  "connections": {
+    "When Called After Payment Verification": {
+      "main": [
+        [
+          {
+            "node": "Normalize Verified Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Verified Payment": {
+      "main": [
+        [
+          {
+            "node": "Mark Invoice PAID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Invoice PAID": {
+      "main": [
+        [
+          {
+            "node": "Return Paid Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fb0960bc-e23a-4876-895a-6d67584f49db",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

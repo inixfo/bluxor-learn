@@ -1,0 +1,144 @@
+{
+  "name": "P29 TOOL-02 — Create Follow-up Task v1",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "customer_id"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "due_at"
+            },
+            {
+              "name": "priority"
+            },
+            {
+              "name": "request_id"
+            }
+          ]
+        }
+      },
+      "id": "81f3768c-3691-42a4-9735-6ef0ee87fd01",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; const customer_id=String(x.customer_id||'').trim(); const title=String(x.title||'').trim().slice(0,180); const request_id=String(x.request_id||'').trim(); const priority=['low','normal','high'].includes(String(x.priority||'').toLowerCase())?String(x.priority).toLowerCase():'normal'; if(!customer_id) throw new Error('customer_id is required'); if(!title) throw new Error('title is required'); if(!request_id) throw new Error('request_id is required'); return [{json:{task_key:`agent-followup:${request_id}`,customer_id,title,due_at:String(x.due_at||''),priority,status:'open',created_by:'ai_agent',created_at:new Date().toISOString()}}];"
+      },
+      "id": "8c4a26c0-7949-4eb7-9d2a-39cf0611a96d",
+      "name": "Prepare Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P29_TASK_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "p29_followup_tasks"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "task_key",
+              "keyValue": "={{ $json.task_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "task_key": "={{ $json.task_key }}",
+            "customer_id": "={{ $json.customer_id }}",
+            "title": "={{ $json.title }}",
+            "due_at": "={{ $json.due_at }}",
+            "priority": "={{ $json.priority }}",
+            "status": "={{ $json.status }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_at": "={{ $json.created_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "0304e865-fe98-4192-a791-c31caf0e2c77",
+      "name": "Upsert Follow-up Task",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Prepare Task').first().json; return [{json:{ok:true,contract_version:'task.create.v1',created:true,task:{task_key:x.task_key,customer_id:x.customer_id,title:x.title,due_at:x.due_at,priority:x.priority,status:x.status}}}];"
+      },
+      "id": "b31c477a-ba11-4dc4-9ed2-bf6c17b8876f",
+      "name": "Return Contract v1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Task": {
+      "main": [
+        [
+          {
+            "node": "Upsert Follow-up Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Follow-up Task": {
+      "main": [
+        [
+          {
+            "node": "Return Contract v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P29-TOOL02-V1"
+}

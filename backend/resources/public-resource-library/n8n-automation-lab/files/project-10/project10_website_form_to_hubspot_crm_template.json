@@ -1,0 +1,226 @@
+{
+  "name": "PROJECT 10 — Website Form to HubSpot CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "website-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -980,
+        0
+      ],
+      "id": "p10-webhook",
+      "name": "Website Lead Webhook",
+      "webhookId": "replace-after-import"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst clean = (v) => String(v ?? '').trim();\nconst email = clean(body.email).toLowerCase();\nconst firstName = clean(body.first_name);\nconst lastName = clean(body.last_name);\nconst phone = clean(body.phone);\nconst company = clean(body.company);\nconst message = clean(body.message);\nconst contactConsent = body.contact_consent === true || body.contact_consent === 'true' || body.contact_consent === 'on';\nconst marketingConsent = body.marketing_consent === true || body.marketing_consent === 'true' || body.marketing_consent === 'on';\nconst requestId = clean(body.request_id) || `lead-${Date.now()}`;\nconst errors = [];\nif (!firstName) errors.push('First name is required');\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Valid email is required');\nif (!contactConsent) errors.push('Contact consent is required');\nif (message.length > 2000) errors.push('Message is too long');\nreturn [{json:{valid:errors.length===0,errors,first_name:firstName,last_name:lastName,email,phone,company,message,contact_consent:contactConsent,marketing_consent:marketingConsent,request_id:requestId,source:'website',submitted_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -750,
+        0
+      ],
+      "id": "p10-clean",
+      "name": "Clean & Validate Lead"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "p10-valid-condition",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -510,
+        0
+      ],
+      "id": "p10-if",
+      "name": "Valid Lead?"
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{ $('Clean & Validate Lead').item.json.email }}",
+        "additionalFields": {
+          "firstName": "={{ $('Clean & Validate Lead').item.json.first_name }}",
+          "lastName": "={{ $('Clean & Validate Lead').item.json.last_name }}",
+          "phoneNumber": "={{ $('Clean & Validate Lead').item.json.phone }}",
+          "companyName": "={{ $('Clean & Validate Lead').item.json.company }}",
+          "message": "={{ $('Clean & Validate Lead').item.json.message }}"
+        }
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        -250,
+        -120
+      ],
+      "id": "p10-hubspot",
+      "name": "Create or Update HubSpot Contact",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_YOUR_HUBSPOT_CREDENTIAL",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=🔥 New Website Lead\\n\\n{{ $('Clean & Validate Lead').item.json.first_name }} {{ $('Clean & Validate Lead').item.json.last_name }}\\n{{ $('Clean & Validate Lead').item.json.email }}\\n{{ $('Clean & Validate Lead').item.json.phone }}\\nCompany: {{ $('Clean & Validate Lead').item.json.company }}\\n\\nMessage: {{ $('Clean & Validate Lead').item.json.message }}\\nCRM: saved ✓",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -120
+      ],
+      "id": "p10-telegram",
+      "name": "Notify Sales Team",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, message: 'Lead received', request_id: $('Clean & Validate Lead').item.json.request_id }) }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        250,
+        -120
+      ],
+      "id": "p10-success",
+      "name": "Respond 201 — Saved"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -250,
+        150
+      ],
+      "id": "p10-invalid",
+      "name": "Respond 422 — Invalid"
+    }
+  ],
+  "connections": {
+    "Website Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Clean & Validate Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean & Validate Lead": {
+      "main": [
+        [
+          {
+            "node": "Valid Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Lead?": {
+      "main": [
+        [
+          {
+            "node": "Create or Update HubSpot Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 422 — Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Update HubSpot Contact": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Sales Team": {
+      "main": [
+        [
+          {
+            "node": "Respond 201 — Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "timezone": "Asia/Dhaka"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

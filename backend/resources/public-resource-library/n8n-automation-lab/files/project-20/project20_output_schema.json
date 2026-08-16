@@ -1,0 +1,13 @@
+{
+  "subject_a": "",
+  "subject_b": "",
+  "opening_line": "",
+  "email_body": "",
+  "cta": "",
+  "opt_out_line": "If this isn't relevant, reply no and I won't follow up.",
+  "facts_used": [],
+  "claims_grounded": true,
+  "needs_human_review": false,
+  "review_reason": "",
+  "confidence": 0.0
+}

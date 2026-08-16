@@ -1,0 +1,19 @@
+column,type,purpose
+incident_key,string,Stable root failure identity
+root_execution_id,string,Original failed execution
+last_execution_id,string,Latest retry execution
+workflow_id,string,Failed workflow ID
+workflow_name,string,Failed workflow name
+failed_node,string,Node if available
+error_class,string,transient/rate_limit/auth/validation/business/resource/dependency/unknown
+error_message,string,Sanitized short message
+status,string,open/queued/retrying/recovered/escalated
+attempt_count,number,Recovery attempts started
+max_attempts,number,Policy cap
+retry_at,string,Next retry ISO timestamp
+first_seen_at,string,First incident time
+last_seen_at,string,Latest failure time
+execution_url,string,Link to n8n execution
+owner,string,Manual escalation owner
+alert_sent,string,yes/no
+notes,string,Non-sensitive operator notes

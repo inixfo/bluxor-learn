@@ -1,0 +1,166 @@
+{
+  "name": "P30 TEMPLATE — Canonical Event to Existing Module Adapter",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event_json"
+            }
+          ]
+        }
+      },
+      "id": "04714985-caef-4849-8b60-7abaee1b5c0c",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e=JSON.parse(String($input.first().json.event_json||'{}')); if(!e.event_id||!e.event_type||!e.entity_id) throw new Error('invalid canonical event'); return [{json:{event_id:e.event_id,trace_id:e.trace_id,event_type:e.event_type,entity_id:e.entity_id,data:e.data||{},note:'Replace Map to Existing Module and child workflow ID for this adapter.'}}];"
+      },
+      "id": "7edaeee5-1930-46b7-8ee2-c4d298c9f088",
+      "name": "Parse Canonical Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -350,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "81c2b938-aec7-4518-a08c-27ff12f663bc",
+              "name": "module_input_json",
+              "value": "={{ JSON.stringify($json) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0797a212-f42c-4938-94a4-afca748d6e55",
+      "name": "Map to Existing Module",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_EXISTING_PROJECT_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Existing project workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "input_json": "={{ $json.module_input_json }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "input_json",
+              "displayName": "input_json",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "b72da082-e336-40ac-9f4b-27e84fdfe918",
+      "name": "Call Existing Project Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        210,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e=$('Parse Canonical Event').first().json; return [{json:{ok:true,contract_version:'module.adapter.v1',event_id:e.event_id,trace_id:e.trace_id,event_type:e.event_type,entity_id:e.entity_id,module_result:$input.first().json||{}}}];"
+      },
+      "id": "9b9c81ea-5b69-48ee-90c3-da3a9489e73a",
+      "name": "Return Adapter Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        510,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Parse Canonical Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Canonical Event": {
+      "main": [
+        [
+          {
+            "node": "Map to Existing Module",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map to Existing Module": {
+      "main": [
+        [
+          {
+            "node": "Call Existing Project Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Existing Project Workflow": {
+      "main": [
+        [
+          {
+            "node": "Return Adapter Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P30-ADAPTER-TEMPLATE-V1"
+}

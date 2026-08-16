@@ -1,0 +1,812 @@
+{
+  "name": "Project 21 — Sales Pipeline Automation (HubSpot Stage-Driven)",
+  "nodes": [
+    {
+      "parameters": {
+        "eventsUi": {
+          "eventValues": [
+            {
+              "name": "deal.propertyChange",
+              "property": "dealstage"
+            }
+          ]
+        },
+        "additionalFields": {
+          "maxConcurrentRequests": 5
+        }
+      },
+      "id": "trigger",
+      "name": "HubSpot Trigger — dealstage",
+      "type": "n8n-nodes-base.hubspotTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1100,
+        0
+      ],
+      "credentials": {
+        "hubspotDeveloperApi": {
+          "id": "REPLACE_WITH_HUBSPOT_DEVELOPER_CREDENTIAL",
+          "name": "HubSpot Developer API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $json;\nconst dealId = String(e.dealId ?? e.objectId ?? '');\nconst stageId = String(e.propertyValue ?? '');\nconst occurredAt = Number(e.occurredAt ?? Date.now());\nconst eventKey = [e.portalId ?? 'portal', dealId, e.propertyName ?? 'dealstage', stageId, occurredAt].join(':');\nreturn [{json:{...e,deal_id:dealId,event_stage_id:stageId,occurred_at:occurredAt,event_key:eventKey}}];"
+      },
+      "id": "normalize",
+      "name": "Normalize Stage Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.event_key }}",
+        "options": {}
+      },
+      "id": "dedupe",
+      "name": "Deduplicate Exact Event",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        -650,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "deal",
+        "operation": "get",
+        "dealId": {
+          "__rl": true,
+          "value": "={{ $json.deal_id }}",
+          "mode": "id"
+        },
+        "filters": {
+          "propertiesCollection": {
+            "propertiesValues": {
+              "properties": [
+                "dealname",
+                "dealstage",
+                "pipeline",
+                "amount",
+                "closedate",
+                "hubspot_owner_id"
+              ],
+              "propertyMode": "valueOnly"
+            }
+          }
+        }
+      },
+      "id": "getdeal",
+      "name": "Get Current Deal",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        -410,
+        0
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_HUBSPOT_APP_TOKEN",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $('Normalize Stage Event').item.json;\nconst d = $json;\nconst p = d.properties || {};\nconst value = (key) => {\n  const v = p[key];\n  if (v && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v,'value')) return v.value ?? '';\n  return v ?? d[key] ?? '';\n};\nreturn [{json:{\n  ...e,\n  deal_id: String(e.deal_id),\n  deal_name: String(value('dealname') || `Deal ${e.deal_id}`),\n  current_stage_id: String(value('dealstage') || ''),\n  pipeline_id: String(value('pipeline') || ''),\n  amount: String(value('amount') || ''),\n  close_date: String(value('closedate') || ''),\n  owner_id: String(value('hubspot_owner_id') || ''),\n  current_matches_event: String(value('dealstage') || '') === String(e.event_stage_id)\n}}];"
+      },
+      "id": "combine",
+      "name": "Compare Event vs Current Deal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -170,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "current",
+              "leftValue": "={{ $json.current_matches_event }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fresh",
+      "name": "Event Still Current?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        70,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// IMPORTANT: Replace these placeholders with the INTERNAL stage IDs from your HubSpot account.\nconst STAGES = {\n  'REPLACE_STAGE_ID_NEW':          {key:'NEW',            dueHours:null, subject:'Review new opportunity'},\n  'REPLACE_STAGE_ID_QUALIFIED':    {key:'QUALIFIED',      dueHours:1,    subject:'Contact qualified opportunity'},\n  'REPLACE_STAGE_ID_DISCOVERY':    {key:'DISCOVERY',      dueHours:24,   subject:'Prepare discovery next step'},\n  'REPLACE_STAGE_ID_PROPOSAL':     {key:'PROPOSAL_SENT',  dueHours:48,   subject:'Follow up on proposal'},\n  'REPLACE_STAGE_ID_NEGOTIATION':  {key:'NEGOTIATION',    dueHours:1,    subject:'Prioritize negotiation next step'},\n  'REPLACE_STAGE_ID_WON':          {key:'CLOSED_WON',     dueHours:null, subject:'Handoff won deal'},\n  'REPLACE_STAGE_ID_LOST':         {key:'CLOSED_LOST',    dueHours:24,   subject:'Record closed-lost reason'}\n};\nconst cfg = STAGES[String($json.current_stage_id)] || {key:'UNMAPPED',dueHours:null,subject:'Review unmapped pipeline stage'};\nconst due = cfg.dueHours == null ? '' : new Date(Date.now()+cfg.dueHours*3600*1000).toISOString();\nreturn [{json:{...$json,stage_key:cfg.key,task_due_at:due,task_subject:cfg.subject}}];"
+      },
+      "id": "map",
+      "name": "Map Internal Stage ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "NEW",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "NEW"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "QUALIFIED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "QUALIFIED"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "DISCOVERY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "DISCOVERY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "PROPOSAL_SENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PROPOSAL_SENT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "NEGOTIATION",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "NEGOTIATION"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "CLOSED_WON",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CLOSED_WON"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.stage_key }}",
+                    "rightValue": "CLOSED_LOST",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CLOSED_LOST"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch",
+      "name": "Route by Sales Stage",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log",
+              "name": "pipeline_action",
+              "value": "LOG_ONLY",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "new",
+      "name": "NEW — Log Only",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        820,
+        -410
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "operation": "create",
+        "type": "task",
+        "dueDate": "={{ $json.task_due_at }}",
+        "metadata": {
+          "body": "Qualified deal {{$json.deal_name}}. Contact promptly and define the next step.",
+          "status": "NOT_STARTED",
+          "subject": "={{ $json.task_subject }}"
+        },
+        "additionalFields": {
+          "associations": {
+            "dealIds": "={{ $json.deal_id }}"
+          }
+        }
+      },
+      "id": "tqual",
+      "name": "QUALIFIED — Create Task",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        -285
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_HUBSPOT_APP_TOKEN",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "operation": "create",
+        "type": "task",
+        "dueDate": "={{ $json.task_due_at }}",
+        "metadata": {
+          "body": "Prepare discovery notes/questions for {{$json.deal_name}} and confirm the next meeting/action.",
+          "status": "NOT_STARTED",
+          "subject": "={{ $json.task_subject }}"
+        },
+        "additionalFields": {
+          "associations": {
+            "dealIds": "={{ $json.deal_id }}"
+          }
+        }
+      },
+      "id": "tdisc",
+      "name": "DISCOVERY — Create Task",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        -160
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_HUBSPOT_APP_TOKEN",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "operation": "create",
+        "type": "task",
+        "dueDate": "={{ $json.task_due_at }}",
+        "metadata": {
+          "body": "Proposal stage reached for {{$json.deal_name}}. Review proposal status and follow up at the agreed time.",
+          "status": "NOT_STARTED",
+          "subject": "={{ $json.task_subject }}"
+        },
+        "additionalFields": {
+          "associations": {
+            "dealIds": "={{ $json.deal_id }}"
+          }
+        }
+      },
+      "id": "tprop",
+      "name": "PROPOSAL — Create Task",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        -35
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_HUBSPOT_APP_TOKEN",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "operation": "create",
+        "type": "task",
+        "dueDate": "={{ $json.task_due_at }}",
+        "metadata": {
+          "body": "Negotiation stage for {{$json.deal_name}}. Prioritize blockers, decision process, and next commitment.",
+          "status": "NOT_STARTED",
+          "subject": "={{ $json.task_subject }}"
+        },
+        "additionalFields": {
+          "associations": {
+            "dealIds": "={{ $json.deal_id }}"
+          }
+        }
+      },
+      "id": "tneg",
+      "name": "NEGOTIATION — Create Task",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        90
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_HUBSPOT_APP_TOKEN",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=🔥 NEGOTIATION — {{$json.deal_name}}\nDeal ID: {{$json.deal_id}}\nAmount: {{$json.amount || '—'}}\nOwner: {{$json.owner_id || 'unassigned'}}\nNext task due: {{$json.task_due_at}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "negalert",
+      "name": "Telegram — Negotiation Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1070,
+        90
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=✅ CLOSED WON — {{$json.deal_name}}\nDeal ID: {{$json.deal_id}}\nAmount: {{$json.amount || '—'}}\nNext: hand off to onboarding (Project 22).",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "won",
+      "name": "CLOSED WON — Notify",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        215
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "engagement",
+        "operation": "create",
+        "type": "task",
+        "dueDate": "={{ $json.task_due_at }}",
+        "metadata": {
+          "body": "Record the real loss reason for {{$json.deal_name}}. Capture competitor, timing, budget, fit, or no-decision accurately.",
+          "status": "NOT_STARTED",
+          "subject": "={{ $json.task_subject }}"
+        },
+        "additionalFields": {
+          "associations": {
+            "dealIds": "={{ $json.deal_id }}"
+          }
+        }
+      },
+      "id": "tlost",
+      "name": "CLOSED LOST — Review Task",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        340
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_HUBSPOT_APP_TOKEN",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=❌ CLOSED LOST — {{$json.deal_name}}\nDeal ID: {{$json.deal_id}}\nPlease capture a useful loss reason so the pipeline can learn.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "lostalert",
+      "name": "Telegram — Lost Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1070,
+        340
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "stale",
+              "name": "pipeline_action",
+              "value": "IGNORE_STALE_EVENT",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stale",
+      "name": "Ignore Stale Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=🟣 UNMAPPED PIPELINE STAGE\nDeal: {{$json.deal_name}}\nStage ID: {{$json.current_stage_id}}\nUpdate the Stage Map node before automating this stage.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "unmapped",
+      "name": "Unmapped Stage — Review",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        465
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "HubSpot Trigger — dealstage": {
+      "main": [
+        [
+          {
+            "node": "Normalize Stage Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Stage Event": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Exact Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Exact Event": {
+      "main": [
+        [
+          {
+            "node": "Get Current Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Deal": {
+      "main": [
+        [
+          {
+            "node": "Compare Event vs Current Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Event vs Current Deal": {
+      "main": [
+        [
+          {
+            "node": "Event Still Current?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event Still Current?": {
+      "main": [
+        [
+          {
+            "node": "Map Internal Stage ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore Stale Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Internal Stage ID": {
+      "main": [
+        [
+          {
+            "node": "Route by Sales Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Sales Stage": {
+      "main": [
+        [
+          {
+            "node": "NEW — Log Only",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QUALIFIED — Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DISCOVERY — Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PROPOSAL — Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NEGOTIATION — Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CLOSED WON — Notify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CLOSED LOST — Review Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unmapped Stage — Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NEGOTIATION — Create Task": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Negotiation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CLOSED LOST — Review Task": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Lost Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "PROJECT21-TEMPLATE"
+}

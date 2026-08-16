@@ -1,0 +1,15 @@
+﻿column,type,required,purpose
+event_id,string,yes,global idempotency identity
+trace_id,string,yes,correlate cross-workflow activity
+event_type,string,yes,routing type
+schema_version,string,yes,event contract version
+source,string,yes,origin system
+entity_type,string,yes,lead/deal/order/client/etc
+entity_id,string,yes,stable business ID
+occurred_at,datetime,yes,source event time
+received_at,datetime,yes,gateway receive time
+status,string,yes,accepted/processing/completed/failed/rejected
+route_key,string,no,dispatcher target
+last_execution_id,string,no,n8n execution reference
+error_code,string,no,sanitized failure code
+updated_at,datetime,yes,last checkpoint

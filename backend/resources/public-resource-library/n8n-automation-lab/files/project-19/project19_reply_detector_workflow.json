@@ -1,0 +1,393 @@
+{
+  "name": "Project 19 - Reply Detector",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": true,
+        "filters": {
+          "readStatus": "unread",
+          "search": "-in:sent -in:draft"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "78718a64-74e5-4434-97f2-a1b774781acc",
+      "name": "Gmail Reply Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.from?.value?.[0]?.address || $json.from || $json.From || $json.sender || '';\nconst m = String(raw).match(/<([^>]+)>/) || String(raw).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i);\nconst sender_email = m ? (m[1] || m[0]).toLowerCase().trim() : String(raw).toLowerCase().trim();\nreturn [{json:{...$json,sender_email}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        0
+      ],
+      "id": "1c0a30cf-7098-4609-9655-24270f8b7b44",
+      "name": "Normalize Sender"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "keyValue": "={{ $json.sender_email }}"
+            },
+            {
+              "keyName": "sequence_status",
+              "keyValue": "active"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "ed607436-6f34-4c76-8bf6-b176984e9096",
+      "name": "Find Active Sequence"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3c03e18f-5e0b-4345-a7ea-52a7719a2989",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "7cc4d7d1-8bd1-4f72-ba7b-4053d29fe2a7",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "6f9a9054-fb5e-46d5-afc8-603106b59c48",
+              "name": "first_name",
+              "value": "={{ $json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "8eca7bb8-0fe1-4b04-a757-d7097df01d46",
+              "name": "service",
+              "value": "={{ $json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "d7f45cd2-f718-49d8-8269-4421cec14f35",
+              "name": "sequence_status",
+              "value": "replied",
+              "type": "string"
+            },
+            {
+              "id": "c3cd6352-e47b-4026-8acf-89c45be6693e",
+              "name": "followup_step",
+              "value": "={{ Number($json.followup_step || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "4e45a67e-5ca1-4e9b-8df7-6bcd942239e7",
+              "name": "started_at",
+              "value": "={{ $json.started_at }}",
+              "type": "string"
+            },
+            {
+              "id": "bbf1ccb3-0aab-4a19-ac1c-fa05492f0be8",
+              "name": "last_sent_at",
+              "value": "={{ $json.last_sent_at }}",
+              "type": "string"
+            },
+            {
+              "id": "15c12ffb-defc-48c5-a3b8-25af23017e83",
+              "name": "replied_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "eecdc269-0ed3-4af9-b191-b3235d029fd1",
+              "name": "completed_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        0
+      ],
+      "id": "ebc15af5-edc0-443e-8e26-d7e5fcc465ec",
+      "name": "Mark Replied"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "lead_followup_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_id",
+              "keyValue": "={{ $json.lead_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "email": "={{ $json.email }}",
+            "first_name": "={{ $json.first_name }}",
+            "service": "={{ $json.service }}",
+            "sequence_status": "replied",
+            "followup_step": "={{ $json.followup_step }}",
+            "started_at": "={{ $json.started_at }}",
+            "last_sent_at": "={{ $json.last_sent_at }}",
+            "replied_at": "={{ $json.replied_at }}",
+            "completed_at": "={{ $json.completed_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sequence_status",
+              "displayName": "sequence_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "followup_step",
+              "displayName": "followup_step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "started_at",
+              "displayName": "started_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_sent_at",
+              "displayName": "last_sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "replied_at",
+              "displayName": "replied_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completed_at",
+              "displayName": "completed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        0
+      ],
+      "id": "e1b00701-2daf-41ea-b10f-dc3735b1d49c",
+      "name": "Save Replied State"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_YOUR_CHAT_ID",
+        "text": "={{ `💬 Lead replied\\n${$json.first_name || \"Lead\"} • ${$json.email}\\nFollow-up sequence stopped automatically.` }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        0
+      ],
+      "id": "9c2b1d0d-a3fa-424f-99ee-6a4834c018b4",
+      "name": "Notify Sales",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Reply Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Sender": {
+      "main": [
+        [
+          {
+            "node": "Find Active Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Active Sequence": {
+      "main": [
+        [
+          {
+            "node": "Mark Replied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Replied": {
+      "main": [
+        [
+          {
+            "node": "Save Replied State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Replied State": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "7ee42e21-6e24-4574-b791-71c1385f72b3"
+}

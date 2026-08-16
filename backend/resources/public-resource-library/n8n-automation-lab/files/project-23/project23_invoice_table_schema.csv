@@ -1,0 +1,26 @@
+column,type,purpose
+invoice_key,string,Stable idempotency key
+invoice_number,string,Approved invoice number
+deal_id,string,Optional upstream record
+client_name,string,Invoice recipient name
+client_email,string,Recipient email
+client_company,string,Company/legal name
+currency,string,ISO-style currency code
+subtotal,number,Calculated subtotal
+discount_amount,number,Approved discount
+tax_rate,number,Approved percent
+tax_amount,number,Calculated tax
+total,number,Final payable amount
+status,string,received/document_ready/issued/paid/cancelled
+doc_id,string,Google Docs file ID
+pdf_name,string,PDF filename
+issued_at,dateTime,Client delivery time
+due_date,dateTime,Due date
+payment_link,string,Approved payment URL
+reminder_before_due_sent,string,yes/no
+reminder_due_sent,string,yes/no
+reminder_overdue_sent,string,yes/no
+paid_at,dateTime,Payment time
+payment_reference,string,Gateway/accounting reference
+last_error,string,Operational error note
+updated_at,dateTime,Last state update

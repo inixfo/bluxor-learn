@@ -1,0 +1,1182 @@
+{
+  "name": "Project 22 — Client Onboarding System",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "deal_id"
+            },
+            {
+              "name": "client_name"
+            },
+            {
+              "name": "client_email"
+            },
+            {
+              "name": "service"
+            },
+            {
+              "name": "project_name"
+            },
+            {
+              "name": "owner_email"
+            },
+            {
+              "name": "amount"
+            },
+            {
+              "name": "kickoff_link"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1320,
+        0
+      ],
+      "id": "03908a8b-2467-4dd3-84b9-8e5d43a197e9",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $json;\nconst clean = (v) => String(v ?? '').trim();\nconst safeName = (v) => clean(v).replace(/[\\\\/:*?\"<>|#%{}~]/g, '-').replace(/\\s+/g,' ').slice(0,90);\nconst email = clean(x.client_email).toLowerCase();\nconst required = {\n  deal_id: clean(x.deal_id),\n  client_name: clean(x.client_name),\n  client_email: email,\n  service: clean(x.service),\n  project_name: clean(x.project_name || `${x.client_name || 'Client'} - ${x.service || 'Project'}`),\n};\nconst missing = Object.entries(required).filter(([k,v]) => !v).map(([k])=>k);\nconst emailOk = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\nif (email && !emailOk) missing.push('client_email_invalid');\nconst onboardingKey = required.deal_id || `email:${email}:${required.service}`;\nreturn [{json:{\n  ...x,\n  ...required,\n  client_email: email,\n  owner_email: clean(x.owner_email),\n  amount: clean(x.amount),\n  kickoff_link: clean(x.kickoff_link),\n  source: clean(x.source || 'unknown'),\n  onboarding_key: onboardingKey,\n  folder_name: safeName(`${required.client_name} — ${required.project_name}`),\n  is_valid: missing.length === 0,\n  missing_fields: missing,\n  received_at: new Date().toISOString()\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1100,
+        0
+      ],
+      "id": "7c3fbd2d-5d76-455d-a7d8-4c98a86b2b29",
+      "name": "Prepare Onboarding Contract"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "valid",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -880,
+        0
+      ],
+      "id": "70d32601-9289-4ec0-b032-4a62059c2aea",
+      "name": "Valid Onboarding Input?"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CLIENT_ONBOARDING_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "client_onboarding"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "onboarding_key",
+              "keyValue": "={{ $('Prepare Onboarding Contract').item.json.onboarding_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -650,
+        -100
+      ],
+      "id": "0eb90146-d4ed-49cc-8359-68226c715020",
+      "name": "Get Existing Onboarding State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $('Prepare Onboarding Contract').item.json;\nconst state = $json || {};\nconst folderId = String(state.folder_id ?? '').trim();\nconst welcomed = String(state.welcome_sent ?? '').toLowerCase() === 'yes';\nreturn [{json:{\n  ...incoming,\n  existing_state_found: Boolean(state.onboarding_key),\n  folder_id: folderId,\n  folder_url: String(state.folder_url ?? ''),\n  onboarding_status: String(state.onboarding_status ?? 'received'),\n  welcome_sent: welcomed ? 'yes' : 'no',\n  need_folder: !folderId,\n  need_welcome: !welcomed\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -430,
+        -100
+      ],
+      "id": "40309266-2628-496f-9897-c74db6a96ee0",
+      "name": "Resolve Existing State"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "folder",
+              "leftValue": "={{ $json.need_folder }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -210,
+        -100
+      ],
+      "id": "3378af73-9d2e-4c4d-89d5-c1abb529a7dd",
+      "name": "Need New Client Folder?"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "name": "={{ $('Resolve Existing State').item.json.folder_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_ONBOARDING_ROOT_FOLDER_ID"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        20,
+        -190
+      ],
+      "id": "7a4705a1-ee22-45d8-9201-05da125e0854",
+      "name": "Create Client Folder",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_DRIVE_CREDENTIAL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Resolve Existing State').item.json;\nconst folderId = String($json.id || '');\nreturn [{json:{...p,folder_id:folderId,folder_url:`https://drive.google.com/drive/folders/${folderId}`,onboarding_status:'folder_ready',welcome_sent:'no'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        -190
+      ],
+      "id": "ef25474d-f80c-46f4-8c95-a46735045d2c",
+      "name": "Capture New Folder Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CLIENT_ONBOARDING_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "client_onboarding"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "onboarding_key",
+              "keyValue": "={{ $json.onboarding_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "onboarding_key": "={{ $json.onboarding_key }}",
+            "deal_id": "={{ $json.deal_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_email": "={{ $json.client_email }}",
+            "service": "={{ $json.service }}",
+            "project_name": "={{ $json.project_name }}",
+            "owner_email": "={{ $json.owner_email }}",
+            "folder_id": "={{ $json.folder_id }}",
+            "folder_url": "={{ $json.folder_url }}",
+            "onboarding_status": "folder_ready",
+            "welcome_sent": "no",
+            "kickoff_status": "not_scheduled",
+            "assets_status": "missing",
+            "access_status": "missing",
+            "source": "={{ $json.source }}",
+            "created_at": "={{ $json.received_at }}",
+            "updated_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "onboarding_key",
+              "displayName": "onboarding_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "deal_id",
+              "displayName": "deal_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "project_name",
+              "displayName": "project_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "owner_email",
+              "displayName": "owner_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "folder_id",
+              "displayName": "folder_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "folder_url",
+              "displayName": "folder_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "onboarding_status",
+              "displayName": "onboarding_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "welcome_sent",
+              "displayName": "welcome_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "kickoff_status",
+              "displayName": "kickoff_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "assets_status",
+              "displayName": "assets_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "access_status",
+              "displayName": "access_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        470,
+        -190
+      ],
+      "id": "5f58d005-05c8-46b8-a38f-68bc75350f0a",
+      "name": "Upsert Folder State"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Resolve Existing State').item.json;\nreturn [{json:{...p,folder_url:p.folder_url || `https://drive.google.com/drive/folders/${p.folder_id}`}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ],
+      "id": "00c9e1cc-8f6c-493c-9b90-d7be59dcfa14",
+      "name": "Reuse Existing Folder"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Resolve Existing State').item.json;\nconst c = $json || {};\nconst id = String(c.folder_id || p.folder_id || '').trim();\nreturn [{json:{...p,...c,folder_id:id,folder_url:String(c.folder_url || p.folder_url || (id ? `https://drive.google.com/drive/folders/${id}` : '')),need_welcome:String(c.welcome_sent || p.welcome_sent || 'no').toLowerCase() !== 'yes'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        -80
+      ],
+      "id": "efd8a1b2-b423-4c4e-89b4-e35bacba5eef",
+      "name": "Ready for Welcome Decision"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "needwelcome",
+              "leftValue": "={{ $json.need_welcome }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        920,
+        -80
+      ],
+      "id": "cde7870b-d379-48a0-9b64-a09f978f7a34",
+      "name": "Welcome Already Sent?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $json;\nconst nextStep = x.kickoff_link ? `Kickoff / next step: ${x.kickoff_link}` : 'Next step: reply with any missing project information and we will confirm the kickoff plan.';\nconst subject = `Welcome — ${x.project_name}`;\nconst body = `Hi ${x.client_name},\\n\\nWelcome! We’re ready to start ${x.project_name}.\\n\\nProject workspace: ${x.folder_url}\\n\\nPlease use this folder for approved project files and assets. Do not send passwords, API keys, card details, or other secrets by email.\\n\\n${nextStep}\\n\\nIf the scope or contact details changed, reply before uploading sensitive business material.\\n\\nThanks!`;\nreturn [{json:{...x,welcome_subject:subject,welcome_body:body}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        -180
+      ],
+      "id": "a8088a20-5726-4eaf-8764-45f496cbe28b",
+      "name": "Build Welcome Package"
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.folder_id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "writer",
+            "type": "user",
+            "emailAddress": "={{ $json.client_email }}"
+          }
+        },
+        "options": {
+          "sendNotificationEmail": false,
+          "transferOwnership": false
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1360,
+        -180
+      ],
+      "id": "23432d1b-3539-4c4f-a076-8d5f731258b3",
+      "name": "Share Client Folder",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_DRIVE_CREDENTIAL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Build Welcome Package').item.json.client_email }}",
+        "subject": "={{ $('Build Welcome Package').item.json.welcome_subject }}",
+        "emailType": "text",
+        "message": "={{ $('Build Welcome Package').item.json.welcome_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        -180
+      ],
+      "id": "48d1bd0a-7587-40c6-b765-9f223563da76",
+      "name": "Send Welcome Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $('Build Welcome Package').item.json;\nreturn [{json:{...x,onboarding_status:'welcome_sent',welcome_sent:'yes',welcome_sent_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -180
+      ],
+      "id": "3a9127cf-3726-44dc-b1ea-02e9c06b2364",
+      "name": "Mark Welcome Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CLIENT_ONBOARDING_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "client_onboarding"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "onboarding_key",
+              "keyValue": "={{ $json.onboarding_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "onboarding_key": "={{ $json.onboarding_key }}",
+            "deal_id": "={{ $json.deal_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_email": "={{ $json.client_email }}",
+            "service": "={{ $json.service }}",
+            "project_name": "={{ $json.project_name }}",
+            "owner_email": "={{ $json.owner_email }}",
+            "folder_id": "={{ $json.folder_id }}",
+            "folder_url": "={{ $json.folder_url }}",
+            "onboarding_status": "welcome_sent",
+            "welcome_sent": "yes",
+            "kickoff_status": "={{ $json.kickoff_link ? \"scheduled\" : \"not_scheduled\" }}",
+            "assets_status": "missing",
+            "access_status": "missing",
+            "source": "={{ $json.source }}",
+            "created_at": "={{ $json.received_at }}",
+            "updated_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "onboarding_key",
+              "displayName": "onboarding_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "deal_id",
+              "displayName": "deal_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "project_name",
+              "displayName": "project_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "owner_email",
+              "displayName": "owner_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "folder_id",
+              "displayName": "folder_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "folder_url",
+              "displayName": "folder_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "onboarding_status",
+              "displayName": "onboarding_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "welcome_sent",
+              "displayName": "welcome_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "kickoff_status",
+              "displayName": "kickoff_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "assets_status",
+              "displayName": "assets_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "access_status",
+              "displayName": "access_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2020,
+        -180
+      ],
+      "id": "5365b800-fa2b-404b-a04f-ef3e37792662",
+      "name": "Upsert Welcome State"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=✅ Client onboarding started\n\nClient: {{ $('Mark Welcome Context').item.json.client_name }}\nProject: {{ $('Mark Welcome Context').item.json.project_name }}\nService: {{ $('Mark Welcome Context').item.json.service }}\nFolder: {{ $('Mark Welcome Context').item.json.folder_url }}\nOwner: {{ $('Mark Welcome Context').item.json.owner_email || 'Unassigned' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2240,
+        -180
+      ],
+      "id": "5afe4c85-67e0-4409-a762-454ae75dbd55",
+      "name": "Notify Delivery Team",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $('Mark Welcome Context').item.json;\nreturn [{json:{ok:true,onboarding_key:x.onboarding_key,onboarding_status:'welcome_sent',folder_id:x.folder_id,folder_url:x.folder_url,welcome_sent:true}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        -180
+      ],
+      "id": "a4f5e60b-847a-46b1-8824-ea40ab31ac99",
+      "name": "Return Onboarding Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $json;\nreturn [{json:{ok:true,onboarding_key:x.onboarding_key,onboarding_status:x.onboarding_status || 'existing',folder_id:x.folder_id,folder_url:x.folder_url,welcome_sent:true,skipped_duplicate_side_effects:true}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        20
+      ],
+      "id": "28f49d47-ab47-4dc1-88a1-2e2bb589bb2e",
+      "name": "Return Existing Onboarding"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $('Prepare Onboarding Contract').item.json;\nreturn [{json:{ok:false,onboarding_status:'review',reason:'missing_or_invalid_input',missing_fields:x.missing_fields,onboarding_key:x.onboarding_key,client_name:x.client_name,client_email:x.client_email}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -650,
+        130
+      ],
+      "id": "433e90bd-29b8-4223-b407-33c044850068",
+      "name": "Build Manual Review Result"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=⚠️ Onboarding needs review\nClient: {{ $json.client_name || 'Unknown' }}\nEmail: {{ $json.client_email || 'Missing' }}\nMissing/invalid: {{ ($json.missing_fields || []).join(', ') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -430,
+        130
+      ],
+      "id": "f6a2b981-629a-4c40-b2ff-ee3e0eb0fec2",
+      "name": "Alert Missing Onboarding Data",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $('Capture New Folder Context').item.json; return [{json:x}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        -240
+      ],
+      "id": "05485299-7bc2-46b2-8141-2cc44a75c676",
+      "name": "Restore New Folder Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $('Build Manual Review Result').item.json; return [{json:x}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        130
+      ],
+      "id": "655f9675-8ae0-4f70-abf5-17bf2b6e98a1",
+      "name": "Return Manual Review"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Onboarding Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Onboarding Contract": {
+      "main": [
+        [
+          {
+            "node": "Valid Onboarding Input?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Onboarding Input?": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Onboarding State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Manual Review Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Manual Review Result": {
+      "main": [
+        [
+          {
+            "node": "Alert Missing Onboarding Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Onboarding State": {
+      "main": [
+        [
+          {
+            "node": "Resolve Existing State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Existing State": {
+      "main": [
+        [
+          {
+            "node": "Need New Client Folder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need New Client Folder?": {
+      "main": [
+        [
+          {
+            "node": "Create Client Folder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reuse Existing Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Client Folder": {
+      "main": [
+        [
+          {
+            "node": "Capture New Folder Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture New Folder Context": {
+      "main": [
+        [
+          {
+            "node": "Upsert Folder State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Folder State": {
+      "main": [
+        [
+          {
+            "node": "Restore New Folder Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reuse Existing Folder": {
+      "main": [
+        [
+          {
+            "node": "Ready for Welcome Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready for Welcome Decision": {
+      "main": [
+        [
+          {
+            "node": "Welcome Already Sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Welcome Already Sent?": {
+      "main": [
+        [
+          {
+            "node": "Build Welcome Package",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Existing Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Welcome Package": {
+      "main": [
+        [
+          {
+            "node": "Share Client Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share Client Folder": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Welcome Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Welcome Context": {
+      "main": [
+        [
+          {
+            "node": "Upsert Welcome State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Welcome State": {
+      "main": [
+        [
+          {
+            "node": "Notify Delivery Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Delivery Team": {
+      "main": [
+        [
+          {
+            "node": "Return Onboarding Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore New Folder Context": {
+      "main": [
+        [
+          {
+            "node": "Ready for Welcome Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Missing Onboarding Data": {
+      "main": [
+        [
+          {
+            "node": "Return Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "08254727-074e-436b-ba74-24dbcb9cab68",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

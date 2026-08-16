@@ -1,0 +1,140 @@
+{
+  "name": "P30 OPS — Event Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "24e6bd27-6ccf-4941-95d7-3cc2ac81eede",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cutoff=new Date(Date.now()-30*60*1000).toISOString(); return [{json:{cutoff,checked_at:new Date().toISOString(),note:'Flag accepted/processing events older than cutoff. Adjust SLA per route.'}}];"
+      },
+      "id": "3a4d44f1-5dad-434f-a1ac-9ac18ada532a",
+      "name": "Build Stale Cutoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -350,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_EVENT_LEDGER_ID",
+          "mode": "list",
+          "cachedResultName": "p30_event_ledger"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "id": "ae61d0b3-fd57-4155-8de5-ce7f5066ef02",
+      "name": "Read Event Ledger",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cutoff=new Date($('Build Stale Cutoff').first().json.cutoff).getTime(); const rows=$input.all().map(i=>i.json); const stuck=rows.filter(r=>['accepted','processing'].includes(String(r.status||'')) && new Date(r.updated_at||r.received_at||0).getTime()<cutoff); return [{json:{ok:true,checked_at:new Date().toISOString(),stuck_count:stuck.length,stuck:stuck.slice(0,25).map(r=>({event_id:r.event_id,trace_id:r.trace_id,event_type:r.event_type,entity_id:r.entity_id,status:r.status,updated_at:r.updated_at}))}}];"
+      },
+      "id": "453fe8fb-856b-4189-9fee-0c763890baf0",
+      "name": "Find Stuck Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json; return [{json:{...x,contract_version:'business.health.v1',action:x.stuck_count>0?'SEND_TO_PROJECT27_ALERT_CHANNEL':'none'}}];"
+      },
+      "id": "8ecd5499-b214-484b-a81e-6532b4ab91d1",
+      "name": "Return Monitor Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        490,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Build Stale Cutoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stale Cutoff": {
+      "main": [
+        [
+          {
+            "node": "Read Event Ledger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Event Ledger": {
+      "main": [
+        [
+          {
+            "node": "Find Stuck Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Stuck Events": {
+      "main": [
+        [
+          {
+            "node": "Return Monitor Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P30-HEALTH-V1"
+}

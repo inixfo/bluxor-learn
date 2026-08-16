@@ -1,0 +1,95 @@
+{
+  "name": "P28 UTIL-01 — Normalize Contact v1",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "full_name"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "phone"
+            },
+            {
+              "name": "country_code"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "id": "33e5f0e0-c206-4f19-936c-ac81b8dbf2f3",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{};\nconst clean=v=>String(v??'').trim();\nconst email=clean(x.email).toLowerCase();\nconst name=clean(x.full_name).replace(/\\s+/g,' ');\nlet phone=clean(x.phone).replace(/[^0-9+]/g,'');\nconst cc=clean(x.country_code||'+880');\nif(phone.startsWith('0') && cc) phone=cc+phone.slice(1);\nelse if(phone && !phone.startsWith('+') && cc) phone=cc+phone;\nconst emailOk=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\nconst errors=[]; if(!email) errors.push('email_required'); else if(!emailOk) errors.push('email_invalid'); if(!name) errors.push('full_name_required');\nconst warnings=[]; if(!phone) warnings.push('phone_missing');\nreturn [{json:{ok:errors.length===0,contract_version:'contact.normalize.v1',contact:{contact_id:clean(x.contact_id),full_name:name,email,phone_e164:phone,source:clean(x.source||'unknown')},errors,warnings}}];"
+      },
+      "id": "64fdd8e7-ae0b-4fd7-b633-e0d18e8d7ad8",
+      "name": "Normalize + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json; return [{json:{ok:Boolean(x.ok),contract_version:'contact.normalize.v1',contact:x.contact||{},errors:x.errors||[],warnings:x.warnings||[]}}];"
+      },
+      "id": "f3e0f6e6-0186-486d-8832-e5368f19831b",
+      "name": "Return Contract v1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        190,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize + Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize + Validate": {
+      "main": [
+        [
+          {
+            "node": "Return Contract v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P28-UTIL01-V1"
+}

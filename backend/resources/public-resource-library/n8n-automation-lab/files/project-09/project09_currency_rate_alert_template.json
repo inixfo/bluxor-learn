@@ -1,0 +1,385 @@
+{
+  "name": "PROJECT 09 — Currency Rate Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1100,
+        0
+      ],
+      "id": "p09-schedule",
+      "name": "Every day at 9 AM"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p09-a1",
+              "name": "base",
+              "value": "USD",
+              "type": "string"
+            },
+            {
+              "id": "p09-a2",
+              "name": "target",
+              "value": "BDT",
+              "type": "string"
+            },
+            {
+              "id": "p09-a3",
+              "name": "pair",
+              "value": "USD_BDT",
+              "type": "string"
+            },
+            {
+              "id": "p09-a4",
+              "name": "upper_threshold",
+              "value": 124,
+              "type": "number"
+            },
+            {
+              "id": "p09-a5",
+              "name": "lower_threshold",
+              "value": 122.5,
+              "type": "number"
+            },
+            {
+              "id": "p09-a6",
+              "name": "change_threshold_pct",
+              "value": 0.5,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -890,
+        0
+      ],
+      "id": "p09-config",
+      "name": "Rate Config"
+    },
+    {
+      "parameters": {
+        "url": "=https://open.er-api.com/v6/latest/{{ $json.base }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -660,
+        0
+      ],
+      "id": "p09-http",
+      "name": "Get Exchange Rates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Rate Config').first().json;\nif ($json.result !== 'success') throw new Error('Exchange-rate API did not return success');\nconst rate = Number($json.rates?.[cfg.target]);\nif (!Number.isFinite(rate)) throw new Error(`Missing rate for ${cfg.target}`);\nreturn [{json:{...cfg,current_rate:rate,source_updated_at:$json.time_last_update_utc,next_update_at:$json.time_next_update_utc,checked_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ],
+      "id": "p09-prepare",
+      "name": "Prepare Current Rate"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "fx_rate_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pair",
+              "keyValue": "={{ $json.pair }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -170,
+        0
+      ],
+      "id": "p09-getstate",
+      "name": "Get Previous Rate",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cur = $('Prepare Current Rate').first().json;\nconst previous = Number($json.rate);\nconst hasPrevious = Number.isFinite(previous) && previous > 0;\nconst difference = hasPrevious ? cur.current_rate - previous : 0;\nconst changePct = hasPrevious ? (difference / previous) * 100 : 0;\nconst direction = !hasPrevious ? 'first_run' : difference > 0 ? 'up' : difference < 0 ? 'down' : 'flat';\nconst crossedUpper = cur.current_rate >= Number(cur.upper_threshold);\nconst crossedLower = cur.current_rate <= Number(cur.lower_threshold);\nconst bigMove = hasPrevious && Math.abs(changePct) >= Number(cur.change_threshold_pct);\nconst shouldAlert = hasPrevious && (crossedUpper || crossedLower || bigMove);\nconst reasons=[]; if(crossedUpper) reasons.push('upper threshold'); if(crossedLower) reasons.push('lower threshold'); if(bigMove) reasons.push('daily move');\nconst sign=difference>0?'+':'';\nconst message=`💱 ${cur.base}/${cur.target} Rate Alert\\n\\nCurrent: ৳${cur.current_rate.toFixed(4)}\\nPrevious: ${hasPrevious?'৳'+previous.toFixed(4):'No previous rate'}\\nChange: ${hasPrevious?sign+difference.toFixed(4)+' ('+sign+changePct.toFixed(2)+'%)':'First run'}\\nReason: ${reasons.join(', ') || 'State initialization'}\\n\\nSource reference rate • not a bank/remittance quote`;\nreturn [{json:{...cur,previous_rate:hasPrevious?previous:null,difference,change_percent:changePct,direction,should_alert:shouldAlert,reason:reasons.join(', '),message}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        0
+      ],
+      "id": "p09-compare",
+      "name": "Compare Rate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "p09-c1",
+              "leftValue": "={{ $json.should_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        340,
+        -80
+      ],
+      "id": "p09-if",
+      "name": "Alert Needed?"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        590,
+        -190
+      ],
+      "id": "p09-telegram",
+      "name": "Send Rate Alert",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "fx_rate_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pair",
+              "keyValue": "={{ $json.pair }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pair": "={{ $json.pair }}",
+            "rate": "={{ $json.current_rate }}",
+            "checked_at": "={{ $json.checked_at }}",
+            "source_updated_at": "={{ $json.source_updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pair",
+              "displayName": "pair",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "rate",
+              "displayName": "rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "checked_at",
+              "displayName": "checked_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source_updated_at",
+              "displayName": "source_updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        590,
+        100
+      ],
+      "id": "p09-upsert",
+      "name": "Upsert Latest Rate"
+    }
+  ],
+  "connections": {
+    "Every day at 9 AM": {
+      "main": [
+        [
+          {
+            "node": "Rate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Config": {
+      "main": [
+        [
+          {
+            "node": "Get Exchange Rates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Exchange Rates": {
+      "main": [
+        [
+          {
+            "node": "Prepare Current Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Current Rate": {
+      "main": [
+        [
+          {
+            "node": "Get Previous Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Previous Rate": {
+      "main": [
+        [
+          {
+            "node": "Compare Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Rate": {
+      "main": [
+        [
+          {
+            "node": "Alert Needed?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upsert Latest Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Rate Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "timezone": "Asia/Dhaka"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

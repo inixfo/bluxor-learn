@@ -1,0 +1,7 @@
+﻿route_key,event_type,module,project,input_contract,side_effect_class
+lead_intake,lead.captured,Lead Intake Adapter,P17–P20,business.event.v1,internal/external mixed
+closed_won,deal.closed_won,Closed Won Lifecycle,P21–P23,business.event.v1,external side effects
+order_paid,order.paid,Ecommerce Adapter,P25,business.event.v1,fulfillment/customer comms
+feedback,feedback.received,Feedback Adapter,P24,business.event.v1,recovery/customer comms
+daily_report,report.daily,Daily Business Report,P26,scheduled/internal,report delivery
+ops_agent,agent.request,AI Operations Agent,P29,chat/tool contracts,approval-dependent

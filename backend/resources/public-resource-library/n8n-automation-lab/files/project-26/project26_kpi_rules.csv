@@ -1,0 +1,17 @@
+﻿metric,rule,unit
+sales.leads_new,sum sales snapshot leads_new,count
+sales.deals_won,sum deals_won,count
+sales.won_value,sum won_value,money
+onboarding.new,created_at inside window,count
+onboarding.ready,onboarding_status=ready,count
+onboarding.review,onboarding_status=review,count
+invoice.issued,issued_at inside window,count
+invoice.issued_total,issued invoices total,money
+invoice.paid_total,paid_at inside window total,money
+invoice.overdue_count,issued unpaid and due_date before window end,count
+feedback.responses,responded_at inside window,count
+feedback.avg_rating,average numeric rating,1-5
+feedback.recovery_open,recovery_status=open,count
+ecommerce.orders_paid,last_event_at inside window and financial_status=paid,count
+ecommerce.revenue,paid orders total_price,money
+ecommerce.review,route=review or status=review,count

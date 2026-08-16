@@ -1,0 +1,30 @@
+{
+  "invoice_key": "DEAL-10042:PHASE-1",
+  "invoice_number": "INV-2026-1042",
+  "deal_id": "DEAL-10042",
+  "client_name": "Rahim Ahmed",
+  "client_email": "rahim@example.com",
+  "client_company": "Rahim Foods Ltd.",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Website Development — Phase 1",
+      "quantity": 1,
+      "unit_price": 1000
+    },
+    {
+      "description": "Maintenance — Month 1",
+      "quantity": 1,
+      "unit_price": 250
+    }
+  ],
+  "discount_amount": 50,
+  "tax_rate": 0,
+  "issue_date": "2026-08-13",
+  "due_date": "2026-08-20",
+  "payment_link": "https://pay.example.com/inv/INV-2026-1042",
+  "billing_address": "Dhaka, Bangladesh",
+  "notes": "Thank you for your business.",
+  "owner_email": "billing@example.com",
+  "source": "Approved billing record"
+}

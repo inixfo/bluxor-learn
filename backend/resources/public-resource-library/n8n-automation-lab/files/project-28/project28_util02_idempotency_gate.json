@@ -1,0 +1,206 @@
+{
+  "name": "P28 UTIL-02 — Idempotency Gate v1",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "namespace"
+            },
+            {
+              "name": "event_key"
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "occurred_at"
+            }
+          ]
+        }
+      },
+      "id": "f60ed218-d6e4-49cf-8615-d2cf1be2864f",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -700,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; const ns=String(x.namespace||'default').trim().toLowerCase(); const ev=String(x.event_key||'').trim(); if(!ev) throw new Error('event_key is required'); return [{json:{namespace:ns,event_key:ev,idempotency_key:`${ns}:${ev}`,source:String(x.source||'unknown'),occurred_at:String(x.occurred_at||new Date().toISOString()),seen_at:new Date().toISOString()}}];"
+      },
+      "id": "8849a3fd-04f1-499c-acb5-bdcafb70396b",
+      "name": "Prepare Idempotency Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -450,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P28_IDEMPOTENCY_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "p28_idempotency_keys"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "idempotency_key",
+              "keyValue": "={{ $json.idempotency_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "id": "ddb1e463-59d4-49f7-b48f-f5f889e80192",
+      "name": "Get Existing Key",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -180,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const key=$('Prepare Idempotency Key').first().json; const old=$input.first().json||{}; const duplicate=String(old.idempotency_key||'')===key.idempotency_key; return [{json:{...key,duplicate,should_process:!duplicate,first_seen_at:duplicate?String(old.first_seen_at||key.seen_at):key.seen_at,seen_count:Number(old.seen_count||0)+1,status:duplicate?'duplicate':'accepted'}}];"
+      },
+      "id": "fa801e8d-61bb-4425-a72d-7f83f2336db9",
+      "name": "Decide New or Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        90,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P28_IDEMPOTENCY_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "p28_idempotency_keys"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "idempotency_key",
+              "keyValue": "={{ $json.idempotency_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "idempotency_key": "={{ $json.idempotency_key }}",
+            "namespace": "={{ $json.namespace }}",
+            "event_key": "={{ $json.event_key }}",
+            "source": "={{ $json.source }}",
+            "first_seen_at": "={{ $json.first_seen_at }}",
+            "last_seen_at": "={{ $json.seen_at }}",
+            "seen_count": "={{ $json.seen_count }}",
+            "status": "={{ $json.status }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "f149c173-a86f-47aa-8bdb-27d2cb177407",
+      "name": "Checkpoint Seen Key",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        360,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Decide New or Duplicate').first().json; return [{json:{ok:true,contract_version:'idempotency.gate.v1',should_process:Boolean(x.should_process),idempotency_key:x.idempotency_key,first_seen_at:x.first_seen_at,seen_count:x.seen_count,status:x.status}}];"
+      },
+      "id": "819414d0-7df7-4ba7-9be8-53666d5bf352",
+      "name": "Return Contract v1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Idempotency Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Idempotency Key": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Key": {
+      "main": [
+        [
+          {
+            "node": "Decide New or Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide New or Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Seen Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Seen Key": {
+      "main": [
+        [
+          {
+            "node": "Return Contract v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P28-UTIL02-V1"
+}

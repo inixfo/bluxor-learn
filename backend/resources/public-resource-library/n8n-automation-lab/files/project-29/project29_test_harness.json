@@ -1,0 +1,88 @@
+{
+  "name": "P29 TEST-01 — Safety Harness Starter",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "38478376-4c73-4b19-9d5f-cd2850bdd9bc",
+      "name": "When clicking “Test workflow”",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8e37ce1e-7657-49ad-a2bf-a8a11c5e24f1",
+              "name": "customer_email",
+              "value": "rahim@example.com",
+              "type": "string"
+            },
+            {
+              "id": "86e8c01c-993c-4e92-8f15-4410acb3f9c2",
+              "name": "request_id",
+              "value": "P29-TEST-TASK-001",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9975e9ef-acf0-4161-b74a-8b52635192bb",
+      "name": "Test Fixture",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -360,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,note:'Run the supplied T01-T12 matrix after wiring the actual sub-workflow IDs and human-review channel. TOOL-03 must never be production-enabled without approval.'}}];"
+      },
+      "id": "16b4696a-7565-49e3-bc20-4f2bcef8dbc5",
+      "name": "Expected Safety Assertions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Test Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Fixture": {
+      "main": [
+        [
+          {
+            "node": "Expected Safety Assertions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P29-TEST01"
+}

@@ -1,0 +1,19 @@
+﻿column,type,purpose
+report_key,string,Stable business-day report key
+report_date,string,YYYY-MM-DD in workflow timezone
+timezone,string,Business timezone
+status,string,building/calculated/summarized/delivered/degraded
+source_coverage,number,0-100 percent
+sales_json,string,Sales KPI snapshot
+onboarding_json,string,Onboarding KPI snapshot
+invoice_json,string,Invoice KPI snapshot
+feedback_json,string,Feedback KPI snapshot
+ecommerce_json,string,Order KPI snapshot
+kpi_json,string,Combined deterministic KPI JSON
+anomalies_json,string,Deterministic flags
+ai_summary,string,Validated executive narrative
+email_sent,string,yes/no
+telegram_sent,string,yes/no
+delivery_at,string,ISO timestamp
+last_error,string,Operational error/limitation
+updated_at,string,ISO timestamp

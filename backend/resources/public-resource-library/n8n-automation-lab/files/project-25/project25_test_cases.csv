@@ -1,0 +1,9 @@
+case,input,expected_route,expected_result
+paid_physical,TEE-BLACK-L,physical,warehouse notified once
+paid_digital,COURSE-AUTO-01,digital,entitlement once
+paid_mixed,TEE-BLACK-L + COURSE-AUTO-01,mixed,both responsibilities
+duplicate_paid,same order id,same,no duplicate side effects
+cancel_after_route,same order id,cancelled,stop pending + human alert
+unknown_sku,X-UNKNOWN,review,no auto fulfillment
+shipment_update,tracking present,physical,tracking state + email once
+reconciliation_gap,paid order missing locally,repair,state recreated / alert

@@ -1,0 +1,9 @@
+﻿column,type,purpose
+idempotency_key,string,namespace:event_key stable key
+namespace,string,business domain
+event_key,string,event identity
+source,string,caller/source system
+first_seen_at,string,first accepted time
+last_seen_at,string,latest duplicate time
+seen_count,number,number of observations
+status,string,accepted/duplicate

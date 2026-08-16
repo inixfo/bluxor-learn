@@ -1,0 +1,11 @@
+﻿id,case,expected
+T01,valid contact,ok=true canonical email/name
+T02,missing email,ok=false validation error
+T03,bad email,ok=false
+T04,phone with BD local prefix,normalized +880...
+T05,same idempotency key twice,"first true, second false"
+T06,alert with >1500 chars,sanitized/truncated
+T07,child throws error while parent waits,parent fails visibly
+T08,add optional output field,old caller still works
+T09,rename output field in v1,contract regression — fail test
+T10,batch vs each mode,execution count/output semantics match design

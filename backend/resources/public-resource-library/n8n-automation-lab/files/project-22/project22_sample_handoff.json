@@ -1,0 +1,11 @@
+{
+  "deal_id": "DEAL-10042",
+  "client_name": "Rahim Ahmed",
+  "client_email": "rahim@example.com",
+  "service": "Website Development",
+  "project_name": "Rahim Foods Website",
+  "owner_email": "pm@example.com",
+  "amount": "1200",
+  "kickoff_link": "https://calendar.example.com/kickoff",
+  "source": "HubSpot CLOSED_WON"
+}

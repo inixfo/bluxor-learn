@@ -1,0 +1,8 @@
+﻿column,type,required,purpose
+request_id,string,yes,idempotency key
+customer_id,string,yes,customer
+to_email,string,yes,recipient
+subject,string,yes,subject
+status,string,yes,prepared/sent/failed
+message_id,string,no,provider result
+sent_at,datetime,no,delivery time

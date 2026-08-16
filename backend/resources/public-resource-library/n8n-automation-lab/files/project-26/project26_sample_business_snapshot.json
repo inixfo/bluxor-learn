@@ -1,0 +1,44 @@
+{
+  "report_date": "2026-08-12",
+  "timezone": "Asia/Dhaka",
+  "currency": "BDT",
+  "source_coverage": 100,
+  "sales": {
+    "leads_new": 14,
+    "leads_hot": 4,
+    "deals_won": 2,
+    "won_value": 72000,
+    "pipeline_open_value": 280000
+  },
+  "onboarding": {
+    "new": 2,
+    "ready": 1,
+    "review": 1,
+    "aging_over_sla": 0
+  },
+  "invoices": {
+    "issued": 3,
+    "issued_total": 93000,
+    "paid": 2,
+    "paid_total": 54000,
+    "overdue_count": 1,
+    "outstanding_ar": 39000
+  },
+  "feedback": {
+    "responses": 5,
+    "avg_rating": 4.2,
+    "recovery_open": 1,
+    "negative": 1
+  },
+  "ecommerce": {
+    "orders_paid": 8,
+    "revenue": 46500,
+    "review": 1,
+    "cancelled": 0
+  },
+  "anomalies": [
+    "1 overdue invoice",
+    "1 open feedback recovery",
+    "1 ecommerce order needs review"
+  ]
+}

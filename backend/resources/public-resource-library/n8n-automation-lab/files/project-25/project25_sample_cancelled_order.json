@@ -1,0 +1,38 @@
+{
+  "id": 820982911946154508,
+  "admin_graphql_api_id": "gid://shopify/Order/820982911946154508",
+  "name": "#1042",
+  "email": "rahim@example.com",
+  "currency": "USD",
+  "current_total_price": "149.00",
+  "financial_status": "refunded",
+  "cancelled_at": "2026-08-13T01:05:00+06:00",
+  "created_at": "2026-08-13T00:41:00+06:00",
+  "updated_at": "2026-08-13T00:42:15+06:00",
+  "shipping_address": {
+    "first_name": "Rahim",
+    "last_name": "Ahmed",
+    "address1": "Road 1",
+    "city": "Dhaka",
+    "country": "Bangladesh"
+  },
+  "line_items": [
+    {
+      "id": 111,
+      "sku": "TEE-BLACK-L",
+      "title": "Black T-Shirt",
+      "quantity": 1,
+      "price": "49.00",
+      "requires_shipping": true
+    },
+    {
+      "id": 112,
+      "sku": "COURSE-AUTO-01",
+      "title": "Automation Course Access",
+      "quantity": 1,
+      "price": "100.00",
+      "requires_shipping": false
+    }
+  ],
+  "cancel_reason": "customer"
+}

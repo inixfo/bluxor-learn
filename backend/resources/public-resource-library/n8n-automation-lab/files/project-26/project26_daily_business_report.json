@@ -1,0 +1,828 @@
+{
+  "name": "P26 — Automatic Daily Business Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 20,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1400,
+        0
+      ],
+      "id": "6230ab95-2fa6-4e70-bb8a-4ef1999b5f6d",
+      "name": "Daily Report — 8:30 PM"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n// The workflow timezone controls Schedule Trigger. For the report contract we keep explicit ISO boundaries.\nconst end = new Date(now); end.setHours(0,0,0,0); end.setDate(end.getDate()+1);\nconst start = new Date(end); start.setDate(start.getDate()-1);\nconst reportDate = start.toISOString().slice(0,10);\nreturn [{json:{report_key:'BUSINESS:'+reportDate,report_date:reportDate,window_start:start.toISOString(),window_end:end.toISOString(),timezone:'REPLACE_WITH_BUSINESS_TIMEZONE',expected_sources:['sales','onboarding','invoices','feedback','ecommerce'],currency:'REPLACE_WITH_REPORTING_CURRENCY',generated_at:now.toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1160,
+        0
+      ],
+      "id": "21f982a5-6dcd-4acd-a2e2-a9ba9aaaa249",
+      "name": "Prepare Reporting Window"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_REPORT_HISTORY_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "business_report_history"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "report_key",
+              "keyValue": "={{ $('Prepare Reporting Window').item.json.report_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -920,
+        0
+      ],
+      "id": "a28797c0-cdb6-4de4-9d43-8babd1991784",
+      "name": "Get Existing Report",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const w = $('Prepare Reporting Window').first().json;\nconst existing = $input.first().json || {};\nreturn [{json:{...w,already_delivered:existing.status==='delivered',existing_status:existing.status||'',existing_summary:existing.ai_summary||''}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "673449aa-c1b4-4cd4-aead-253a12ab7d33",
+      "name": "Resolve Report Identity"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fcd89eb7-9822-4aa9-9a29-6f28104ffdd3",
+              "leftValue": "={{ $json.already_delivered }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -440,
+        0
+      ],
+      "id": "13d4e58c-9a94-4897-8754-2c96736be254",
+      "name": "Already Delivered?"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SALES_SNAPSHOT_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "sales_daily_snapshot"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -180,
+        140
+      ],
+      "id": "da593c62-4052-4dad-b43c-7394c11a8f5c",
+      "name": "Get Sales Snapshot"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,source:'sales'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        140
+      ],
+      "id": "3f6224b9-f987-4658-be0c-24017d8156e4",
+      "name": "Collapse Sales"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ONBOARDING_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "client_onboarding"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        300,
+        140
+      ],
+      "id": "e8c39f32-d979-4219-a10d-7df100494305",
+      "name": "Get Onboarding Rows"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,source:'onboarding'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        140
+      ],
+      "id": "9bdd44ff-c870-4256-b5d7-90999826ae8d",
+      "name": "Collapse Onboarding"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        140
+      ],
+      "id": "731d00c5-5165-4678-bd42-24cc028af57e",
+      "name": "Get Invoice Rows"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,source:'invoices'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        140
+      ],
+      "id": "a1c450c6-be8b-41d3-9d43-3ca2072d6644",
+      "name": "Collapse Invoices"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        140
+      ],
+      "id": "3bfea16c-f123-4a45-9107-73cef49d2c52",
+      "name": "Get Feedback Rows"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,source:'feedback'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        140
+      ],
+      "id": "5479f641-4cad-414f-a967-225c271aed90",
+      "name": "Collapse Feedback"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1740,
+        140
+      ],
+      "id": "6cf715e7-967d-4e22-a252-debb0b1ff7c5",
+      "name": "Get Ecommerce Rows"
+    },
+    {
+      "parameters": {
+        "jsCode": "const w = $('Resolve Report Identity').first().json;\nconst start = new Date(w.window_start).getTime(); const end = new Date(w.window_end).getTime();\nconst rows = name => { try { return $(name).all().map(x=>x.json).filter(x=>Object.keys(x||{}).length); } catch(e) { return []; } };\nconst inside = v => { if(!v) return false; const t=new Date(v).getTime(); return Number.isFinite(t) && t>=start && t<end; };\nconst num = v => Number.isFinite(Number(v)) ? Number(v) : 0;\nconst salesRows=rows('Get Sales Snapshot').filter(r=>r.snapshot_date===w.report_date);\nconst ob=rows('Get Onboarding Rows'), inv=rows('Get Invoice Rows'), fb=rows('Get Feedback Rows'), ord=rows('Get Ecommerce Rows');\nconst sales={leads_new:salesRows.reduce((a,r)=>a+num(r.leads_new),0),leads_hot:salesRows.reduce((a,r)=>a+num(r.leads_hot),0),followups_due:salesRows.reduce((a,r)=>a+num(r.followups_due),0),deals_won:salesRows.reduce((a,r)=>a+num(r.deals_won),0),deals_lost:salesRows.reduce((a,r)=>a+num(r.deals_lost),0),won_value:salesRows.reduce((a,r)=>a+num(r.won_value),0),pipeline_open_value:salesRows.reduce((a,r)=>a+num(r.pipeline_open_value),0)};\nconst onboarding={new:ob.filter(r=>inside(r.created_at)).length,ready:ob.filter(r=>r.onboarding_status==='ready' && inside(r.updated_at)).length,review:ob.filter(r=>r.onboarding_status==='review').length,aging_over_sla:ob.filter(r=>!['ready'].includes(r.onboarding_status) && r.created_at && (end-new Date(r.created_at).getTime())>72*3600000).length};\nconst issuedToday=inv.filter(r=>inside(r.issued_at)); const paidToday=inv.filter(r=>inside(r.paid_at)); const unpaid=inv.filter(r=>r.status==='issued' && !r.paid_at);\nconst invoices={issued:issuedToday.length,issued_total:issuedToday.reduce((a,r)=>a+num(r.total),0),paid:paidToday.length,paid_total:paidToday.reduce((a,r)=>a+num(r.total),0),overdue_count:unpaid.filter(r=>r.due_date && new Date(r.due_date).getTime()<end).length,outstanding_ar:unpaid.reduce((a,r)=>a+num(r.total),0)};\nconst fbToday=fb.filter(r=>inside(r.responded_at)); const ratings=fbToday.map(r=>num(r.rating)).filter(v=>v>0);\nconst feedback={responses:fbToday.length,avg_rating:ratings.length?Number((ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(2)):null,recovery_open:fb.filter(r=>r.recovery_status==='open').length,negative:fbToday.filter(r=>r.sentiment==='negative').length};\nconst ordToday=ord.filter(r=>inside(r.last_event_at||r.updated_at) && r.financial_status==='paid');\nconst ecommerce={orders_paid:ordToday.length,revenue:ordToday.reduce((a,r)=>a+num(r.total_price),0),review:ord.filter(r=>r.route==='review'||r.status==='review').length,cancelled:ord.filter(r=>inside(r.cancelled_at)).length};\nconst coverage={sales:salesRows.length>0,onboarding:true,invoices:true,feedback:true,ecommerce:true};\nconst source_coverage=Math.round(Object.values(coverage).filter(Boolean).length/Object.keys(coverage).length*100);\nconst anomalies=[];\nif(invoices.overdue_count>0) anomalies.push(`${invoices.overdue_count} overdue invoice(s)`);\nif(onboarding.aging_over_sla>0) anomalies.push(`${onboarding.aging_over_sla} onboarding(s) over 72h`);\nif(feedback.recovery_open>0) anomalies.push(`${feedback.recovery_open} open feedback recovery case(s)`);\nif(ecommerce.review>0) anomalies.push(`${ecommerce.review} ecommerce order(s) need review`);\nif(!coverage.sales) anomalies.push('Sales snapshot unavailable for this date');\nconst kpi={report_key:w.report_key,report_date:w.report_date,timezone:w.timezone,currency:w.currency,source_coverage,sales,onboarding,invoices,feedback,ecommerce,anomalies,status:source_coverage===100?'calculated':'degraded',generated_at:w.generated_at};\nreturn [{json:kpi}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        140
+      ],
+      "id": "f1e9573c-74a3-4920-bbee-71906a18352a",
+      "name": "Calculate Trusted KPIs"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_REPORT_HISTORY_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "business_report_history"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "report_key",
+              "keyValue": "={{ $json.report_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report_key": "={{ $json.report_key }}",
+            "report_date": "={{ $json.report_date }}",
+            "timezone": "={{ $json.timezone }}",
+            "status": "={{ $json.status }}",
+            "source_coverage": "={{ $json.source_coverage }}",
+            "sales_json": "={{ JSON.stringify($json.sales) }}",
+            "onboarding_json": "={{ JSON.stringify($json.onboarding) }}",
+            "invoice_json": "={{ JSON.stringify($json.invoices) }}",
+            "feedback_json": "={{ JSON.stringify($json.feedback) }}",
+            "ecommerce_json": "={{ JSON.stringify($json.ecommerce) }}",
+            "kpi_json": "={{ JSON.stringify($json) }}",
+            "anomalies_json": "={{ JSON.stringify($json.anomalies) }}",
+            "email_sent": "no",
+            "telegram_sent": "no",
+            "updated_at": "={{ $now.toISO() }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2220,
+        140
+      ],
+      "id": "24f53162-b139-44a3-b13b-13e6666b9cae",
+      "name": "Checkpoint Calculated Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:$('Calculate Trusted KPIs').first().json}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        140
+      ],
+      "id": "5425c4dc-bba5-4abe-8516-026c117ced60",
+      "name": "Restore KPI Context"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are writing a short internal daily business brief. Use ONLY this trusted KPI JSON; do not recalculate or invent numbers. If sales source is unavailable, say so. Keep revenue, cash collected and outstanding A/R separate. Avoid PII and causal claims.\n\nKPI JSON:\n{{ JSON.stringify($json) }}\n\nReturn JSON with headline, summary, attention (array), data_quality_note.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2700,
+        140
+      ],
+      "id": "ff447925-1488-4907-9cd7-00eb2a0bdc94",
+      "name": "AI Executive Summary"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2680,
+        390
+      ],
+      "id": "05d0d7be-996f-4b7a-b0c4-874e596bd915",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"headline\": \"Operations were healthy with three items needing attention.\", \"summary\": \"A concise deterministic-data summary.\", \"attention\": [\"1 overdue invoice\"], \"data_quality_note\": \"All five sources were available.\"}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2860,
+        390
+      ],
+      "id": "39582844-d6f2-474a-85f3-44fcf8bfa8b4",
+      "name": "Structured Summary Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const k=$('Calculate Trusted KPIs').first().json; const raw=$input.first().json||{};\nlet s=raw.output||raw.text||raw; if(typeof s==='string'){try{s=JSON.parse(s)}catch(e){s={}}}\nconst valid=s && typeof s.headline==='string' && typeof s.summary==='string' && Array.isArray(s.attention);\nif(!valid){s={headline:`Daily business report — ${k.report_date}`,summary:`Trusted KPIs calculated. ${k.ecommerce.orders_paid} ecommerce order(s), ${k.invoices.paid} invoice payment(s), ${k.feedback.responses} feedback response(s).`,attention:k.anomalies,data_quality_note:k.source_coverage===100?'All configured sources available.':`Source coverage ${k.source_coverage}%. Review missing sources.`};}\nconst money=v=>`${k.currency} ${Number(v||0).toLocaleString('en-US',{maximumFractionDigits:2})}`;\nconst anomalyHtml=(s.attention?.length?s.attention:k.anomalies).map(x=>`<li>${String(x)}</li>`).join('')||'<li>No deterministic attention flags.</li>';\nconst html=`<div style=\"font-family:Arial,sans-serif;max-width:720px\"><h2>${s.headline}</h2><p>${s.summary}</p><h3>Today at a glance</h3><ul><li>New leads: ${k.sales.leads_new}</li><li>Deals won: ${k.sales.deals_won}</li><li>Ecommerce orders: ${k.ecommerce.orders_paid} — ${money(k.ecommerce.revenue)}</li><li>Cash collected: ${money(k.invoices.paid_total)}</li><li>Outstanding A/R: ${money(k.invoices.outstanding_ar)}</li><li>Feedback responses: ${k.feedback.responses}${k.feedback.avg_rating!==null?` — avg ${k.feedback.avg_rating}/5`:''}</li></ul><h3>Needs attention</h3><ul>${anomalyHtml}</ul><p><strong>Data quality:</strong> ${s.data_quality_note} Coverage ${k.source_coverage}%.</p></div>`;\nconst tg=`📊 Daily Business Report — ${k.report_date}\\nOrders: ${k.ecommerce.orders_paid} | Revenue: ${money(k.ecommerce.revenue)}\\nCash: ${money(k.invoices.paid_total)} | A/R: ${money(k.invoices.outstanding_ar)}\\nLeads: ${k.sales.leads_new} | Won: ${k.sales.deals_won}\\nAttention: ${(k.anomalies.length?k.anomalies.join('; '):'none')}\\nCoverage: ${k.source_coverage}%`;\nreturn [{json:{...k,summary:s,email_html:html,telegram_text:tg,final_status:k.source_coverage===100?'summarized':'degraded'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2940,
+        140
+      ],
+      "id": "b55f3a5f-4e9c-4601-91fe-20ab266b6b98",
+      "name": "Validate + Build Delivery"
+    },
+    {
+      "parameters": {
+        "sendTo": "REPLACE_WITH_REPORT_RECIPIENT",
+        "subject": "={{ 'Daily Business Report — ' + $json.report_date }}",
+        "emailType": "html",
+        "message": "={{ $json.email_html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3180,
+        80
+      ],
+      "id": "98968bf4-bb3e-4015-83fe-7cb84ed85002",
+      "name": "Send Daily Report Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "={{ $('Validate + Build Delivery').item.json.telegram_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3420,
+        80
+      ],
+      "id": "9d58825d-6489-48e5-8515-9e5898cfdfa8",
+      "name": "Send Operations Summary",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{...$('Validate + Build Delivery').first().json,delivered_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3660,
+        80
+      ],
+      "id": "9f4f2792-08ee-4b69-bbbc-30b57d33a709",
+      "name": "Mark Delivered Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_REPORT_HISTORY_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "business_report_history"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "report_key",
+              "keyValue": "={{ $json.report_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report_key": "={{ $json.report_key }}",
+            "status": "={{ $json.source_coverage === 100 ? \"delivered\" : \"degraded\" }}",
+            "source_coverage": "={{ $json.source_coverage }}",
+            "anomalies_json": "={{ JSON.stringify($json.anomalies) }}",
+            "ai_summary": "={{ $json.summary.summary }}",
+            "email_sent": "yes",
+            "telegram_sent": "yes",
+            "delivery_at": "={{ $json.delivered_at }}",
+            "updated_at": "={{ $json.delivered_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        80
+      ],
+      "id": "c2892c22-c70f-4cdc-a5f7-5093e1f3a2e4",
+      "name": "Checkpoint Delivered Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Resolve Report Identity').first().json; return [{json:{ok:true,skipped:true,report_key:x.report_key,status:'already_delivered',summary:x.existing_summary}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        -140
+      ],
+      "id": "8a6a145f-1064-46ea-a092-0141a09ace5a",
+      "name": "Return Existing Report"
+    }
+  ],
+  "connections": {
+    "Daily Report — 8:30 PM": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reporting Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reporting Window": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Report": {
+      "main": [
+        [
+          {
+            "node": "Resolve Report Identity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Report Identity": {
+      "main": [
+        [
+          {
+            "node": "Already Delivered?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Delivered?": {
+      "main": [
+        [
+          {
+            "node": "Return Existing Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Sales Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sales Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Collapse Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collapse Sales": {
+      "main": [
+        [
+          {
+            "node": "Get Onboarding Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Onboarding Rows": {
+      "main": [
+        [
+          {
+            "node": "Collapse Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collapse Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Get Invoice Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Invoice Rows": {
+      "main": [
+        [
+          {
+            "node": "Collapse Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collapse Invoices": {
+      "main": [
+        [
+          {
+            "node": "Get Feedback Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Feedback Rows": {
+      "main": [
+        [
+          {
+            "node": "Collapse Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collapse Feedback": {
+      "main": [
+        [
+          {
+            "node": "Get Ecommerce Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Ecommerce Rows": {
+      "main": [
+        [
+          {
+            "node": "Calculate Trusted KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Trusted KPIs": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Calculated Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Calculated Report": {
+      "main": [
+        [
+          {
+            "node": "Restore KPI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore KPI Context": {
+      "main": [
+        [
+          {
+            "node": "AI Executive Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Executive Summary": {
+      "main": [
+        [
+          {
+            "node": "Validate + Build Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate + Build Delivery": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Report Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Daily Report Email": {
+      "main": [
+        [
+          {
+            "node": "Send Operations Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Operations Summary": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivered Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivered Context": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Delivered Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Executive Summary",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Summary Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Executive Summary",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "REPLACE_WITH_BUSINESS_TIMEZONE"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "PROJECT26-TEMPLATE"
+}

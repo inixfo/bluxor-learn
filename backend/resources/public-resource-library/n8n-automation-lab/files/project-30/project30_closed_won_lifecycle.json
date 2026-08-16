@@ -1,0 +1,361 @@
+{
+  "name": "P30 FLOW-02 — Closed Won Client Lifecycle",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event_json"
+            }
+          ]
+        }
+      },
+      "id": "abf1a3ef-d068-4ed3-80fe-15e69b676647",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -900,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e=JSON.parse(String($input.first().json.event_json||'{}')); if(e.event_type!=='deal.closed_won') throw new Error('expected deal.closed_won'); const d=e.data||{}; if(!e.entity_id||!d.client_name||!d.client_email) throw new Error('missing deal/client fields'); return [{json:{event_id:e.event_id,trace_id:e.trace_id,deal_id:e.entity_id,client_name:String(d.client_name),client_email:String(d.client_email),service:String(d.service||''),project_name:String(d.project_name||d.service||e.entity_id),owner_email:String(d.owner_email||''),amount:Number(d.amount||0),kickoff_link:String(d.kickoff_link||''),billing_approved:Boolean(d.billing_approved),billing_currency:String(d.currency||'USD')}}];"
+      },
+      "id": "084aca5c-257f-4a3f-a788-8bf9be8b1f85",
+      "name": "Parse Closed Won Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -650,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_PROJECT22_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "P22 Client Onboarding"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deal_id": "={{ $json.deal_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_email": "={{ $json.client_email }}",
+            "service": "={{ $json.service }}",
+            "project_name": "={{ $json.project_name }}",
+            "owner_email": "={{ $json.owner_email }}",
+            "amount": "={{ String($json.amount) }}",
+            "kickoff_link": "={{ $json.kickoff_link }}",
+            "source": "project30"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "deal_id",
+              "displayName": "deal_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "project_name",
+              "displayName": "project_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "owner_email",
+              "displayName": "owner_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "kickoff_link",
+              "displayName": "kickoff_link",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "33b0e962-8db8-4643-b259-1f106c2a0b2b",
+      "name": "P22 — Client Onboarding",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -360,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dac4d4c4-80f7-4fd9-826a-8f41c204a824",
+              "leftValue": "={{ $(\"Parse Closed Won Event\").item.json.billing_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "72ce7e74-cb33-45d9-b31f-c9e5d9d970f4",
+      "name": "Billing Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -70,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_PROJECT23_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "P23 Automatic Invoice"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deal_id": "={{ $(\"Parse Closed Won Event\").item.json.deal_id }}",
+            "client_name": "={{ $(\"Parse Closed Won Event\").item.json.client_name }}",
+            "client_email": "={{ $(\"Parse Closed Won Event\").item.json.client_email }}",
+            "amount": "={{ String($(\"Parse Closed Won Event\").item.json.amount) }}",
+            "currency": "={{ $(\"Parse Closed Won Event\").item.json.billing_currency }}",
+            "billing_approved": "true",
+            "source": "project30"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "deal_id",
+              "displayName": "deal_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "billing_approved",
+              "displayName": "billing_approved",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "66c02900-5aa6-4898-9c9c-4fedd5a0da3f",
+      "name": "P23 — Invoice Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Parse Closed Won Event').first().json; const approved=Boolean(x.billing_approved); return [{json:{ok:true,contract_version:'closed_won.lifecycle.v1',event_id:x.event_id,trace_id:x.trace_id,deal_id:x.deal_id,onboarding_requested:true,invoice_requested:approved,note:approved?'Onboarding + approved billing path requested':'Onboarding requested; invoice intentionally blocked until billing approval'}}];"
+      },
+      "id": "2bbad99e-0c25-44ed-a86c-3a3145d02695",
+      "name": "Return Lifecycle Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Parse Closed Won Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Closed Won Event": {
+      "main": [
+        [
+          {
+            "node": "P22 — Client Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P22 — Client Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Billing Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Billing Approved?": {
+      "main": [
+        [
+          {
+            "node": "P23 — Invoice Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Lifecycle Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P23 — Invoice Workflow": {
+      "main": [
+        [
+          {
+            "node": "Return Lifecycle Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P30-CLOSED-WON-V1"
+}

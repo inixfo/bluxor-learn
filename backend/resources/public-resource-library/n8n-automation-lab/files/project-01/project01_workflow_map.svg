@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+<defs><linearGradient id="bg" x1="0" x2="1"><stop stop-color="#17181d"/><stop offset="1" stop-color="#24262d"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-opacity=".25"/></filter></defs>
+<rect width="1200" height="520" rx="30" fill="url(#bg)"/>
+<text x="62" y="75" fill="#aeb1bb" font-family="Arial" font-size="22" font-weight="700">PROJECT 01 • FORM → GOOGLE SHEETS</text>
+<g filter="url(#s)">
+<rect x="80" y="180" width="290" height="150" rx="26" fill="#26282f" stroke="#ff6d5a" stroke-width="4"/>
+<circle cx="135" cy="235" r="28" fill="#ff6d5a"/><text x="135" y="244" text-anchor="middle" fill="white" font-family="Arial" font-size="26">F</text>
+<text x="185" y="230" fill="white" font-family="Arial" font-weight="700" font-size="26">n8n Form</text><text x="185" y="266" fill="#b6b9c3" font-family="Arial" font-size="18">Customer submits lead</text>
+<rect x="455" y="180" width="290" height="150" rx="26" fill="#26282f" stroke="#8b6de9" stroke-width="4"/>
+<circle cx="510" cy="235" r="28" fill="#8b6de9"/><text x="510" y="243" text-anchor="middle" fill="white" font-family="Arial" font-size="22">{ }</text>
+<text x="560" y="230" fill="white" font-family="Arial" font-weight="700" font-size="26">Prepare Data</text><text x="560" y="266" fill="#b6b9c3" font-family="Arial" font-size="18">Clean + add source</text>
+<rect x="830" y="180" width="290" height="150" rx="26" fill="#26282f" stroke="#24a865" stroke-width="4"/>
+<circle cx="885" cy="235" r="28" fill="#24a865"/><path d="M870 217h31v38h-31z" fill="white" opacity=".95"/><path d="M876 227h19M876 237h19M876 247h19" stroke="#24a865" stroke-width="3"/>
+<text x="935" y="230" fill="white" font-family="Arial" font-weight="700" font-size="26">Google Sheets</text><text x="935" y="266" fill="#b6b9c3" font-family="Arial" font-size="18">Append one new row</text>
+</g>
+<path d="M370 255H445" stroke="#737784" stroke-width="6" stroke-linecap="round"/><path d="M430 241l20 14-20 14" fill="none" stroke="#737784" stroke-width="6"/>
+<path d="M745 255H820" stroke="#737784" stroke-width="6" stroke-linecap="round"/><path d="M805 241l20 14-20 14" fill="none" stroke="#737784" stroke-width="6"/>
+<text x="600" y="405" text-anchor="middle" fill="#f4f4f6" font-family="Arial" font-size="22" font-weight="700">Submit once → row appears automatically</text>
+</svg>

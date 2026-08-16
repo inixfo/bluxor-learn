@@ -1,0 +1,944 @@
+{
+  "name": "Project 24 — Feedback Response Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Customer Feedback",
+        "formDescription": "Your honest feedback helps us improve.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Rating",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "1"
+                  },
+                  {
+                    "option": "2"
+                  },
+                  {
+                    "option": "3"
+                  },
+                  {
+                    "option": "4"
+                  },
+                  {
+                    "option": "5"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Area",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Quality"
+                  },
+                  {
+                    "option": "Communication"
+                  },
+                  {
+                    "option": "Delivery / Speed"
+                  },
+                  {
+                    "option": "Billing"
+                  },
+                  {
+                    "option": "Support"
+                  },
+                  {
+                    "option": "Other"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Experience",
+              "fieldType": "textarea",
+              "placeholder": "Tell us what worked well or what could have been better.",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Improve",
+              "fieldType": "textarea",
+              "placeholder": "What should we improve next time?"
+            },
+            {
+              "fieldLabel": "Would you like a reply?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Submit Feedback",
+          "path": "project-24-feedback"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "0ce4c03b-85fa-49cf-9dba-1ed7d6b76ae8",
+      "name": "On Feedback Form Submission",
+      "webhookId": "04e2fa28-2dc8-40d6-b0ea-d5a8f82766b9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const q=x.formQueryParameters||{}; const c=v=>String(v??'').trim(); const rating=Number(x.Rating||x.rating||0); const feedback_key=c(q.feedback_key||x.feedback_key); const area=c(x.Area||x.area); const experience=c(x.Experience||x.experience); const improve=c(x.Improve||x.improve); const contact_back=/^yes$/i.test(c(x['Would you like a reply?']||x.contact_back))?'yes':'no'; const errors=[]; if(!feedback_key) errors.push('feedback_key_missing'); if(!Number.isInteger(rating)||rating<1||rating>5) errors.push('rating_invalid'); if(!area) errors.push('area_missing'); if(!experience) errors.push('experience_missing'); const priority=(rating<=2)?'HIGH':((rating===3||contact_back==='yes')?'MEDIUM':'NORMAL'); return [{json:{feedback_key,rating,area,experience,improve,contact_back,priority,is_valid:errors.length===0,errors,responded_at:new Date().toISOString(),updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "b0beb342-d963-4bb6-8004-0702704e774f",
+      "name": "Normalize Feedback"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "v",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -460,
+        0
+      ],
+      "id": "d221c8dc-5220-4b68-a9ca-ca40fcbeb9fd",
+      "name": "Valid Submission?"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $('Normalize Feedback').item.json.feedback_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        -80
+      ],
+      "id": "b60a3992-1a9c-4bb9-93fb-3b040b593d94",
+      "name": "Get Request State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$('Normalize Feedback').item.json; const s=$json||{}; const exists=Boolean(s.feedback_key); const duplicate=String(s.responded||'no')==='yes'; return [{json:{...s,...r,key_valid:exists,already_responded:duplicate,customer_name:String(s.customer_name||''),customer_email:String(s.customer_email||''),context_name:String(s.context_name||''),owner_email:String(s.owner_email||''),review_policy:String(s.review_policy||'none'),review_url:String(s.review_url||'')}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        -80
+      ],
+      "id": "11c656b5-0148-4286-aa97-8128ce736afc",
+      "name": "Verify Feedback Key"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "k",
+              "leftValue": "={{ $json.key_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        -80
+      ],
+      "id": "5333ad57-1630-49e0-b1a3-579345cdcc9a",
+      "name": "Known Request?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d",
+              "leftValue": "={{ $json.already_responded }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        420,
+        -80
+      ],
+      "id": "0f910a3a-3928-4457-bb79-8f26ab825800",
+      "name": "Already Responded?"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $json.feedback_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={{ $json.feedback_key }}",
+            "status": "responded",
+            "responded": "yes",
+            "responded_at": "={{ $json.responded_at }}",
+            "rating": "={{ $json.rating }}",
+            "area": "={{ $json.area }}",
+            "experience": "={{ $json.experience }}",
+            "improve": "={{ $json.improve }}",
+            "contact_back": "={{ $json.contact_back }}",
+            "priority": "={{ $json.priority }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        650,
+        40
+      ],
+      "id": "38a6a968-297a-47a0-8070-4acf1bdcd04e",
+      "name": "Checkpoint Raw Response"
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $('Verify Feedback Key').item.json.experience }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Positive",
+              "description": "The customer expresses satisfaction, praise, appreciation, or clearly positive experience."
+            },
+            {
+              "category": "Neutral",
+              "description": "The feedback is mixed, factual, unclear, or neither clearly positive nor clearly negative."
+            },
+            {
+              "category": "Negative",
+              "description": "The customer expresses dissatisfaction, frustration, disappointment, a complaint, or clearly negative experience."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        40
+      ],
+      "id": "0ff5341b-cd57-4ac9-aab4-9991487968c4",
+      "name": "AI Sentiment Classifier"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        880,
+        270
+      ],
+      "id": "a80b10fa-2e6b-4460-a2e5-98613b83fdd2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d077de22-29db-4ecb-9574-d3f1617d80d0",
+              "name": "sentiment",
+              "value": "positive",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1110,
+        -100
+      ],
+      "id": "718c3b90-2c65-46e1-85be-834d6cc27d04",
+      "name": "Set Positive Sentiment"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0fd28d0b-0ec4-44fa-b749-aee83d2b84ec",
+              "name": "sentiment",
+              "value": "neutral",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1110,
+        40
+      ],
+      "id": "fa6f4c08-1a95-4c6f-8baa-228f836d4f21",
+      "name": "Set Neutral Sentiment"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6f3c5006-1232-4a36-99e7-188160748100",
+              "name": "sentiment",
+              "value": "negative",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1110,
+        180
+      ],
+      "id": "01b41f7d-ac4f-4010-9968-0f7ac32c82b2",
+      "name": "Set Negative Sentiment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base=$('Verify Feedback Key').item.json; const sentiment=String($json.sentiment||'unknown'); return [{json:{...base,sentiment,status:base.priority==='HIGH'?'recovery_open':'responded',recovery_status:base.priority==='HIGH'?'open':'none',updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        40
+      ],
+      "id": "a16dbcc5-9316-4a4d-8821-71c8cf7607e3",
+      "name": "Rebuild Feedback Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $json.feedback_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={{ $json.feedback_key }}",
+            "status": "={{ $json.status }}",
+            "sentiment": "={{ $json.sentiment }}",
+            "priority": "={{ $json.priority }}",
+            "recovery_status": "={{ $json.recovery_status }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        40
+      ],
+      "id": "a615b8df-d460-4fa2-a2ea-bbd74c8849ce",
+      "name": "Checkpoint Analyzed Feedback"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "h",
+              "leftValue": "={{ ['HIGH','MEDIUM'].includes($json.priority) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1780,
+        40
+      ],
+      "id": "f1a83e15-ddc6-4d9e-ba42-c22a50b29aaf",
+      "name": "Needs Human Follow-up?"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=🗣️ Feedback needs follow-up\n\nPriority: {{ $json.priority }}\nRating: {{ $json.rating }}/5\nCustomer: {{ $json.customer_name }}\nContext: {{ $json.context_name }}\nArea: {{ $json.area }}\nSentiment: {{ $json.sentiment }}\nReply requested: {{ $json.contact_back }}\n\nFeedback: {{ $json.experience }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        -60
+      ],
+      "id": "b5747c48-7ec9-45c8-a09e-2fba1d2f2995",
+      "name": "Notify Feedback Owner",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const follow=['HIGH','MEDIUM'].includes(x.priority); const neutralReview=(x.review_policy==='all_respondents'&&x.review_url)?`<p>If you'd also like to share your experience publicly, you can use this optional link: <a href=\"${x.review_url}\">public review</a>. This same invitation is used for all eligible respondents.</p>`:''; return [{json:{...x,ack_html:`<p>Hi ${x.customer_name},</p><p>Thank you for sharing your honest feedback about <strong>${x.context_name}</strong>.</p>${follow?'<p>A team member will review your comments and follow up if needed.</p>':'<p>Your feedback has been recorded and will help us improve.</p>'}${neutralReview}`}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        40
+      ],
+      "id": "ca7b53a7-b672-4378-88bd-44ee9eadfbda",
+      "name": "Prepare Acknowledgement"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.customer_email }}",
+        "subject": "Thanks for your feedback",
+        "emailType": "html",
+        "message": "={{ $json.ack_html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2440,
+        40
+      ],
+      "id": "95d96732-31e6-4be3-87d5-116e41ce76c0",
+      "name": "Send Feedback Acknowledgement",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now=new Date().toISOString(); return [{json:{...$('Prepare Acknowledgement').item.json,ack_sent:'yes',ack_sent_at:now,review_invite_sent:($('Prepare Acknowledgement').item.json.review_policy==='all_respondents'&&$('Prepare Acknowledgement').item.json.review_url)?'yes':'no',updated_at:now}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        40
+      ],
+      "id": "d2e2485c-5606-4076-a27c-ff675b930312",
+      "name": "Mark Acknowledged"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $json.feedback_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={{ $json.feedback_key }}",
+            "ack_sent": "yes",
+            "ack_sent_at": "={{ $json.ack_sent_at }}",
+            "review_invite_sent": "={{ $json.review_invite_sent }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        40
+      ],
+      "id": "6f928fff-cebb-4d95-b001-7c64b2850c59",
+      "name": "Checkpoint Acknowledgement"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,reused:true,status:'already_responded',feedback_key:$json.feedback_key}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
+        -200
+      ],
+      "id": "e21a17f9-d9d0-4973-ae47-755681e0cbfd",
+      "name": "Return Duplicate Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:false,status:'invalid_feedback_key'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        180
+      ],
+      "id": "9d61da98-8004-489d-a038-4c45da34876b",
+      "name": "Return Unknown Key"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Normalize Feedback').item.json; return [{json:{ok:false,status:'invalid_submission',errors:x.errors}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        180
+      ],
+      "id": "4a30e571-39ed-4c10-b011-589180bd0a01",
+      "name": "Return Invalid Submission"
+    }
+  ],
+  "connections": {
+    "On Feedback Form Submission": {
+      "main": [
+        [
+          {
+            "node": "Normalize Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Feedback": {
+      "main": [
+        [
+          {
+            "node": "Valid Submission?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Submission?": {
+      "main": [
+        [
+          {
+            "node": "Get Request State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Invalid Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Request State": {
+      "main": [
+        [
+          {
+            "node": "Verify Feedback Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Feedback Key": {
+      "main": [
+        [
+          {
+            "node": "Known Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Known Request?": {
+      "main": [
+        [
+          {
+            "node": "Already Responded?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Unknown Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Responded?": {
+      "main": [
+        [
+          {
+            "node": "Return Duplicate Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Checkpoint Raw Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Raw Response": {
+      "main": [
+        [
+          {
+            "node": "AI Sentiment Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Sentiment Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Sentiment Classifier": {
+      "main": [
+        [
+          {
+            "node": "Set Positive Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Neutral Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Negative Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Positive Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Rebuild Feedback Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Neutral Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Rebuild Feedback Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Negative Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Rebuild Feedback Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rebuild Feedback Context": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Analyzed Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Analyzed Feedback": {
+      "main": [
+        [
+          {
+            "node": "Needs Human Follow-up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Human Follow-up?": {
+      "main": [
+        [
+          {
+            "node": "Notify Feedback Owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Feedback Owner": {
+      "main": [
+        [
+          {
+            "node": "Prepare Acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Acknowledgement": {
+      "main": [
+        [
+          {
+            "node": "Send Feedback Acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Feedback Acknowledgement": {
+      "main": [
+        [
+          {
+            "node": "Mark Acknowledged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Acknowledged": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0d931586-69b5-4601-992e-bc019670b4ac",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

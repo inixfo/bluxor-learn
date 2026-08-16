@@ -20,6 +20,7 @@ export type AdminProduct = {
   short_description?: string | null;
   description?: string | null;
   updated_at: string;
+  deleted_at?: string | null;
   category_id?: number | null;
   category?: { id?: number; name: string } | null;
   files?: AdminProductFile[];
@@ -399,6 +400,33 @@ function productFormData(payload: Partial<AdminProductPayload>): FormData {
 
 export async function publishAdminProduct(id: string): Promise<AdminProduct> {
   return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${id}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function archiveAdminProduct(id: string): Promise<AdminProduct> {
+  return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${id}/archive`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function restoreAdminProduct(id: string): Promise<AdminProduct> {
+  return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${id}/restore`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function deleteAdminProduct(id: string): Promise<{ ok: boolean; active_landing_pages?: number }> {
+  return (await apiRequest<{ data: { ok: boolean; active_landing_pages?: number } }>(`/admin/products/${id}`, {
+    method: 'DELETE',
+  })).data;
+}
+
+export async function restoreDeletedAdminProduct(id: string): Promise<AdminProduct> {
+  return (await apiRequest<{ data: AdminProduct }>(`/admin/products/${id}/restore-deleted`, {
     method: 'POST',
     body: JSON.stringify({}),
   })).data;

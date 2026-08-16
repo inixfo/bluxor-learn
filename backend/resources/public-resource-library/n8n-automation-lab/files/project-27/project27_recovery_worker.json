@@ -1,0 +1,269 @@
+{
+  "name": "P27 — Recovery Worker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "24728dff-e85e-41da-ad70-f2c966692986",
+      "name": "Recovery Sweep — Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INCIDENT_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "incident_state"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        },
+        "matchType": "allConditions"
+      },
+      "id": "e7abf2d6-9f5d-4ee2-aac6-b0d46d38004f",
+      "name": "Get Incident Queue",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now=Date.now(); return $input.all().filter(i=>{const r=i.json||{}; const t=Date.parse(r.retry_at||''); return r.status==='queued' && Number(r.attempt_count||0)<Number(r.max_attempts||0) && Number.isFinite(t) && t<=now;}).map(i=>({json:i.json}));"
+      },
+      "id": "7dd10f7a-198d-4586-997f-95c165e66331",
+      "name": "Find Due Incidents",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$input.first().json; return [{json:{...r,status:'retrying',attempt_count:Number(r.attempt_count||0)+1,retry_started_at:new Date().toISOString()}}];"
+      },
+      "id": "20b8b704-ec88-40be-9300-b9245dc02eaf",
+      "name": "Claim Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INCIDENT_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "incident_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "incident_key",
+              "keyValue": "={{ $json.incident_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "incident_key": "={{ $json.incident_key }}",
+            "status": "retrying",
+            "attempt_count": "={{ $json.attempt_count }}",
+            "last_seen_at": "={{ $now.toISO() }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "f37ecbb6-6550-4245-b7bf-7ea7fe371beb",
+      "name": "Checkpoint Retrying",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"REPLACE_WITH_N8N_API_BASE/executions/\" + $(\"Claim Retry\").item.json.last_execution_id + \"/retry\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\"loadWorkflow\":true}",
+        "options": {}
+      },
+      "id": "c9a3cbc6-163b-4125-ac79-666d9b317300",
+      "name": "Retry Failed Execution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$('Claim Retry').first().json; const out=$input.first().json||{}; return [{json:{...r,status:'retrying',retry_execution_id:String(out.id||''),last_seen_at:new Date().toISOString()}}];"
+      },
+      "id": "59a475ae-e5eb-4ea3-936a-838423533590",
+      "name": "Record Retry Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INCIDENT_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "incident_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "incident_key",
+              "keyValue": "={{ $json.incident_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "incident_key": "={{ $json.incident_key }}",
+            "status": "={{ $json.status }}",
+            "attempt_count": "={{ $json.attempt_count }}",
+            "last_execution_id": "={{ $json.retry_execution_id || $json.last_execution_id }}",
+            "last_seen_at": "={{ $json.last_seen_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "bd3b32a9-f504-4706-822d-52d1cf3463cc",
+      "name": "Update Retry Dispatch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1060,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Recovery Sweep — Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Incident Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Incident Queue": {
+      "main": [
+        [
+          {
+            "node": "Find Due Incidents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Due Incidents": {
+      "main": [
+        [
+          {
+            "node": "Claim Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Retry": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Retrying",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Retrying": {
+      "main": [
+        [
+          {
+            "node": "Retry Failed Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Failed Execution": {
+      "main": [
+        [
+          {
+            "node": "Record Retry Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Retry Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Update Retry Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "PROJECT27-RECOVERY-WORKER"
+}

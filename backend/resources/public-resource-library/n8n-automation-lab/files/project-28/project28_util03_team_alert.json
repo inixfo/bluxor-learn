@@ -1,0 +1,123 @@
+{
+  "name": "P28 UTIL-03 — Team Alert v1",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event_key"
+            },
+            {
+              "name": "severity"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "message"
+            },
+            {
+              "name": "workflow_name"
+            },
+            {
+              "name": "execution_url"
+            }
+          ]
+        }
+      },
+      "id": "f968a189-ed07-42ae-865a-b5aaa343800e",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; const allowed=['info','warning','critical']; const severity=allowed.includes(String(x.severity||'').toLowerCase())?String(x.severity).toLowerCase():'info'; const title=String(x.title||'Automation event').trim().slice(0,120); const message=String(x.message||'').trim().slice(0,1500); const event_key=String(x.event_key||'').trim(); if(!event_key) throw new Error('event_key is required'); return [{json:{event_key,severity,title,message,workflow_name:String(x.workflow_name||''),execution_url:String(x.execution_url||''),alert_text:`${severity==='critical'?'🚨':severity==='warning'?'⚠️':'ℹ️'} ${title}\\n${message}\\nWorkflow: ${String(x.workflow_name||'n/a')}\\n${String(x.execution_url||'')}`}}];"
+      },
+      "id": "0e7bd495-a080-450c-a29b-cb076109465c",
+      "name": "Prepare Safe Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "={{ $json.alert_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6c244753-f7ee-4b85-9602-1ce2b4bb1e0c",
+      "name": "Send Team Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        90,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Prepare Safe Alert').first().json; return [{json:{ok:true,contract_version:'team.alert.v1',delivered:true,channel:'telegram',event_key:x.event_key,severity:x.severity}}];"
+      },
+      "id": "69a8c832-7742-4ccc-994c-6a142100d18e",
+      "name": "Return Contract v1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Safe Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Safe Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Team Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Team Alert": {
+      "main": [
+        [
+          {
+            "node": "Return Contract v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P28-UTIL03-V1"
+}

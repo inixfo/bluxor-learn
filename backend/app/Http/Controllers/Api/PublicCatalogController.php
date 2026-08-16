@@ -23,7 +23,7 @@ class PublicCatalogController extends Controller
                     ->orderBy('sort_order')
                     ->orderBy('name')
                     ->get(),
-                'bundles' => Bundle::with('products')->where('status', 'published')->get()->map(fn ($bundle) => $this->bundle($bundle)),
+                'bundles' => $this->publicBundleQuery()->get()->map(fn ($bundle) => $this->bundle($bundle)),
             ],
         ]);
     }
@@ -78,7 +78,7 @@ class PublicCatalogController extends Controller
             return response()->json(['data' => ['kind' => 'product'] + $this->product($product, true)]);
         }
 
-        $bundle = Bundle::with('products.category')->where('status', 'published')->where('slug', $slug)->firstOrFail();
+        $bundle = $this->publicBundleQuery('products.category')->where('slug', $slug)->firstOrFail();
 
         return response()->json(['data' => ['kind' => 'bundle'] + $this->bundle($bundle, true)]);
     }
@@ -123,6 +123,8 @@ class PublicCatalogController extends Controller
 
     private function bundle(Bundle $bundle, bool $detail = false): array
     {
+        $products = $bundle->products->where('status', 'published')->values();
+
         return [
             'id' => $bundle->id,
             'uuid' => $bundle->uuid,
@@ -135,7 +137,14 @@ class PublicCatalogController extends Controller
             'sale_price_minor' => $bundle->sale_price_minor,
             'currency' => $bundle->currency,
             'cover' => $bundle->cover_image_path,
-            'products' => $detail ? $bundle->products->map(fn ($product) => $this->product($product)) : $bundle->products->pluck('id'),
+            'products' => $detail ? $products->map(fn ($product) => $this->product($product)) : $products->pluck('id'),
         ];
+    }
+
+    private function publicBundleQuery(string|array $relations = 'products')
+    {
+        return Bundle::with($relations)
+            ->where('status', 'published')
+            ->whereDoesntHave('products', fn ($query) => $query->where('products.status', '!=', 'published'));
     }
 }

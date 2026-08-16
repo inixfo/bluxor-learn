@@ -1,0 +1,11 @@
+﻿column,type,purpose
+snapshot_date,string,Business date YYYY-MM-DD
+currency,string,Reporting currency
+leads_new,number,New leads captured
+leads_hot,number,HOT qualified leads
+followups_due,number,Follow-ups due
+deals_won,number,Deals closed won
+deals_lost,number,Deals closed lost
+won_value,number,Closed won value
+pipeline_open_value,number,Open pipeline value
+updated_at,string,ISO timestamp

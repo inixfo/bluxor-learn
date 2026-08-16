@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520"><style>.t{font-family:Arial,sans-serif;fill:#17181c}.mut{fill:#6f7077}.sm{font-size:14px}.xs{font-size:11px}.md{font-size:17px;font-weight:700}.b{font-weight:700}.box{fill:#fff;stroke:#dedbd4;stroke-width:1.5}.soft{fill:#fff7e6}.dark{fill:#17181c}.gold{fill:#e6a229}.green{fill:#2a9d68}.blue{fill:#4c91d9}.red{fill:#e45a4f}.line{stroke:#bcb7ad;stroke-width:2;fill:none}.dash{stroke:#c4b06f;stroke-width:2;stroke-dasharray:6 5;fill:none}</style>
+<rect width="1100" height="520" rx="26" fill="#f8f7f3"/>
+<text x="55" y="70" class="t md">Daily Sales Report — workflow map</text>
+<g transform="translate(65 165)"><rect width="180" height="125" rx="18" class="box"/><circle cx="40" cy="38" r="20" class="gold"/><text x="33" y="44" fill="#fff" font-size="18">⏱</text><text x="75" y="39" class="t md">Schedule</text><text x="26" y="79" class="t sm mut">Every day • 9:00 PM</text></g>
+<path d="M255 228 H345" class="line"/><polygon points="345,228 331,220 331,236" fill="#bcb7ad"/>
+<g transform="translate(355 165)"><rect width="180" height="125" rx="18" class="box"/><circle cx="40" cy="38" r="20" class="green"/><text x="28" y="45" fill="#fff" font-size="16">GS</text><text x="75" y="39" class="t md">Get Rows</text><text x="24" y="79" class="t sm mut">today's sales only</text></g>
+<path d="M545 228 H635" class="line"/><polygon points="635,228 621,220 621,236" fill="#bcb7ad"/>
+<g transform="translate(645 165)"><rect width="180" height="125" rx="18" class="box"/><circle cx="40" cy="38" r="20" class="blue"/><text x="27" y="45" fill="#fff" font-size="14">Σ</text><text x="75" y="39" class="t md">Summarize</text><text x="24" y="79" class="t sm mut">count • sum • average</text></g>
+<path d="M835 228 H925" class="line"/><polygon points="925,228 911,220 911,236" fill="#bcb7ad"/>
+<g transform="translate(935 165)"><rect width="110" height="125" rx="18" class="box"/><circle cx="55" cy="38" r="20" class="red"/><text x="45" y="44" fill="#fff" font-size="16">M</text><text x="30" y="76" class="t md">Gmail</text><text x="24" y="99" class="t xs mut">send report</text></g>
+<text x="55" y="420" class="t sm mut">Result: আপনি laptop খুলুন বা না খুলুন—নির্দিষ্ট সময় workflow চলবে, Sheet থেকে data নেবে, summary বানাবে এবং email করবে।</text>
+</svg>

@@ -1,0 +1,234 @@
+{
+  "name": "Project 24 — No-Response Feedback Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "5249bb4e-b23c-42a2-b56a-a9e26246a4a2",
+      "name": "Daily Feedback Reminder Check — 10AM"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "requested"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -360,
+        0
+      ],
+      "id": "32484064-2c9f-4313-be67-11ecf463a380",
+      "name": "Get Requested Feedback"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now=Date.now(); const DAY=86400000; return $input.all().filter(i=>String(i.json.responded||'no')!=='yes'&&String(i.json.reminder_sent||'no')!=='yes'&&i.json.request_sent_at).map(i=>{const age=Math.floor((now-new Date(i.json.request_sent_at).getTime())/DAY); return {json:{...i.json,age_days:age,send_reminder:age>=3}}}).filter(i=>i.json.send_reminder);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "feae3b70-a884-4672-b4e5-346d828b8652",
+      "name": "Select Reminder Candidates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base='REPLACE_WITH_PROJECT24_FORM_URL'; const sep=base.includes('?')?'&':'?'; return $input.all().map(i=>({json:{...i.json,feedback_url:base+sep+'feedback_key='+encodeURIComponent(i.json.feedback_key)}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        0
+      ],
+      "id": "eee96712-c223-4260-af69-9af71ca2b969",
+      "name": "Build Reminder Link"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.customer_email }}",
+        "subject": "={{ 'Quick feedback reminder — ' + $json.context_name }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $json.customer_name }},</p><p>A quick reminder in case you still want to share feedback about <strong>{{ $json.context_name }}</strong>.</p><p><a href=\"{{ $json.feedback_url }}\">Share feedback</a></p><p>No need to reply if you'd rather not.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        360,
+        0
+      ],
+      "id": "6cd8f929-10f5-4044-bf96-8849e227251b",
+      "name": "Send One Feedback Reminder",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now=new Date().toISOString(); return $input.all().map(i=>({json:{...i.json,reminder_sent:'yes',reminder_sent_at:now,updated_at:now}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "id": "a86efe0c-1159-4ef8-9624-ebb6ec7bd92f",
+      "name": "Mark Reminder Sent"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $json.feedback_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={{ $json.feedback_key }}",
+            "reminder_sent": "yes",
+            "reminder_sent_at": "={{ $json.reminder_sent_at }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        0
+      ],
+      "id": "28ff563a-88d8-41b5-985a-32f54be575a9",
+      "name": "Checkpoint Reminder"
+    }
+  ],
+  "connections": {
+    "Daily Feedback Reminder Check — 10AM": {
+      "main": [
+        [
+          {
+            "node": "Get Requested Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Requested Feedback": {
+      "main": [
+        [
+          {
+            "node": "Select Reminder Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Reminder Candidates": {
+      "main": [
+        [
+          {
+            "node": "Build Reminder Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reminder Link": {
+      "main": [
+        [
+          {
+            "node": "Send One Feedback Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send One Feedback Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "214073bc-fa2d-4747-9339-e37dee5e3d19",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

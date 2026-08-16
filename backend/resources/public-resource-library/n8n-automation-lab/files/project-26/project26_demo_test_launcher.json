@@ -1,0 +1,63 @@
+{
+  "name": "P26 — Demo Test Launcher",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        0
+      ],
+      "id": "44e2e355-ccbf-49b9-9c53-b6d185877617",
+      "name": "When clicking “Test workflow”"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "51e58166-0b90-4e2e-a921-e2c5fec3cda9",
+              "name": "report_date",
+              "value": "2026-08-12",
+              "type": "string"
+            },
+            {
+              "id": "e2e91c0a-3ada-4b67-a171-92792b5c54be",
+              "name": "note",
+              "value": "Use the supplied sample snapshot and test CSV to seed your tables before running the scheduled workflow.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "436a7465-d90d-443a-a557-73619f71b0dd",
+      "name": "Sample Report Date"
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Sample Report Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "PROJECT26-DEMO"
+}

@@ -1,0 +1,7 @@
+case,rating,contact_back,expected_priority,expected_action
+Happy customer,5,No,NORMAL,acknowledge
+Low rating,1,No,HIGH,team recovery alert
+Passive + reply,3,Yes,MEDIUM,follow-up
+Good + reply,5,Yes,MEDIUM,follow-up
+Duplicate request,,,existing,do not resend
+Invalid feedback key,2,Yes,reject,no customer side effect

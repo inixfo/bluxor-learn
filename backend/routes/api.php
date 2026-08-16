@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\HelpCenterController;
 use App\Http\Controllers\Api\LandingPageController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\N8nAutomationLabResourceController;
 use App\Http\Controllers\Api\PublicSettingsController;
 use App\Http\Controllers\Api\PublicCatalogController;
 use App\Http\Controllers\Api\PublicResourceController;
@@ -36,6 +37,11 @@ Route::middleware('web')->prefix('v1')->group(function () {
     Route::get('/help-center', [HelpCenterController::class, 'index']);
     Route::get('/help-center/{categorySlug}/{articleSlug}', [HelpCenterController::class, 'show']);
     Route::get('/settings/contact', [PublicSettingsController::class, 'contact']);
+    Route::get('/public-resource-library/n8n-automation-lab', [N8nAutomationLabResourceController::class, 'manifest']);
+    Route::get('/public-resource-library/n8n-automation-lab/download/master-pack', [N8nAutomationLabResourceController::class, 'downloadMasterPack'])->middleware('throttle:1000,1');
+    Route::get('/public-resource-library/n8n-automation-lab/download/{projectSlug}/{fileName}', [N8nAutomationLabResourceController::class, 'downloadProjectResource'])
+        ->where(['projectSlug' => 'project-\d{2}', 'fileName' => '[^/]+'])
+        ->middleware('throttle:1000,1');
     Route::get('/resources/{slug}', [PublicResourceController::class, 'show']);
     Route::get('/resources/{slug}/download', [PublicResourceController::class, 'download'])->middleware('throttle:60,1');
     Route::post('/contact', [ContactController::class, 'submit'])->middleware('throttle:5,1');
@@ -86,11 +92,14 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
         Route::get('/products', [AdminController::class, 'products']);
         Route::post('/products', [AdminController::class, 'storeProduct']);
-        Route::get('/products/{product}', [AdminController::class, 'showProduct']);
+        Route::post('/products/{id}/restore-deleted', [AdminController::class, 'restoreDeletedProduct']);
+        Route::get('/products/{product}', [AdminController::class, 'showProduct'])->withTrashed();
         Route::patch('/products/{product}', [AdminController::class, 'updateProduct']);
         Route::post('/products/{product}', [AdminController::class, 'updateProduct']);
         Route::post('/products/{product}/publish', [AdminController::class, 'publishProduct']);
         Route::post('/products/{product}/archive', [AdminController::class, 'archiveProduct']);
+        Route::post('/products/{product}/restore', [AdminController::class, 'restoreProduct']);
+        Route::delete('/products/{product}', [AdminController::class, 'deleteProduct']);
         Route::post('/products/{product}/files', [AdminController::class, 'uploadProductFile']);
         Route::get('/resources', [AdminResourceController::class, 'index']);
         Route::post('/resources', [AdminResourceController::class, 'store']);

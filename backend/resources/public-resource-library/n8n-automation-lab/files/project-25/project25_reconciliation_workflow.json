@@ -1,0 +1,240 @@
+{
+  "name": "Project 25 — Order Reconciliation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "63f04d3d-59ec-448d-9aea-d9451dd29ceb",
+      "name": "Every 4 Hours"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "order",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 100,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [
+        -350,
+        0
+      ],
+      "id": "381e93ae-c13d-4d16-8530-1c236c7733f0",
+      "name": "Shopify — Get Recent Orders",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "REPLACE_WITH_YOUR_SHOPIFY_CREDENTIAL",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const shop='REPLACE_WITH_STORE_DOMAIN'; return $input.all().filter(i=>String(i.json.financial_status||'').toLowerCase()==='paid' && !i.json.cancelled_at).map(i=>({json:{order_key:shop+':'+String(i.json.id),order_id:String(i.json.id),order_name:String(i.json.name||i.json.id),updated_at:String(i.json.updated_at||new Date().toISOString())}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        0
+      ],
+      "id": "d5eecd39-3886-473f-8019-04c589fc8234",
+      "name": "Keep Paid Orders"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORDER_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "order_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_key",
+              "keyValue": "={{ $json.order_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        150,
+        0
+      ],
+      "id": "0922a6a8-0efa-4b47-b7bc-e9931131aa7e",
+      "name": "Get Matching State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const src=$('Keep Paid Orders').item.json; const found=Boolean($json&&$json.order_key); return [{json:{...src,missing_local_state:!found}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "bf9ce448-7f9f-4d52-bfb6-95601f4becd2",
+      "name": "Detect Missing State"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "m",
+              "leftValue": "={{ $json.missing_local_state }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        650,
+        0
+      ],
+      "id": "147bf165-d309-43cd-aa03-cd70e5c92756",
+      "name": "Missing?"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "=🔎 Reconciliation found a paid Shopify order missing from order_state\nOrder: {{ $json.order_name }}\nID: {{ $json.order_id }}\nReview and replay/import safely.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        -80
+      ],
+      "id": "4fa5e40a-8259-4ffe-a051-c716f092c952",
+      "name": "Reconciliation Alert",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": {
+      "main": [
+        [
+          {
+            "node": "Shopify — Get Recent Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify — Get Recent Orders": {
+      "main": [
+        [
+          {
+            "node": "Keep Paid Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Paid Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Matching State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Matching State": {
+      "main": [
+        [
+          {
+            "node": "Detect Missing State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Missing State": {
+      "main": [
+        [
+          {
+            "node": "Missing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Missing?": {
+      "main": [
+        [
+          {
+            "node": "Reconciliation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "850e72e4-2735-4d48-9e03-b92ff4e003a3",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

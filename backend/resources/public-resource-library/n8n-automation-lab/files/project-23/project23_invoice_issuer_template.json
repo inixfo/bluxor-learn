@@ -1,0 +1,890 @@
+{
+  "name": "Project 23 — Automatic Invoice Issuer",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "invoice_key"
+            },
+            {
+              "name": "invoice_number"
+            },
+            {
+              "name": "deal_id"
+            },
+            {
+              "name": "client_name"
+            },
+            {
+              "name": "client_email"
+            },
+            {
+              "name": "client_company"
+            },
+            {
+              "name": "currency"
+            },
+            {
+              "name": "line_items_json"
+            },
+            {
+              "name": "discount_amount"
+            },
+            {
+              "name": "tax_rate"
+            },
+            {
+              "name": "issue_date"
+            },
+            {
+              "name": "due_date"
+            },
+            {
+              "name": "payment_link"
+            },
+            {
+              "name": "billing_address"
+            },
+            {
+              "name": "notes"
+            },
+            {
+              "name": "owner_email"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1500,
+        0
+      ],
+      "id": "39a8da93-7c23-441a-abf0-a171868f1ca0",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x = $json;\nconst clean = (v) => String(v ?? '').trim();\nconst email = clean(x.client_email).toLowerCase();\nlet items = x.line_items;\nif (!Array.isArray(items)) {\n  try { items = JSON.parse(clean(x.line_items_json || '[]')); } catch { items = []; }\n}\nitems = Array.isArray(items) ? items.map((r) => ({\n  description: clean(r.description),\n  quantity: Number(r.quantity ?? 0),\n  unit_price: Number(r.unit_price ?? 0)\n})) : [];\nconst required = {\n  invoice_key: clean(x.invoice_key), invoice_number: clean(x.invoice_number),\n  client_name: clean(x.client_name), client_email: email,\n  currency: clean(x.currency).toUpperCase(), due_date: clean(x.due_date)\n};\nconst missing = Object.entries(required).filter(([k,v]) => !v).map(([k])=>k);\nif (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) missing.push('client_email_invalid');\nif (!items.length) missing.push('line_items');\nif (items.some(i => !i.description || !Number.isFinite(i.quantity) || i.quantity <= 0 || !Number.isFinite(i.unit_price) || i.unit_price < 0)) missing.push('line_items_invalid');\nconst due = new Date(required.due_date);\nif (Number.isNaN(due.getTime())) missing.push('due_date_invalid');\nreturn [{json:{...x,...required,client_email:email,line_items:items,discount_amount:Number(x.discount_amount||0),tax_rate:Number(x.tax_rate||0),issue_date:clean(x.issue_date || new Date().toISOString().slice(0,10)),payment_link:clean(x.payment_link),billing_address:clean(x.billing_address),notes:clean(x.notes),owner_email:clean(x.owner_email),source:clean(x.source||'approved_billing'),is_valid:missing.length===0,missing_fields:[...new Set(missing)],received_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        0
+      ],
+      "id": "caebfaef-4ea4-4a32-8f68-feca3d2dccb7",
+      "name": "Prepare Billing Contract"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "valid",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1060,
+        0
+      ],
+      "id": "acb9be8d-e574-4501-9f07-8e783a7b1d5f",
+      "name": "Valid Billing Input?"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_key",
+              "keyValue": "={{ $('Prepare Billing Contract').item.json.invoice_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -820,
+        -100
+      ],
+      "id": "2d948a38-7fea-428f-b0ae-5a32f0ad3b9c",
+      "name": "Get Existing Invoice State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $('Prepare Billing Contract').item.json; const s=$json||{}; const status=String(s.status||'').toLowerCase(); const already=['document_ready','issued','paid','cancelled'].includes(status) && Boolean(s.doc_id); return [{json:{...incoming,existing_state_found:Boolean(s.invoice_key),existing_status:status,existing_doc_id:String(s.doc_id||''),existing_pdf_name:String(s.pdf_name||''),existing_total:Number(s.total||0),existing_issued_at:String(s.issued_at||''),already_created:already,already_issued:['issued','paid','cancelled'].includes(status)}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        -100
+      ],
+      "id": "7ca970e6-6103-4036-9b30-a4e9ace9678c",
+      "name": "Resolve Existing Invoice"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "issued",
+              "leftValue": "={{ $json.already_issued }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -380,
+        -100
+      ],
+      "id": "83bc6c24-8318-4c21-be2b-7279be8e8d66",
+      "name": "Invoice Already Issued?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const round=(n)=>Math.round((Number(n)+Number.EPSILON)*100)/100; const lines=x.line_items.map((i,idx)=>({...i,line_total:round(i.quantity*i.unit_price),line_no:idx+1})); const subtotal=round(lines.reduce((a,i)=>a+i.line_total,0)); const discount=round(Math.max(0,Number(x.discount_amount||0))); const taxable=round(Math.max(0,subtotal-discount)); const rate=Number(x.tax_rate||0); if (!Number.isFinite(rate)||rate<0||rate>100) throw new Error('tax_rate must be between 0 and 100'); const tax=round(taxable*(rate/100)); const total=round(taxable+tax); const fmt=(n)=>`${x.currency} ${Number(n).toFixed(2)}`; const lineText=lines.map(i=>`${i.line_no}. ${i.description} — ${i.quantity} × ${fmt(i.unit_price)} = ${fmt(i.line_total)}`).join('\\n'); const fileSafe=String(x.invoice_number).replace(/[^a-zA-Z0-9._-]/g,'-'); return [{json:{...x,line_items:lines,line_items_text:lineText,subtotal,discount_amount:discount,tax_amount:tax,total,subtotal_text:fmt(subtotal),discount_text:fmt(discount),tax_amount_text:fmt(tax),total_text:fmt(total),tax_rate_text:`${rate.toFixed(2)}%`,pdf_name:`${fileSafe}.pdf`}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        -210
+      ],
+      "id": "796f5190-2356-4233-860c-4917373d7450",
+      "name": "Calculate Invoice Totals"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_TEMPLATE_FILE_ID",
+          "mode": "id"
+        },
+        "name": "={{ $('Calculate Invoice Totals').item.json.invoice_number + ' — ' + $('Calculate Invoice Totals').item.json.client_company }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        340,
+        -300
+      ],
+      "id": "f372e769-873b-4ca0-84de-080d00634cd9",
+      "name": "Copy Invoice Template",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_DRIVE_CREDENTIAL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id || $json.documentId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "{{INVOICE_NUMBER}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.invoice_number }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{ISSUE_DATE}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.issue_date }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{DUE_DATE}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.due_date }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{CLIENT_NAME}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.client_name }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{CLIENT_COMPANY}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.client_company }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{CLIENT_EMAIL}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.client_email }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{BILLING_ADDRESS}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.billing_address }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{LINE_ITEMS}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.line_items_text }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{SUBTOTAL}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.subtotal_text }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{DISCOUNT}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.discount_text }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{TAX_RATE}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.tax_rate_text }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{TAX_AMOUNT}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.tax_amount_text }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{TOTAL}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.total_text }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{CURRENCY}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.currency }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{PAYMENT_LINK}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.payment_link }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{NOTES}}",
+              "replaceText": "={{ $('Calculate Invoice Totals').item.json.notes }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        580,
+        -300
+      ],
+      "id": "0919a817-a288-40cc-8952-8f1034081c07",
+      "name": "Fill Invoice Document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_DOCS_CREDENTIAL",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Calculate Invoice Totals').item.json; const c=$('Copy Invoice Template').item.json; const docId=String(c.id||c.documentId||''); if(!docId) throw new Error('Copied Google Doc ID not found'); return [{json:{...x,doc_id:docId,status:'document_ready',updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        -300
+      ],
+      "id": "c4278f32-ae46-4238-b33e-ab039f4845c6",
+      "name": "Capture Document Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_key",
+              "keyValue": "={{ $json.invoice_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_key": "={{ $json.invoice_key }}",
+            "invoice_number": "={{ $json.invoice_number }}",
+            "deal_id": "={{ $json.deal_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_email": "={{ $json.client_email }}",
+            "client_company": "={{ $json.client_company }}",
+            "currency": "={{ $json.currency }}",
+            "subtotal": "={{ $json.subtotal }}",
+            "discount_amount": "={{ $json.discount_amount }}",
+            "tax_rate": "={{ $json.tax_rate }}",
+            "tax_amount": "={{ $json.tax_amount }}",
+            "total": "={{ $json.total }}",
+            "status": "={{ $json.status }}",
+            "doc_id": "={{ $json.doc_id }}",
+            "pdf_name": "={{ $json.pdf_name }}",
+            "due_date": "={{ $json.due_date }}",
+            "payment_link": "={{ $json.payment_link }}",
+            "reminder_before_due_sent": "no",
+            "reminder_due_sent": "no",
+            "reminder_overdue_sent": "no",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1060,
+        -300
+      ],
+      "id": "cb0c9b50-6475-48fe-b6c5-3bf13c98c38e",
+      "name": "Checkpoint Document State"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Ready Invoice Context').item.json.doc_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "data",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf"
+            }
+          },
+          "fileName": "={{ $('Ready Invoice Context').item.json.pdf_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1520,
+        -170
+      ],
+      "id": "0bee317b-72c8-44cf-be14-61a127009b27",
+      "name": "Export Invoice PDF",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_DRIVE_CREDENTIAL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Ready Invoice Context').item.json.client_email }}",
+        "subject": "={{ 'Invoice ' + $('Ready Invoice Context').item.json.invoice_number + ' — ' + $('Ready Invoice Context').item.json.client_company }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $('Ready Invoice Context').item.json.client_name }},</p><p>Attached is invoice <strong>{{ $('Ready Invoice Context').item.json.invoice_number }}</strong> for <strong>{{ $('Ready Invoice Context').item.json.total_text }}</strong>.</p><p><strong>Due:</strong> {{ $('Ready Invoice Context').item.json.due_date }}</p><p><strong>Payment:</strong> <a href=\"{{ $('Ready Invoice Context').item.json.payment_link }}\">{{ $('Ready Invoice Context').item.json.payment_link }}</a></p><p>If anything looks incorrect, please reply before paying.</p>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        -170
+      ],
+      "id": "76c9c1ff-c073-4573-92b7-8e2b842286e0",
+      "name": "Send Invoice Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Ready Invoice Context').item.json; return [{json:{...x,status:'issued',issued_at:new Date().toISOString(),updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -170
+      ],
+      "id": "da5092cc-13b3-4173-adce-880635447785",
+      "name": "Mark Issued Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_key",
+              "keyValue": "={{ $json.invoice_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_key": "={{ $json.invoice_key }}",
+            "invoice_number": "={{ $json.invoice_number }}",
+            "deal_id": "={{ $json.deal_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "client_email": "={{ $json.client_email }}",
+            "client_company": "={{ $json.client_company }}",
+            "currency": "={{ $json.currency }}",
+            "subtotal": "={{ $json.subtotal }}",
+            "discount_amount": "={{ $json.discount_amount }}",
+            "tax_rate": "={{ $json.tax_rate }}",
+            "tax_amount": "={{ $json.tax_amount }}",
+            "total": "={{ $json.total }}",
+            "status": "issued",
+            "doc_id": "={{ $json.doc_id }}",
+            "pdf_name": "={{ $json.pdf_name }}",
+            "due_date": "={{ $json.due_date }}",
+            "payment_link": "={{ $json.payment_link }}",
+            "reminder_before_due_sent": "no",
+            "reminder_due_sent": "no",
+            "reminder_overdue_sent": "no",
+            "updated_at": "={{ $json.updated_at }}",
+            "issued_at": "={{ $json.issued_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2240,
+        -170
+      ],
+      "id": "47c96d90-2ca6-4ee8-a2e8-5d47d52fa813",
+      "name": "Checkpoint Issued State"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Mark Issued Context').item.json; return [{json:{ok:true,invoice_key:x.invoice_key,invoice_number:x.invoice_number,status:'issued',total:x.total,currency:x.currency,doc_id:x.doc_id,pdf_name:x.pdf_name,issued_at:x.issued_at,due_date:x.due_date}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -170
+      ],
+      "id": "913634ac-e47c-4f64-a29e-3b36965a92ce",
+      "name": "Return Issued Invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Resolve Existing Invoice').item.json; return [{json:{ok:true,reused:true,invoice_key:x.invoice_key,invoice_number:x.invoice_number,status:x.existing_status,doc_id:x.existing_doc_id,pdf_name:x.existing_pdf_name,total:x.existing_total,issued_at:x.existing_issued_at}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        40
+      ],
+      "id": "d10d054f-edeb-4041-9a79-e8279a158635",
+      "name": "Return Existing Invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Prepare Billing Contract').item.json; return [{json:{ok:false,status:'review',reason:'missing_or_invalid_billing_input',missing_fields:x.missing_fields,invoice_key:x.invoice_key,invoice_number:x.invoice_number,client_email:x.client_email}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -820,
+        170
+      ],
+      "id": "fe980681-adf6-44ec-93b4-900bf945678f",
+      "name": "Return Billing Review"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "need-doc",
+              "leftValue": "={{ !$json.already_created }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        90,
+        -210
+      ],
+      "id": "df7f6791-3f4d-4674-8fb0-8b0021263d86",
+      "name": "Need New Invoice Document?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Calculate Invoice Totals').item.json; return [{json:{...x,doc_id:x.existing_doc_id,status:'document_ready',updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        -40
+      ],
+      "id": "b8450476-0964-4bc8-a9c5-774190b99e4c",
+      "name": "Reuse Existing Invoice Document"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Capture Document Context').item.json; return [{json:x}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        -280
+      ],
+      "id": "7f8eb10e-b73d-4b0b-8855-409ca56a7fdd",
+      "name": "Restore New Invoice Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:$json}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -170
+      ],
+      "id": "472babc5-d8b0-4979-9906-5a24c6e40261",
+      "name": "Ready Invoice Context"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Billing Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Billing Contract": {
+      "main": [
+        [
+          {
+            "node": "Valid Billing Input?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Billing Input?": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Invoice State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Billing Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Invoice State": {
+      "main": [
+        [
+          {
+            "node": "Resolve Existing Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Existing Invoice": {
+      "main": [
+        [
+          {
+            "node": "Invoice Already Issued?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice Already Issued?": {
+      "main": [
+        [
+          {
+            "node": "Return Existing Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calculate Invoice Totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Invoice Totals": {
+      "main": [
+        [
+          {
+            "node": "Need New Invoice Document?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Invoice Template": {
+      "main": [
+        [
+          {
+            "node": "Fill Invoice Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Invoice Document": {
+      "main": [
+        [
+          {
+            "node": "Capture Document Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Document Context": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Document State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Document State": {
+      "main": [
+        [
+          {
+            "node": "Restore New Invoice Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Invoice PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invoice Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Issued Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Issued Context": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Issued State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Issued State": {
+      "main": [
+        [
+          {
+            "node": "Return Issued Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need New Invoice Document?": {
+      "main": [
+        [
+          {
+            "node": "Copy Invoice Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reuse Existing Invoice Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore New Invoice Context": {
+      "main": [
+        [
+          {
+            "node": "Ready Invoice Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reuse Existing Invoice Document": {
+      "main": [
+        [
+          {
+            "node": "Ready Invoice Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready Invoice Context": {
+      "main": [
+        [
+          {
+            "node": "Export Invoice PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "48b490b7-6a7b-4b22-8d6d-6cd28b0884d6",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

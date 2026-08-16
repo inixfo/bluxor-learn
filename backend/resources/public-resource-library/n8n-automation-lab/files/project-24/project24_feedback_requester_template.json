@@ -1,0 +1,498 @@
+{
+  "name": "Project 24 — Feedback Requester",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "feedback_key"
+            },
+            {
+              "name": "reference_id"
+            },
+            {
+              "name": "reference_type"
+            },
+            {
+              "name": "customer_name"
+            },
+            {
+              "name": "customer_email"
+            },
+            {
+              "name": "context_name"
+            },
+            {
+              "name": "owner_email"
+            },
+            {
+              "name": "review_policy"
+            },
+            {
+              "name": "review_url"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -820,
+        0
+      ],
+      "id": "92f73d24-0c98-4091-a096-baceaeba472c",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const c=v=>String(v??'').trim(); const email=c(x.customer_email).toLowerCase(); const policy=['none','all_respondents'].includes(c(x.review_policy))?c(x.review_policy):'none'; const missing=[]; for(const k of ['feedback_key','customer_name','customer_email','context_name']) if(!c(x[k])) missing.push(k); if(email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) missing.push('customer_email_invalid'); return [{json:{...x,feedback_key:c(x.feedback_key),reference_id:c(x.reference_id),reference_type:c(x.reference_type||'project'),customer_name:c(x.customer_name),customer_email:email,context_name:c(x.context_name),owner_email:c(x.owner_email),review_policy:policy,review_url:c(x.review_url),source:c(x.source||'completion'),is_valid:missing.length===0,missing_fields:[...new Set(missing)],updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "20e7964d-13fc-48c0-83ce-dc2359d2cdd1",
+      "name": "Prepare Feedback Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "v",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "9d9d7234-2fe4-46b0-9e5d-922b87cb5621",
+      "name": "Valid Request?"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $('Prepare Feedback Request').item.json.feedback_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -150,
+        -80
+      ],
+      "id": "4f327288-a2b7-4f22-9ba3-9f2cf377bf41",
+      "name": "Get Existing Feedback State",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming=$('Prepare Feedback Request').item.json; const s=$json||{}; const sent=String(s.request_sent||'no')==='yes'; return [{json:{...incoming,existing_state_found:Boolean(s.feedback_key),already_requested:sent,already_responded:String(s.responded||'no')==='yes',existing_status:String(s.status||'')}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -80
+      ],
+      "id": "e45a2483-54d7-403b-97d0-238665e804f2",
+      "name": "Resolve Request State"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ar",
+              "leftValue": "={{ $json.already_requested }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        300,
+        -80
+      ],
+      "id": "0cac057a-c853-4c38-85be-aac1520280b9",
+      "name": "Already Requested?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$json; const base='REPLACE_WITH_PROJECT24_FORM_URL'; const sep=base.includes('?')?'&':'?'; const feedback_url=base+sep+'feedback_key='+encodeURIComponent(x.feedback_key); return [{json:{...x,feedback_url,status:'ready',request_sent:'no',reminder_sent:'no',responded:'no',ack_sent:'no',review_invite_sent:'no',updated_at:new Date().toISOString()}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        40
+      ],
+      "id": "923f5558-118d-40dc-9d70-768a865f9889",
+      "name": "Build Feedback Link"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $json.feedback_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={{ $json.feedback_key }}",
+            "reference_id": "={{ $json.reference_id }}",
+            "reference_type": "={{ $json.reference_type }}",
+            "customer_name": "={{ $json.customer_name }}",
+            "customer_email": "={{ $json.customer_email }}",
+            "context_name": "={{ $json.context_name }}",
+            "owner_email": "={{ $json.owner_email }}",
+            "review_policy": "={{ $json.review_policy }}",
+            "review_url": "={{ $json.review_url }}",
+            "status": "ready",
+            "request_sent": "no",
+            "reminder_sent": "no",
+            "responded": "no",
+            "ack_sent": "no",
+            "review_invite_sent": "no",
+            "source": "={{ $json.source }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        740,
+        40
+      ],
+      "id": "52c5c976-33b3-4536-8e44-194b45c2b078",
+      "name": "Checkpoint Ready State"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Build Feedback Link').item.json.customer_email }}",
+        "subject": "={{ 'How did ' + $('Build Feedback Link').item.json.context_name + ' go?' }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $('Build Feedback Link').item.json.customer_name }},</p><p>We’d value your honest feedback about <strong>{{ $('Build Feedback Link').item.json.context_name }}</strong>.</p><p><a href=\"{{ $('Build Feedback Link').item.json.feedback_url }}\">Share feedback</a></p><p>It should take about 1–2 minutes. Positive, neutral, and negative feedback are all useful.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        40
+      ],
+      "id": "5bf25d1f-bdda-42bb-8958-41572069a430",
+      "name": "Send Feedback Request",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Build Feedback Link').item.json; const now=new Date().toISOString(); return [{json:{...x,status:'requested',request_sent:'yes',request_sent_at:now,updated_at:now}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        40
+      ],
+      "id": "eed3ca42-35b5-4116-b225-8442fabab37b",
+      "name": "Mark Request Sent"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_FEEDBACK_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "feedback_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedback_key",
+              "keyValue": "={{ $json.feedback_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_key": "={{ $json.feedback_key }}",
+            "status": "requested",
+            "request_sent": "yes",
+            "request_sent_at": "={{ $json.request_sent_at }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        40
+      ],
+      "id": "1815fb14-7fd4-4ee6-a101-82042e15be7d",
+      "name": "Checkpoint Requested State"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,feedback_key:$json.feedback_key,status:'requested',request_sent_at:$json.request_sent_at}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        40
+      ],
+      "id": "d4d338e9-591a-4cfe-a472-b327d0be8d54",
+      "name": "Return Requested"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,reused:true,feedback_key:$json.feedback_key,status:$json.existing_status||'requested',already_responded:$json.already_responded}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        -200
+      ],
+      "id": "1b18268b-7b9d-4a36-b984-b9b0888afaad",
+      "name": "Return Existing Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Prepare Feedback Request').item.json; return [{json:{ok:false,status:'review',missing_fields:x.missing_fields,feedback_key:x.feedback_key}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -150,
+        180
+      ],
+      "id": "cd12e440-b8bb-4980-aa21-f031c42bea1e",
+      "name": "Return Request Review"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Feedback Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Feedback Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Request?": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Feedback State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Request Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Feedback State": {
+      "main": [
+        [
+          {
+            "node": "Resolve Request State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Request State": {
+      "main": [
+        [
+          {
+            "node": "Already Requested?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Requested?": {
+      "main": [
+        [
+          {
+            "node": "Return Existing Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Feedback Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Feedback Link": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Ready State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Ready State": {
+      "main": [
+        [
+          {
+            "node": "Send Feedback Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Feedback Request": {
+      "main": [
+        [
+          {
+            "node": "Mark Request Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Request Sent": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Requested State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checkpoint Requested State": {
+      "main": [
+        [
+          {
+            "node": "Return Requested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d491595c-ea79-49e6-9590-68edfa9df895",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,225 @@
+{
+  "name": "P27 — Central Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d166bf9e-7a35-4de3-9f90-ac25fde2110b",
+      "name": "Production Failure",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p=$input.first().json||{};\nconst ex=p.execution||{}; const wf=p.workflow||{}; const er=ex.error||p.error||p.trigger?.error||{};\nconst msg=String(er.message||er.description||'Unknown error').slice(0,800);\nconst root=String(ex.retryOf||ex.id||'unknown');\nreturn [{json:{incident_key:`${wf.id||'workflow'}:${root}`,root_execution_id:root,last_execution_id:String(ex.id||root),workflow_id:String(wf.id||''),workflow_name:String(wf.name||'Unknown workflow'),failed_node:String(ex.lastNodeExecuted||er.node?.name||''),error_message:msg,error_stack:String(er.stack||'').slice(0,1500),execution_url:String(ex.url||''),execution_mode:String(ex.mode||''),retry_of:String(ex.retryOf||''),seen_at:new Date().toISOString()}}];"
+      },
+      "id": "4858c10d-8608-45d3-8939-705bbdea1874",
+      "name": "Normalize Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json; const s=(x.error_message+' '+x.error_stack).toLowerCase();\nlet c='unknown', max=0, delay=0, auto=false;\nif(/429|too many requests|rate.?limit/.test(s)){c='rate_limit';max=3;delay=300;auto=true;}\nelse if(/etimedout|econnreset|socket hang up|\b502\b|\b503\b|\b504\b|service unavailable|bad gateway|gateway timeout/.test(s)){c='transient';max=3;delay=60;auto=true;}\nelse if(/\b401\b|\b403\b|unauthori|forbidden|permission/.test(s)){c='auth';}\nelse if(/\b400\b|invalid input|validation|schema|malformed/.test(s)){c='validation';}\nelse if(/business validation|manual correction|required business/.test(s)){c='business';}\nelse if(/out of memory|heap|concurrency|stalled|worker/.test(s)){c='resource';}\nelse if(/dependency|upstream|downstream/.test(s)){c='dependency';max=2;delay=300;auto=true;}\nreturn [{json:{...x,error_class:c,max_attempts:max,auto_retry:auto,base_delay_seconds:delay}}];"
+      },
+      "id": "487a2fc7-edee-4e56-b50b-fe393e23bb6f",
+      "name": "Classify Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INCIDENT_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "incident_state"
+        },
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "incident_key",
+              "keyValue": "={{ $json.incident_key }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "id": "89b0da25-0684-471c-8c64-704cb513c9ed",
+      "name": "Get Existing Incident",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Classify Failure').first().json; const old=$input.first().json||{};\nconst attempts=Number(old.attempt_count||0); const alreadyAlerted=String(old.alert_sent||'no')==='yes';\nconst canRetry=x.auto_retry && attempts < x.max_attempts;\nconst schedule=[60,300,900]; const d=x.error_class==='rate_limit'?[300,900,1800][Math.min(attempts,2)]:(schedule[Math.min(attempts,2)]||900);\nconst retryAt=canRetry?new Date(Date.now()+d*1000).toISOString():'';\nconst status=canRetry?'queued':'escalated';\nconst next_action=canRetry?`Automatic retry scheduled at ${retryAt}`:'Human review required; automatic retry disabled/exhausted.';\nreturn [{json:{...x,attempt_count:attempts,max_attempts:x.max_attempts,status,retry_at:retryAt,alert_sent:alreadyAlerted?'yes':'no',next_action,first_seen_at:old.first_seen_at||x.seen_at,last_seen_at:x.seen_at}}];"
+      },
+      "id": "b93f92ce-fb4e-48e0-b582-3b6743866c91",
+      "name": "Decide Recovery Policy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INCIDENT_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "incident_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "incident_key",
+              "keyValue": "={{ $json.incident_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "incident_key": "={{ $json.incident_key }}",
+            "root_execution_id": "={{ $json.root_execution_id }}",
+            "last_execution_id": "={{ $json.last_execution_id }}",
+            "workflow_id": "={{ $json.workflow_id }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "failed_node": "={{ $json.failed_node }}",
+            "error_class": "={{ $json.error_class }}",
+            "error_message": "={{ $json.error_message }}",
+            "status": "={{ $json.status }}",
+            "attempt_count": "={{ $json.attempt_count }}",
+            "max_attempts": "={{ $json.max_attempts }}",
+            "retry_at": "={{ $json.retry_at }}",
+            "first_seen_at": "={{ $json.first_seen_at }}",
+            "last_seen_at": "={{ $json.last_seen_at }}",
+            "execution_url": "={{ $json.execution_url }}",
+            "alert_sent": "yes"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "id": "9aa486b8-0c1e-46cc-9e46-1e9466a0dc40",
+      "name": "Upsert Incident",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TEAM_CHAT_ID",
+        "text": "={{ \"🚨 n8n incident\\nWorkflow: \" + $(\"Decide Recovery Policy\").item.json.workflow_name + \"\\nNode: \" + $(\"Decide Recovery Policy\").item.json.failed_node + \"\\nClass: \" + $(\"Decide Recovery Policy\").item.json.error_class + \"\\nExecution: \" + $(\"Decide Recovery Policy\").item.json.execution_url + \"\\nAction: \" + $(\"Decide Recovery Policy\").item.json.next_action }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "673d31b3-90a5-4bed-8724-f1197661bb7f",
+      "name": "Send Incident Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        780,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Production Failure": {
+      "main": [
+        [
+          {
+            "node": "Normalize Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Failure": {
+      "main": [
+        [
+          {
+            "node": "Classify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Failure": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Incident": {
+      "main": [
+        [
+          {
+            "node": "Decide Recovery Policy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Recovery Policy": {
+      "main": [
+        [
+          {
+            "node": "Upsert Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Incident": {
+      "main": [
+        [
+          {
+            "node": "Send Incident Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "PROJECT27-ERROR-HANDLER"
+}

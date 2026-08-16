@@ -1,0 +1,31 @@
+column,type,purpose
+feedback_key,string,Opaque stable idempotency key
+reference_id,string,Project/order/ticket ID
+reference_type,string,project/order/service
+customer_name,string,Recipient name
+customer_email,string,Verified email
+context_name,string,Project/product/service label
+owner_email,string,Internal owner
+review_policy,string,none/all_respondents
+review_url,string,Optional public review URL
+status,string,ready/requested/responded/recovery_open/closed
+request_sent,string,yes/no
+request_sent_at,string,ISO timestamp
+reminder_sent,string,yes/no
+reminder_sent_at,string,ISO timestamp
+responded,string,yes/no
+responded_at,string,ISO timestamp
+rating,number,1-5
+area,string,Selected feedback area
+experience,string,Customer free text
+improve,string,Improvement text
+contact_back,string,yes/no
+sentiment,string,positive/neutral/negative/unknown
+priority,string,HIGH/MEDIUM/NORMAL
+recovery_status,string,none/open/resolved
+ack_sent,string,yes/no
+ack_sent_at,string,ISO timestamp
+review_invite_sent,string,yes/no
+source,string,Upstream source
+last_error,string,Latest operational error
+updated_at,string,ISO timestamp

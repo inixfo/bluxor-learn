@@ -1,0 +1,9 @@
+class,signals,auto_retry,max_attempts,schedule,action
+transient,"ETIMEDOUT, ECONNRESET, 502, 503, 504",yes,3,"1m,5m,15m",Escalate after budget
+rate_limit,"429, too many requests",yes,3,"5m,15m,30m",Respect provider Retry-After when available
+auth,"401,403, unauthorized, forbidden",no,0,-,Fix credential/permission
+validation,"400, invalid input, schema",no,0,-,Fix input or mapping
+business,Stop And Error / business rule,no,0,-,Fix source state / approve manually
+resource,"out of memory, concurrency, stalled",no,0,-,Ops review; scale or redesign
+dependency,upstream/downstream unavailable,yes,2,"5m,15m",Only when side effect is retry-safe
+unknown,everything else,no,0,-,Manual review

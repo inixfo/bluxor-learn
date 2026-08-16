@@ -1,0 +1,236 @@
+{
+  "name": "Project 17 — Multi-Source Lead Capture System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Website Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        -160
+      ],
+      "webhookId": "REPLACE-AFTER-IMPORT"
+    },
+    {
+      "parameters": {},
+      "id": "2",
+      "name": "Facebook Lead Ads",
+      "type": "n8n-nodes-base.facebookLeadAdsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const src = $json.body ?? $json;\nconst fields = {};\nif (Array.isArray(src.field_data)) {\n  for (const f of src.field_data) fields[f.name] = Array.isArray(f.values) ? f.values[0] : f.values;\n}\nconst pick=(...xs)=>xs.find(v=>v!==undefined && v!==null && String(v).trim()!=='') ?? '';\nconst fullName = pick(src.full_name, fields.full_name, [src.first_name,src.last_name].filter(Boolean).join(' '), [fields.first_name,fields.last_name].filter(Boolean).join(' '));\nconst source = pick(src.source, src.leadgen_id ? 'meta' : 'website');\nconst sourceLeadId = pick(src.source_lead_id, src.leadgen_id, src.id, src.request_id);\nconst email = String(pick(src.email, fields.email)).trim().toLowerCase();\nconst phone = String(pick(src.phone, src.phone_number, fields.phone_number, fields.phone)).trim();\nconst leadKey = sourceLeadId ? `${source}:${sourceLeadId}` : `${source}:${email || phone}`;\nreturn [{json:{lead_key:leadKey,source,source_lead_id:sourceLeadId,full_name:fullName,email,phone,service:pick(src.service,fields.service,fields.what_service_do_you_need),message:pick(src.message,fields.message,fields.notes),utm_source:pick(src.utm_source,src.source_platform),utm_campaign:pick(src.utm_campaign,src.campaign_name,src.campaign_id),form_id:pick(src.form_id),ad_id:pick(src.ad_id),consent_marketing:Boolean(src.consent_marketing===true || src.consent_marketing==='true'),received_at:new Date().toISOString()}}];"
+      },
+      "id": "3",
+      "name": "Normalize Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "v1",
+              "leftValue": "={{ Boolean($json.full_name && ($json.email || $json.phone)) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4",
+      "name": "Valid Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.lead_key }}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Remove Repeated Event",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        40,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "firstName": "={{ $json.full_name.split(' ')[0] }}",
+          "lastName": "={{ $json.full_name.split(' ').slice(1).join(' ') }}",
+          "phoneNumber": "={{ $json.phone }}"
+        }
+      },
+      "id": "6",
+      "name": "HubSpot — Create or Update Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        280,
+        -80
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REPLACE_WITH_YOUR_HUBSPOT_CREDENTIAL",
+          "name": "HubSpot Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=🔥 New Lead — {{$json.source}}\nName: {{$json.full_name}}\nEmail: {{$json.email || '—'}}\nPhone: {{$json.phone || '—'}}\nService: {{$json.service || '—'}}\nCampaign: {{$json.utm_campaign || '—'}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7",
+      "name": "Telegram — Notify Sales",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        -80
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "8",
+      "name": "Invalid Lead — Review",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        60,
+        140
+      ]
+    }
+  ],
+  "connections": {
+    "Website Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Lead Ads": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead": {
+      "main": [
+        [
+          {
+            "node": "Valid Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Lead?": {
+      "main": [
+        [
+          {
+            "node": "Remove Repeated Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Lead — Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Repeated Event": {
+      "main": [
+        [
+          {
+            "node": "HubSpot — Create or Update Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot — Create or Update Contact": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Notify Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "PROJECT17-TEMPLATE"
+}

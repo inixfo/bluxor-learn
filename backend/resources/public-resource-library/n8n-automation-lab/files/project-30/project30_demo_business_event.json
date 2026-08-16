@@ -1,0 +1,254 @@
+{
+  "name": "P30 TEST — Demo Business Event",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "719b2a4e-230c-4cb2-b445-9dc64cfdcf16",
+      "name": "When clicking “Test workflow”",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -750,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ad501897-3402-44e0-b955-2f637cde6b74",
+              "name": "event_id",
+              "value": "evt_demo_closed_won_001",
+              "type": "string"
+            },
+            {
+              "id": "80aac27d-b8b7-478d-828a-3e804110f3fd",
+              "name": "trace_id",
+              "value": "tr_demo_customer_001",
+              "type": "string"
+            },
+            {
+              "id": "c2e0a56e-eb08-43d5-88e5-a6733e838168",
+              "name": "event_type",
+              "value": "deal.closed_won",
+              "type": "string"
+            },
+            {
+              "id": "65613e0d-8596-4797-b6b2-5a9e45f2cf79",
+              "name": "schema_version",
+              "value": "business.event.v1",
+              "type": "string"
+            },
+            {
+              "id": "b30834dc-aa43-4414-91fb-b47546a63216",
+              "name": "source",
+              "value": "project30-demo",
+              "type": "string"
+            },
+            {
+              "id": "daf8b8bc-d6e1-42ea-86f7-694c5e8db024",
+              "name": "entity_type",
+              "value": "deal",
+              "type": "string"
+            },
+            {
+              "id": "f137a829-1648-4e78-b643-6a1110f52a90",
+              "name": "entity_id",
+              "value": "DEAL-1042",
+              "type": "string"
+            },
+            {
+              "id": "ad518c51-280c-40ac-91c8-6072807ecbaf",
+              "name": "occurred_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "82433414-ea12-4181-adfb-6deb1215fd5c",
+              "name": "data",
+              "value": "={\"client_name\":\"Rahim Ahmed\",\"client_email\":\"rahim@example.com\",\"service\":\"Automation Retainer\",\"billing_approved\":false,\"amount\":500,\"currency\":\"USD\"}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5913da8d-ec30-4455-9986-9495f85587c3",
+      "name": "Demo Closed Won Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_GATEWAY_ID",
+          "mode": "list",
+          "cachedResultName": "P30 Business Event Gateway"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_id": "={{ $json.event_id }}",
+            "trace_id": "={{ $json.trace_id }}",
+            "event_type": "={{ $json.event_type }}",
+            "schema_version": "={{ $json.schema_version }}",
+            "source": "={{ $json.source }}",
+            "entity_type": "={{ $json.entity_type }}",
+            "entity_id": "={{ $json.entity_id }}",
+            "occurred_at": "={{ $json.occurred_at }}",
+            "data": "={{ $json.data }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "event_id",
+              "displayName": "event_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "trace_id",
+              "displayName": "trace_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "event_type",
+              "displayName": "event_type",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "schema_version",
+              "displayName": "schema_version",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "entity_type",
+              "displayName": "entity_type",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "entity_id",
+              "displayName": "entity_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "occurred_at",
+              "displayName": "occurred_at",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "b5106e7d-0295-4fe5-a4ed-6acf07d07244",
+      "name": "Call P30 Gateway",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; if(!['completed','duplicate'].includes(String(x.status||''))) throw new Error('P30 demo failed'); return [{json:{...x,test_passed:true,expected:'First run completed; second run with same event_id returns duplicate. billing_approved=false must block invoice.'}}];"
+      },
+      "id": "e065ca0a-3dba-4a74-8ddd-96bbf32c10a1",
+      "name": "Assert Demo Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Demo Closed Won Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demo Closed Won Event": {
+      "main": [
+        [
+          {
+            "node": "Call P30 Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call P30 Gateway": {
+      "main": [
+        [
+          {
+            "node": "Assert Demo Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P30-DEMO-V1"
+}

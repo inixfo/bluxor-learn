@@ -1,0 +1,123 @@
+{
+  "name": "P30 TOOL — Business Status Lookup v1",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "trace_id"
+            },
+            {
+              "name": "entity_id"
+            }
+          ]
+        }
+      },
+      "id": "8149bb4a-fd09-4a78-beaf-8df3422b461d",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json||{}; const trace=String(x.trace_id||'').trim(); const entity=String(x.entity_id||'').trim(); if(!trace&&!entity) throw new Error('trace_id or entity_id required'); return [{json:{lookup_key:trace?'trace_id':'entity_id',lookup_value:trace||entity}}];"
+      },
+      "id": "56cbe1ef-d60a-4d12-9191-9edaec1735d8",
+      "name": "Validate Status Lookup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -250,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_P30_EVENT_LEDGER_ID",
+          "mode": "list",
+          "cachedResultName": "p30_event_ledger"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "={{ $json.lookup_key }}",
+              "keyValue": "={{ $json.lookup_value }}"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "id": "ec1ed099-a483-4c25-abfd-5f2da1de1b0e",
+      "name": "Read Event Ledger",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const q=$('Validate Status Lookup').first().json; const rows=$input.all().map(i=>i.json); return [{json:{ok:true,contract_version:'business.status.lookup.v1',lookup:q,events:rows.map(r=>({event_id:r.event_id,trace_id:r.trace_id,event_type:r.event_type,entity_type:r.entity_type,entity_id:r.entity_id,status:r.status,route_key:r.route_key,updated_at:r.updated_at}))}}];"
+      },
+      "id": "ac208a4e-119d-4ac7-a6eb-2369c93b19db",
+      "name": "Return Read-only Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        310,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Status Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Status Lookup": {
+      "main": [
+        [
+          {
+            "node": "Read Event Ledger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Event Ledger": {
+      "main": [
+        [
+          {
+            "node": "Return Read-only Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "P30-STATUS-TOOL-V1"
+}

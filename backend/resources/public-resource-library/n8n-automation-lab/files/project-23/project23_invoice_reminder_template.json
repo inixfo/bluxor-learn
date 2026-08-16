@@ -1,0 +1,211 @@
+{
+  "name": "Project 23 — Invoice Reminder Runner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -720,
+        0
+      ],
+      "id": "836e893f-5ee5-4d82-97aa-befd4825dbee",
+      "name": "Daily Reminder Check — 9AM"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "issued"
+            }
+          ]
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "08c0a2a5-5b98-4841-9977-4f64b5d7f042",
+      "name": "Get Open Issued Invoices"
+    },
+    {
+      "parameters": {
+        "jsCode": "const MS=86400000; const today=new Date(); today.setHours(0,0,0,0); return $input.all().map(i=>{const x=i.json; const d=new Date(x.due_date); d.setHours(0,0,0,0); const days=Math.round((d-today)/MS); let type=''; if(String(x.status).toLowerCase()!=='issued') type=''; else if(days===3 && String(x.reminder_before_due_sent||'no')!=='yes') type='before_due'; else if(days===0 && String(x.reminder_due_sent||'no')!=='yes') type='due_today'; else if(days<=-3 && String(x.reminder_overdue_sent||'no')!=='yes') type='overdue'; return {json:{...x,days_until_due:days,reminder_type:type,send_reminder:Boolean(type)}};}).filter(i=>i.json.send_reminder);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "64b2b65e-5f2e-4084-84de-f5d3e9680062",
+      "name": "Select Reminder Candidates"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.client_email }}",
+        "subject": "={{ $json.reminder_type === 'overdue' ? 'Overdue invoice ' + $json.invoice_number : ($json.reminder_type === 'due_today' ? 'Invoice due today — ' + $json.invoice_number : 'Upcoming invoice due date — ' + $json.invoice_number) }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $json.client_name }},</p><p>{{ $json.reminder_type === 'overdue' ? 'Invoice <strong>' + $json.invoice_number + '</strong> is now overdue.' : ($json.reminder_type === 'due_today' ? 'Invoice <strong>' + $json.invoice_number + '</strong> is due today.' : 'A quick reminder that invoice <strong>' + $json.invoice_number + '</strong> is due in 3 days.') }}</p><p><strong>Amount:</strong> {{ $json.currency }} {{ Number($json.total).toFixed(2) }}<br><strong>Due:</strong> {{ $json.due_date }}</p><p><a href=\"{{ $json.payment_link }}\">Payment link</a></p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2a431f73-4ddf-4d19-94e6-a4c46db56c6a",
+      "name": "Send Invoice Reminder",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$('Select Reminder Candidates').item.json; const now=new Date().toISOString(); return [{json:{...x,reminder_before_due_sent:x.reminder_type==='before_due'?'yes':String(x.reminder_before_due_sent||'no'),reminder_due_sent:x.reminder_type==='due_today'?'yes':String(x.reminder_due_sent||'no'),reminder_overdue_sent:x.reminder_type==='overdue'?'yes':String(x.reminder_overdue_sent||'no'),updated_at:now}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "d1a1117f-88c9-4df8-9356-ad2e8175bb74",
+      "name": "Mark Reminder Sent Context"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_INVOICE_STATE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "invoice_state"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_key",
+              "keyValue": "={{ $json.invoice_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_key": "={{ $json.invoice_key }}",
+            "reminder_before_due_sent": "={{ $json.reminder_before_due_sent }}",
+            "reminder_due_sent": "={{ $json.reminder_due_sent }}",
+            "reminder_overdue_sent": "={{ $json.reminder_overdue_sent }}",
+            "updated_at": "={{ $json.updated_at }}"
+          }
+        },
+        "matchType": "allConditions"
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        0
+      ],
+      "id": "a607c5a9-4562-46e5-9467-6bb052835482",
+      "name": "Checkpoint Reminder Flag"
+    }
+  ],
+  "connections": {
+    "Daily Reminder Check — 9AM": {
+      "main": [
+        [
+          {
+            "node": "Get Open Issued Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Open Issued Invoices": {
+      "main": [
+        [
+          {
+            "node": "Select Reminder Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Reminder Candidates": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invoice Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Reminder Sent Context": {
+      "main": [
+        [
+          {
+            "node": "Checkpoint Reminder Flag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bde64b77-9dc2-4c4d-8bae-c9c7db73cacd",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

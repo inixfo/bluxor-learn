@@ -1,0 +1,9 @@
+﻿column,type,required,purpose
+customer_id,string,yes,stable identifier
+email,string,yes,lookup key
+full_name,string,yes,display
+company,string,no,context
+status,string,yes,active/on_hold
+plan,string,no,service plan
+owner_email,string,no,internal owner
+last_contact_at,datetime,no,context

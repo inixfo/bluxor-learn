@@ -1,0 +1,234 @@
+{
+  "name": "Project 22 — Demo Parent Caller",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "f048bd79-e268-4d74-b50a-d229f0e6ac4c",
+      "name": "When clicking “Test workflow”"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1efd33f2-a5f7-43eb-9727-4fccc5dbb65d",
+              "name": "deal_id",
+              "value": "DEAL-10042",
+              "type": "string"
+            },
+            {
+              "id": "71c02e43-581f-4976-b47a-1512f5238fef",
+              "name": "client_name",
+              "value": "Rahim Ahmed",
+              "type": "string"
+            },
+            {
+              "id": "58f3de64-696d-4e2a-bb76-1e94e603692b",
+              "name": "client_email",
+              "value": "rahim@example.com",
+              "type": "string"
+            },
+            {
+              "id": "3cab6015-fd80-4914-97e8-5d3337814fa6",
+              "name": "service",
+              "value": "Website Development",
+              "type": "string"
+            },
+            {
+              "id": "5e8f82ce-8b2e-4eb5-874c-347ea23b09bc",
+              "name": "project_name",
+              "value": "Rahim Foods Website",
+              "type": "string"
+            },
+            {
+              "id": "f257e87f-7b5a-4a83-bc7c-d4031ec446bb",
+              "name": "owner_email",
+              "value": "pm@example.com",
+              "type": "string"
+            },
+            {
+              "id": "bd9fa882-2766-4052-be22-0dc990253960",
+              "name": "amount",
+              "value": "1200",
+              "type": "string"
+            },
+            {
+              "id": "1e17651b-e285-456a-92e1-58fea9d027cf",
+              "name": "kickoff_link",
+              "value": "https://calendar.example.com/kickoff",
+              "type": "string"
+            },
+            {
+              "id": "6500154f-0abc-4b3c-924f-4ed915348a3d",
+              "name": "source",
+              "value": "HubSpot CLOSED_WON",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "1639d8b3-231f-4e16-8615-9b95868791b2",
+      "name": "Sample CLOSED_WON Handoff"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_IMPORTED_PROJECT22_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "Project 22 — Client Onboarding System"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deal_id": "={ $json.deal_id }",
+            "client_name": "={ $json.client_name }",
+            "client_email": "={ $json.client_email }",
+            "service": "={ $json.service }",
+            "project_name": "={ $json.project_name }",
+            "owner_email": "={ $json.owner_email }",
+            "amount": "={ $json.amount }",
+            "kickoff_link": "={ $json.kickoff_link }",
+            "source": "={ $json.source }"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "deal_id",
+              "displayName": "deal_id",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "project_name",
+              "displayName": "project_name",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "owner_email",
+              "displayName": "owner_email",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "kickoff_link",
+              "displayName": "kickoff_link",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "display": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "99ca4ea7-2766-482f-90f9-90ed18c0aca3",
+      "name": "Call Project 22 Onboarding"
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Sample CLOSED_WON Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample CLOSED_WON Handoff": {
+      "main": [
+        [
+          {
+            "node": "Call Project 22 Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4599106a-0b0a-4ed5-afda-d89bd8b1318a",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

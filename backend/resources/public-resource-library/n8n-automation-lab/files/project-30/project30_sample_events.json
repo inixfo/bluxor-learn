@@ -1,0 +1,50 @@
+{
+  "events": [
+    {
+      "event_id": "evt_demo_lead_001",
+      "trace_id": "tr_demo_001",
+      "event_type": "lead.captured",
+      "schema_version": "business.event.v1",
+      "source": "website",
+      "entity_type": "lead",
+      "entity_id": "LEAD-1001",
+      "occurred_at": "2026-08-13T01:00:00+06:00",
+      "data": {
+        "name": "Rahim Ahmed",
+        "email": "rahim@example.com",
+        "service": "AI automation"
+      }
+    },
+    {
+      "event_id": "evt_demo_won_001",
+      "trace_id": "tr_demo_002",
+      "event_type": "deal.closed_won",
+      "schema_version": "business.event.v1",
+      "source": "crm",
+      "entity_type": "deal",
+      "entity_id": "DEAL-1042",
+      "occurred_at": "2026-08-13T01:10:00+06:00",
+      "data": {
+        "client_name": "Rahim Ahmed",
+        "client_email": "rahim@example.com",
+        "service": "Automation Retainer",
+        "billing_approved": false,
+        "amount": 500
+      }
+    },
+    {
+      "event_id": "evt_demo_order_001",
+      "trace_id": "tr_demo_003",
+      "event_type": "order.paid",
+      "schema_version": "business.event.v1",
+      "source": "shopify",
+      "entity_type": "order",
+      "entity_id": "ORDER-9001",
+      "occurred_at": "2026-08-13T01:20:00+06:00",
+      "data": {
+        "order_id": "ORDER-9001",
+        "payment_status": "paid"
+      }
+    }
+  ]
+}

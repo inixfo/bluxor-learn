@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "contract_version": "contact.normalize.v1",
+  "contact": {
+    "contact_id": "C-1007",
+    "full_name": "Rahim Ahmed",
+    "email": "rahim@example.com",
+    "phone_e164": "+8801712345678",
+    "source": "checkout"
+  },
+  "warnings": []
+}

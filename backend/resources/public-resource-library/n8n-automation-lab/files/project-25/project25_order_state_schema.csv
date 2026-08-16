@@ -1,0 +1,22 @@
+column,type,purpose
+order_key,string,Stable store + Shopify order ID key
+shop_domain,string,Store domain
+order_id,string,Shopify order ID
+order_name,string,Human-facing order name
+webhook_topic,string,orders/paid etc
+financial_status,string,Payment status
+currency,string,Order currency
+total_price,number,Order total
+customer_name,string,Customer display name
+customer_email,string,Customer email
+route,string,physical/digital/mixed/review
+status,string,paid/accepted/routed/fulfilling/complete/cancelled/review
+line_items_json,string,Normalized item snapshot
+warehouse_notified,string,yes/no
+digital_delivered,string,yes/no
+customer_confirmed,string,yes/no
+tracking_number,string,Latest tracking number
+tracking_url,string,Latest tracking URL
+cancelled_at,string,ISO timestamp
+last_event_at,string,Last source event time
+updated_at,string,Last state write

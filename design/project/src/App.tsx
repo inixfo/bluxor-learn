@@ -22,6 +22,7 @@ import HelpArticle from '@/pages/HelpArticle';
 import Faq from '@/pages/Faq';
 import DownloadHelp from '@/pages/DownloadHelp';
 import ResourcePage from '@/pages/ResourcePage';
+import N8nAutomationLabResources from '@/pages/N8nAutomationLabResources';
 import Checkout from '@/pages/checkout/Checkout';
 import PurchaseSuccess from '@/pages/checkout/PurchaseSuccess';
 import CustomerOverview from '@/pages/customer/Overview';
@@ -77,6 +78,8 @@ export default function App() {
             <Route path="/faq" element={<Faq />} />
             <Route path="/download-help" element={<DownloadHelp />} />
             <Route path="/r/:slug" element={<ResourcePage />} />
+            <Route path="/resources/n8n-automation-lab" element={<N8nAutomationLabResources />} />
+            <Route path="/resources/n8n-automation-lab/:projectSlug" element={<N8nAutomationLabResources />} />
             <Route path="/terms" element={<StaticPage />} />
             <Route path="/privacy" element={<StaticPage />} />
             <Route path="/refund-policy" element={<StaticPage />} />

@@ -172,7 +172,14 @@ class LandingPageEngine
 
     public function context(LandingPage $page, LandingPageVersion $version, bool $preview = false): array
     {
-        $page->loadMissing('primaryProduct.category', 'offers.product', 'offers.bundle');
+        $page->loadMissing('primaryProduct.category', 'offers.product', 'offers.bundle.products');
+        $primaryProduct = $page->primaryProduct && $page->primaryProduct->status === 'published' ? $page->primaryProduct : null;
+        $offers = $page->offers
+            ->filter(fn (LandingPageOffer $offer) => $this->offerIsAvailable($offer))
+            ->sortBy('sort_order')
+            ->mapWithKeys(fn ($offer) => [
+                $offer->offer_key => $this->offerPayload($offer),
+            ]);
 
         return [
             'page' => [
@@ -182,10 +189,8 @@ class LandingPageEngine
                 'version' => (string) $version->version_number,
                 'preview' => $preview,
             ],
-            'product' => $page->primaryProduct ? $this->productPayload($page->primaryProduct) : null,
-            'offers' => $page->offers->sortBy('sort_order')->mapWithKeys(fn ($offer) => [
-                $offer->offer_key => $this->offerPayload($offer),
-            ]),
+            'product' => $primaryProduct ? $this->productPayload($primaryProduct) : null,
+            'offers' => $offers,
             'analytics' => [
                 'landing_page_id' => $page->id,
                 'landing_page_version_id' => $version->id,
@@ -262,5 +267,18 @@ class LandingPageEngine
             'sale_price_minor' => $product->sale_price_minor,
             'formatted_price' => $product->currency.' '.number_format(($product->sale_price_minor ?? $product->regular_price_minor) / 100),
         ];
+    }
+
+    private function offerIsAvailable(LandingPageOffer $offer): bool
+    {
+        if ($offer->offer_type === 'product') {
+            return $offer->product && $offer->product->status === 'published';
+        }
+
+        if (! $offer->bundle || $offer->bundle->status !== 'published') {
+            return false;
+        }
+
+        return $offer->bundle->products->every(fn (Product $product) => $product->status === 'published');
     }
 }

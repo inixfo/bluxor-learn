@@ -1,0 +1,216 @@
+{
+  "name": "P27 — Demo Protected Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d26c8a57-346b-4f3c-bf9c-36c876b9d47f",
+      "name": "When clicking “Test workflow”",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "92eef664-d095-4aaf-80cf-98fd370a9641",
+              "name": "order_id",
+              "value": "DEMO-1001",
+              "type": "string"
+            },
+            {
+              "id": "088588f7-72c7-45e9-b8f5-799c4bdafb4c",
+              "name": "simulate",
+              "value": "business_error",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b08f7821-346c-4015-b8c2-8b68913f16b0",
+      "name": "Prepare Demo Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -470,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://httpstat.us/503",
+        "options": {}
+      },
+      "id": "31ca4de5-5fd8-402e-b4d3-fe71ff57aa35",
+      "name": "Call Unstable API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -210,
+        -80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input=$('Prepare Demo Input').first().json; return [{json:{...input,business_ok:input.simulate!=='business_error'}}];"
+      },
+      "id": "2c1e8df0-cad4-4061-ac88-60090a4e1733",
+      "name": "Validate Business Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0ceede2b-5cc9-45c6-99f5-a713dc968752",
+              "leftValue": "={{ $json.business_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8b4fc0ef-24d4-484b-94a6-d20b0cc4d1bb",
+      "name": "Business OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "Project 27 demo: business validation failed; manual correction required."
+      },
+      "id": "1fd65980-af35-42ec-8944-34273f1004b6",
+      "name": "Stop — Invalid Business State",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        550,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6c9ffa11-d44a-4e6f-b0e8-102e602a39ab",
+              "name": "ok",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "10cecab6-d607-4169-95b2-6f84fdd94a6d",
+              "name": "message",
+              "value": "Demo completed without business error.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5cd75ca0-12f3-4685-981d-3349650e283b",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        550,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking “Test workflow”": {
+      "main": [
+        [
+          {
+            "node": "Prepare Demo Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Demo Input": {
+      "main": [
+        [
+          {
+            "node": "Call Unstable API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Validate Business Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Business Result": {
+      "main": [
+        [
+          {
+            "node": "Business OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business OK?": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop — Invalid Business State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "versionId": "PROJECT27-DEMO"
+}

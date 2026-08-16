@@ -1,0 +1,214 @@
+{
+  "name": "Automation Lab — Project 01 Form to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Project Inquiry",
+        "formDescription": "Tell us what you want to automate.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "placeholder": "Your full name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "you@example.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Phone",
+              "placeholder": "01XXXXXXXXX",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Service",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "AI Automation"
+                  },
+                  {
+                    "option": "Website"
+                  },
+                  {
+                    "option": "Digital Marketing"
+                  },
+                  {
+                    "option": "Other"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Budget",
+              "fieldType": "number",
+              "placeholder": "25000"
+            },
+            {
+              "fieldLabel": "Message",
+              "fieldType": "textarea",
+              "placeholder": "Tell us a little about the project"
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Submit Inquiry"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -520,
+        0
+      ],
+      "id": "56845e41-d41f-4241-a4f1-e98b6e0911ab",
+      "name": "On form submission",
+      "webhookId": "c67d197e-2dfb-4c89-a600-3e5af6387c28"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba3e2293-0e87-43e9-8d0f-45b8e058c6a7",
+              "name": "Name",
+              "value": "={{ $json.Name }}",
+              "type": "string"
+            },
+            {
+              "id": "9a1a7f1c-b42b-4e71-b6b6-17e71d1713bd",
+              "name": "Email",
+              "value": "={{ $json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "a4bd06b8-405e-4fc2-b5ab-cd074fbfb9dd",
+              "name": "Phone",
+              "value": "={{ $json.Phone }}",
+              "type": "string"
+            },
+            {
+              "id": "bccf103c-64e7-402a-8841-0879b3fe8474",
+              "name": "Service",
+              "value": "={{ $json.Service }}",
+              "type": "string"
+            },
+            {
+              "id": "d8d58e12-1338-44e6-b25e-e3fbaa56d8f1",
+              "name": "Budget",
+              "value": "={{ $json.Budget }}",
+              "type": "number"
+            },
+            {
+              "id": "ebbc3986-5552-41ab-bb20-9826768c7e90",
+              "name": "Message",
+              "value": "={{ $json.Message }}",
+              "type": "string"
+            },
+            {
+              "id": "94abff3c-7e8d-4303-97a8-1302ab0d45bc",
+              "name": "Submitted At",
+              "value": "={{ $json.submittedAt }}",
+              "type": "string"
+            },
+            {
+              "id": "fa894466-99a1-43c8-8e34-dc6f45079f38",
+              "name": "Source",
+              "value": "n8n Form",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "0ee2a4f5-c666-4717-a464-5a0138d33bee",
+      "name": "Prepare Lead Data"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json['Name'] }}",
+            "Email": "={{ $json['Email'] }}",
+            "Phone": "={{ $json['Phone'] }}",
+            "Service": "={{ $json['Service'] }}",
+            "Budget": "={{ $json['Budget'] }}",
+            "Message": "={{ $json['Message'] }}",
+            "Submitted At": "={{ $json['Submitted At'] }}",
+            "Source": "={{ $json['Source'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        40,
+        0
+      ],
+      "id": "d09e8fdf-2b1d-4d17-b89c-4b161930bece",
+      "name": "Append row in sheet"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Prepare Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1acb504b-3f2a-4602-82e5-dd1386ccaa41",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

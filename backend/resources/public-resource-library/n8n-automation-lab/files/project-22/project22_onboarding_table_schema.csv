@@ -1,0 +1,18 @@
+﻿column,type,purpose
+onboarding_key,string,"Unique business key, normally deal_id"
+deal_id,string,CRM deal ID
+client_name,string,Client/contact name
+client_email,string,Verified client email
+service,string,Service sold
+project_name,string,Human-readable project name
+owner_email,string,Internal owner
+folder_id,string,Google Drive folder ID
+folder_url,string,Google Drive folder URL
+onboarding_status,string,received/folder_ready/welcome_sent/in_progress/ready/review
+welcome_sent,string,yes/no
+kickoff_status,string,not_scheduled/scheduled/done
+assets_status,string,missing/partial/complete
+access_status,string,missing/partial/complete
+source,string,HubSpot/manual/etc.
+created_at,string,ISO timestamp
+updated_at,string,ISO timestamp

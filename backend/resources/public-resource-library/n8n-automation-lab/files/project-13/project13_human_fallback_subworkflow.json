@@ -1,0 +1,144 @@
+{
+  "name": "PROJECT 13 — Human Fallback Sub-workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "customer_question"
+            },
+            {
+              "name": "reason"
+            },
+            {
+              "name": "contact"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "id": "b077992b-7ace-4d61-9d94-1b8d8c1de630",
+      "name": "When Called by Support Bot",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p13f1",
+              "name": "alert_text",
+              "value": "=🚨 AI SUPPORT HANDOFF\n\nQuestion: {{ $json.customer_question }}\nReason: {{ $json.reason }}\nContact: {{ $json.contact || \"Not supplied\" }}\nSession: {{ $json.session_id || \"Unknown\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "77647b44-349f-4d60-9f24-1df23f2a67d5",
+      "name": "Prepare Handoff",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -170,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.alert_text }}",
+        "additionalFields": {}
+      },
+      "id": "27b6cdae-9f24-4166-bddd-ffe3b1275ef5",
+      "name": "Notify Human on Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p13f2",
+              "name": "response",
+              "value": "আমি এই প্রশ্নের উত্তর নিশ্চিতভাবে দিতে পারছি না। আমি support team-কে জানিয়েছি—একজন মানুষ বিষয়টি review করবে।",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "86638132-24d4-49f8-85c1-043685716258",
+      "name": "Return Handoff Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        330,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Called by Support Bot": {
+      "main": [
+        [
+          {
+            "node": "Prepare Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Handoff": {
+      "main": [
+        [
+          {
+            "node": "Notify Human on Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Human on Telegram": {
+      "main": [
+        [
+          {
+            "node": "Return Handoff Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

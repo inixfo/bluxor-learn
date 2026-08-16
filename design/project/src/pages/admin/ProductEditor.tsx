@@ -5,15 +5,19 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Select, Textarea } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import {
+  archiveAdminProduct,
   attachAdminProductResource,
   createAdminProduct,
+  deleteAdminProduct,
   detachAdminProductResource,
   getAdminCategories,
   getAdminProduct,
   getAdminResources,
   publishAdminProduct,
+  restoreAdminProduct,
   updateAdminProduct,
   uploadAdminProductFile,
   type AdminCategory,
@@ -33,6 +37,9 @@ export default function AdminProductEditor() {
   const [resources, setResources] = useState<AdminResource[]>([]);
   const [allResources, setAllResources] = useState<AdminResource[]>([]);
   const [selectedResourceId, setSelectedResourceId] = useState('');
+  const [deletedAt, setDeletedAt] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
@@ -74,6 +81,7 @@ export default function AdminProductEditor() {
       });
       setFiles(product.files || []);
       setResources(product.resources || []);
+      setDeletedAt(product.deleted_at || null);
     });
   }, [id]);
 
@@ -124,6 +132,50 @@ export default function AdminProductEditor() {
       if (!id) navigate(`/admin/products/${product.id}/edit`, { replace: true });
     } catch {
       toast({ type: 'error', title: 'Publish failed' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const archiveProduct = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const product = await archiveAdminProduct(id);
+      setForm((prev) => ({ ...prev, status: product.status }));
+      setArchiveOpen(false);
+      toast({ type: 'success', title: 'Product archived successfully.' });
+    } catch {
+      toast({ type: 'error', title: 'Unable to archive product. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const restoreProduct = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const product = await restoreAdminProduct(id);
+      setForm((prev) => ({ ...prev, status: product.status }));
+      toast({ type: 'success', title: 'Product restored to draft.' });
+    } catch {
+      toast({ type: 'error', title: 'Unable to restore product. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteProduct = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await deleteAdminProduct(id);
+      toast({ type: 'success', title: 'Product deleted' });
+      navigate('/admin/products?status=deleted', { replace: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to delete product.';
+      toast({ type: 'error', title: 'Delete failed', message });
     } finally {
       setSaving(false);
     }
@@ -185,7 +237,7 @@ export default function AdminProductEditor() {
           <h1 className="font-display text-2xl font-bold text-ink-900">{id ? 'Edit Product' : 'Create Product'}</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" leftIcon={<Eye className="h-4 w-4" />} disabled={!form.slug} onClick={() => window.open(`/p/${form.slug}`, '_blank', 'noopener,noreferrer')}>Preview</Button>
+          <Button variant="outline" leftIcon={<Eye className="h-4 w-4" />} disabled={!form.slug || form.status !== 'published' || !!deletedAt} onClick={() => window.open(`/p/${form.slug}`, '_blank', 'noopener,noreferrer')}>Preview</Button>
           <Button leftIcon={<Save className="h-4 w-4" />} loading={saving} onClick={save}>Save</Button>
         </div>
       </div>
@@ -353,6 +405,20 @@ export default function AdminProductEditor() {
                 <StatusOption label="Draft" hint="Hidden from storefront" checked={form.status === 'draft'} onChange={() => updateField('status', 'draft')} />
                 <StatusOption label="Archived" hint="Retained for records, hidden from storefront" checked={form.status === 'archived'} onChange={() => updateField('status', 'archived')} />
               </div>
+              {id && (
+                <div className="mt-6 rounded-xl border border-danger-200 bg-danger-50/40 p-4">
+                  <h3 className="text-sm font-bold text-danger-800">Danger Zone</h3>
+                  <p className="mt-1 text-sm leading-6 text-danger-700">Deleting this product hides it from the storefront while retaining historical commerce records.</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {form.status === 'archived' ? (
+                      <Button variant="outline" loading={saving} onClick={restoreProduct}>Restore to Draft</Button>
+                    ) : (
+                      <Button variant="outline" loading={saving} onClick={() => setArchiveOpen(true)}>Archive Product</Button>
+                    )}
+                    <Button variant="destructive" loading={saving} onClick={() => setDeleteOpen(true)}>Delete Product</Button>
+                  </div>
+                </div>
+              )}
             </Card>
           )}
         </div>
@@ -361,11 +427,11 @@ export default function AdminProductEditor() {
           <Card className="p-5">
             <h3 className="text-sm font-bold text-ink-900">Publish</h3>
             <div className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-ink-400">Status</span><Badge tone={form.status === 'published' ? 'success' : 'warning'}>{form.status}</Badge></div>
+              <div className="flex justify-between"><span className="text-ink-400">Status</span><Badge tone={deletedAt ? 'danger' : form.status === 'published' ? 'success' : form.status === 'archived' ? 'neutral' : 'warning'}>{deletedAt ? 'deleted' : form.status}</Badge></div>
               <div className="flex justify-between"><span className="text-ink-400">Visibility</span><span className="text-ink-700">Public</span></div>
               <div className="flex justify-between"><span className="text-ink-400">Currency</span><span className="text-ink-700">{form.currency}</span></div>
             </div>
-            <Button className="mt-4 w-full" loading={saving} onClick={publish}>Publish</Button>
+            <Button className="mt-4 w-full" loading={saving} disabled={!!deletedAt} onClick={publish}>Publish</Button>
           </Card>
           <Card className="p-5">
             <h3 className="text-sm font-bold text-ink-900">Product URL</h3>
@@ -373,6 +439,26 @@ export default function AdminProductEditor() {
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={archiveOpen}
+        onClose={() => setArchiveOpen(false)}
+        title="Archive product?"
+        description="This product will be hidden from the public catalog. Existing customer purchases will remain available."
+        footer={<><Button variant="outline" onClick={() => setArchiveOpen(false)}>Cancel</Button><Button variant="secondary" loading={saving} onClick={archiveProduct}>Archive</Button></>}
+      >
+        <p className="text-sm text-ink-600">{form.name}</p>
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete product?"
+        description={`"${form.name}" will be removed from active product management and the public storefront. Historical order/payment records will be preserved.`}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button variant="destructive" loading={saving} onClick={deleteProduct}>Delete Product</Button></>}
+      >
+        <p className="text-sm text-ink-600">This is a soft delete. Existing orders, payments, entitlements, and resources are retained.</p>
+      </Modal>
     </div>
   );
 }

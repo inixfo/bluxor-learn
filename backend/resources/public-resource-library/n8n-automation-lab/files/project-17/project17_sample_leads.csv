@@ -1,0 +1,5 @@
+source,source_lead_id,full_name,email,phone,service,message,utm_source,utm_campaign,consent_marketing
+website,WEB-1001,Rahim Hasan,rahim@example.com,+8801711111111,AI Automation,Need an n8n lead routing system,facebook,n8n-aug-2026,false
+meta,META-2001,Nusrat Jahan,nusrat@example.com,+8801811111111,Website,Need a landing page and CRM setup,facebook,lead-form-aug,true
+website,WEB-1002,Karim Ahmed,,+8801911111111,Server Support,Server has 502 error,google,emergency-server,false
+meta,META-2002,Samira Khan,samira@example.com,,Automation,Want a consultation,instagram,automation-demo,false

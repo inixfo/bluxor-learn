@@ -1,0 +1,7 @@
+﻿item,dev,staging,production
+n8n base URL,local/dev,staging host,production host
+credentials,test,sandbox/staging,least-privilege live
+Data Tables,dev tables,staging tables,production tables
+email,sink/test inbox,restricted recipients,live
+payment/billing,sandbox,sandbox,live after approval
+alerts,dev channel,staging channel,ops channel
