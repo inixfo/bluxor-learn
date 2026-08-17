@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Bundle;
 use App\Models\Entitlement;
+use App\Jobs\SendMetaConversionEvent;
 use App\Jobs\SendPurchaseConfirmationEmail;
 use App\Models\Order;
 use App\Models\PaymentEvent;
@@ -14,7 +15,10 @@ use InvalidArgumentException;
 
 class PaymentCompletionService
 {
-    public function __construct(private readonly AdminNotificationService $notifications) {}
+    public function __construct(
+        private readonly AdminNotificationService $notifications,
+        private readonly MetaConversionsService $metaConversions
+    ) {}
 
     public function markPaid(Order $order, string $gateway, string $eventKey, array $payload = []): Order
     {
@@ -114,6 +118,8 @@ class PaymentCompletionService
                 );
             }
 
+            $metaEvent = $wasPending ? $this->metaConversions->createPurchaseEvent($order) : null;
+
             $event->forceFill(['processed_at' => now()])->save();
 
             if ($wasPending) {
@@ -125,6 +131,9 @@ class PaymentCompletionService
                     $order
                 );
                 SendPurchaseConfirmationEmail::dispatch($order->id)->afterCommit();
+                if ($metaEvent && $metaEvent->status === 'pending') {
+                    SendMetaConversionEvent::dispatch($metaEvent->id)->afterCommit();
+                }
             }
 
             return $order->fresh(['items', 'entitlements.product.files']);

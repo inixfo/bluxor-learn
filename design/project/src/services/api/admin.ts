@@ -312,6 +312,34 @@ export type AdminSettingsPayload = Record<string, Record<string, unknown>>;
 type RawSettingsRow = { key: string; value: unknown };
 type RawSettingsPayload = Record<string, RawSettingsRow[] | Record<string, unknown>>;
 
+export type AdminMetaTrackingStatus = {
+  meta: {
+    pixel_enabled: boolean;
+    pixel_effective_enabled: boolean;
+    pixel_id: string;
+    pixel_id_configured: boolean;
+    pixel_env_enabled: boolean;
+    capi_enabled: boolean;
+    capi_effective_enabled: boolean;
+    capi_env_enabled: boolean;
+    capi_token_configured: boolean;
+    graph_api_version: string;
+    test_event_code_configured: boolean;
+    require_marketing_consent: boolean;
+  };
+  recent_events: {
+    event_name: string;
+    event_id: string;
+    order_id?: number | null;
+    status: string;
+    attempts: number;
+    last_error_code?: string | null;
+    last_error_message?: string | null;
+    sent_at?: string | null;
+    created_at: string;
+  }[];
+};
+
 function pageItems<T>(payload: { data: Paginated<T> | T[] }): T[] {
   return Array.isArray(payload.data) ? payload.data : payload.data.data;
 }
@@ -344,6 +372,29 @@ export async function updateAdminSettings(section: string, payload: Record<strin
     body: JSON.stringify(payload),
   });
   return normalizeSettings(response.data);
+}
+
+export async function getAdminMetaTracking(): Promise<AdminMetaTrackingStatus> {
+  return (await apiRequest<{ data: AdminMetaTrackingStatus }>('/admin/tracking/meta')).data;
+}
+
+export async function updateAdminMetaTracking(payload: {
+  pixel_enabled: boolean;
+  pixel_id?: string;
+  capi_enabled: boolean;
+  graph_api_version?: string;
+}): Promise<AdminMetaTrackingStatus> {
+  return (await apiRequest<{ data: AdminMetaTrackingStatus }>('/admin/tracking/meta', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })).data;
+}
+
+export async function sendAdminMetaTestEvent(): Promise<{ ok: boolean; message: string }> {
+  return (await apiRequest<{ data: { ok: boolean; message: string } }>('/admin/tracking/meta/test', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
 }
 
 function normalizeSettings(payload: RawSettingsPayload): AdminSettingsPayload {

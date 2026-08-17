@@ -40,13 +40,17 @@ class LandingPageEngineTest extends TestCase
         $page = LandingPage::where('slug', 'n8n-freelancer')->firstOrFail();
         $this->actingAs($admin)->postJson('/api/v1/admin/landing-pages/'.$page->id.'/versions/'.$versionId.'/publish')->assertOk();
 
-        $html = $this->get('/go/n8n-freelancer')
+        $response = $this->get('/go/n8n-freelancer')
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertSee('<base href="/go/n8n-freelancer/">', false)
             ->assertSee('/landing-runtime/lbx-runtime.v2.js', false)
-            ->assertSee('id="lbx-context"', false)
-            ->getContent();
+            ->assertSee('id="lbx-context"', false);
+        $html = $response->getContent();
+        $csp = $response->headers->get('Content-Security-Policy') ?: '';
+        $this->assertStringContainsString("script-src 'self' https://connect.facebook.net", $csp);
+        $this->assertStringContainsString("connect-src 'self' https://www.facebook.com https://connect.facebook.net", $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
 
         $this->assertLessThan(
             strpos($html, 'href="assets/styles.css"'),
@@ -74,6 +78,8 @@ class LandingPageEngineTest extends TestCase
         $this->get('/lp/n8n-freelancer')->assertRedirect('/go/n8n-freelancer');
         $context = $this->getJson('/api/v1/landing-pages/n8n-freelancer/context')
             ->assertOk()
+            ->assertJsonPath('data.product.content_id', 'product:'.$product->id)
+            ->assertJsonPath('data.offers.single.content_id', 'product:'.$product->id)
             ->assertJsonPath('data.offers.single.name', 'AI Automation with n8n')
             ->json('data');
 

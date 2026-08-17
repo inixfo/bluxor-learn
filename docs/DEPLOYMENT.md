@@ -119,6 +119,16 @@ Also configure:
   - `GOOGLE_CLIENT_ID`
   - `GOOGLE_CLIENT_SECRET`
   - `GOOGLE_REDIRECT_URI=https://learn.bluxor.com/api/v1/auth/google/callback`
+- Meta Pixel + Conversions API:
+  - `META_PIXEL_ENABLED`
+  - `META_PIXEL_ID`
+  - `META_CAPI_ENABLED`
+  - `META_CAPI_ACCESS_TOKEN`
+  - `META_GRAPH_API_VERSION`
+  - `META_CAPI_TEST_EVENT_CODE`
+  - `META_CAPI_TIMEOUT_SECONDS`
+  - `META_MARKETING_CONSENT_REQUIRED`
+  - `META_PIXEL_ALLOW_LOCALHOST`
 
 Learn uses the installed PipraPay V3 Redirect Checkout API:
 
@@ -155,6 +165,8 @@ Check migration status before applying migrations:
 docker compose run --rm app php artisan migrate:status
 docker compose exec app php artisan migrate --force
 ```
+
+This release adds the `meta_conversion_events` migration for durable Meta CAPI delivery state.
 
 Create the first admin manually:
 

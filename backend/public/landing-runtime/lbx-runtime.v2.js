@@ -3,6 +3,9 @@
 
   var visitorKey = "lblx_visitor_id";
   var sessionKey = "lblx_session_id";
+  var metaConfigPromise = null;
+  var metaInitialized = false;
+  var metaTracked = {};
 
   function uid(prefix) {
     return prefix + "_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -43,6 +46,106 @@
     });
     window.LearnBluxorRuntime.context = (await response.json()).data;
     return window.LearnBluxorRuntime.context;
+  }
+
+  async function metaConfig() {
+    if (metaConfigPromise) return metaConfigPromise;
+    metaConfigPromise = fetch("/api/v1/tracking/config", {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin"
+    }).then(function (response) {
+      return response.json();
+    }).then(function (payload) {
+      return payload.data && payload.data.meta ? payload.data.meta : { enabled: false, pixel_id: "" };
+    }).catch(function () {
+      return { enabled: false, pixel_id: "" };
+    });
+    return metaConfigPromise;
+  }
+
+  function consentAllows(config) {
+    if (!config || !config.enabled || !config.pixel_id) return false;
+    if (!config.require_marketing_consent) return true;
+    try {
+      return localStorage.getItem("lbx_marketing_consent") === "true";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function installFbq() {
+    if (window.fbq) return;
+    var fbq = function () {
+      if (fbq.callMethod) fbq.callMethod.apply(fbq, arguments);
+      else fbq.queue.push(arguments);
+    };
+    fbq.queue = [];
+    fbq.loaded = true;
+    fbq.version = "2.0";
+    window.fbq = window._fbq = fbq;
+  }
+
+  async function initMeta() {
+    var config = await metaConfig();
+    if (!consentAllows(config)) return false;
+    installFbq();
+    if (!document.querySelector('script[data-lbx-meta-pixel="true"]')) {
+      var script = document.createElement("script");
+      script.async = true;
+      script.defer = true;
+      script.src = "https://connect.facebook.net/en_US/fbevents.js";
+      script.setAttribute("data-lbx-meta-pixel", "true");
+      document.head.appendChild(script);
+    }
+    if (!metaInitialized) {
+      window.fbq("init", config.pixel_id);
+      metaInitialized = true;
+    }
+    return true;
+  }
+
+  async function trackMeta(name, payload, options, key) {
+    if (key && metaTracked[key]) return;
+    if (!(await initMeta())) return;
+    if (key) metaTracked[key] = true;
+    try {
+      if (options) window.fbq("track", name, payload || {}, options);
+      else window.fbq("track", name, payload || {});
+    } catch (_) {}
+  }
+
+  function primaryMetaItem(data) {
+    if (data.product && data.product.content_id) {
+      return {
+        content_id: data.product.content_id,
+        name: data.product.name,
+        value: Math.round((data.product.price_minor || 0) / 100),
+        currency: data.product.currency
+      };
+    }
+    var offers = Object.keys(data.offers || {}).map(function (key) { return data.offers[key]; });
+    var offer = offers.find(function (item) { return item.is_primary; }) || offers[0];
+    return offer ? {
+      content_id: offer.content_id || (offer.type + ":" + offer.backend_id),
+      name: offer.name,
+      value: Math.round((offer.price_minor || 0) / 100),
+      currency: offer.currency
+    } : null;
+  }
+
+  function trackMetaLandingView(data) {
+    if (!data || !data.page || data.page.preview) return;
+    var item = primaryMetaItem(data);
+    trackMeta("PageView", {}, null, "PageView:" + location.pathname);
+    if (item) {
+      trackMeta("ViewContent", {
+        content_ids: [item.content_id],
+        content_name: item.name,
+        content_type: "product",
+        value: item.value,
+        currency: item.currency
+      }, null, "ViewContent:" + item.content_id);
+    }
   }
 
   function money(amountMinor, currency) {
@@ -174,6 +277,7 @@
       wireCheckout(data);
       wireInteractions();
       track("landing_page_view");
+      trackMetaLandingView(data);
     }).catch(function () {
       wireInteractions();
     });

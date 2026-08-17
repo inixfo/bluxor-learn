@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\ProductFile;
 use App\Services\DownloadDeliveryService;
 use App\Services\GuestAccessService;
+use App\Services\MetaConversionsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,8 @@ class AccountController extends Controller
 {
     public function __construct(
         private readonly DownloadDeliveryService $downloads,
-        private readonly GuestAccessService $guestAccess
+        private readonly GuestAccessService $guestAccess,
+        private readonly MetaConversionsService $metaConversions
     ) {}
 
     public function overview(Request $request)
@@ -270,6 +272,14 @@ class AccountController extends Controller
                 'currency' => $item->currency,
                 'snapshot' => $detail ? $item->snapshot : null,
             ]),
+            'meta' => $order->payment_status === 'paid' ? [
+                'purchase_event_id' => $this->metaConversions->purchaseEventId($order),
+                'content_ids' => $this->metaConversions->contentIds($order),
+                'content_type' => 'product',
+                'num_items' => max(1, (int) $order->items->sum('quantity')),
+                'value' => $this->metaConversions->minorToDecimal((int) $order->total_minor, (string) $order->currency),
+                'currency' => strtoupper((string) $order->currency),
+            ] : null,
         ];
     }
 

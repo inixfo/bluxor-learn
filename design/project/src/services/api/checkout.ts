@@ -69,6 +69,7 @@ export async function createCheckoutOrder(payload: {
   customer_email: string;
   customer_phone?: string;
   payment_method: string;
+  tracking_context?: Record<string, unknown>;
 }): Promise<CheckoutOrder> {
   const response = await apiRequest<{ data: { order: CheckoutOrder; guest_access_token?: string | null } }>('/checkout/orders', {
     method: 'POST',

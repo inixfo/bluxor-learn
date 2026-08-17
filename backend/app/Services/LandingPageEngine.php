@@ -239,6 +239,8 @@ class LandingPageEngine
             'key' => $offer->offer_key,
             'type' => $offer->offer_type,
             'id' => $item->uuid,
+            'backend_id' => $item->id,
+            'content_id' => $offer->offer_type.':'.$item->id,
             'name' => $item->name,
             'slug' => $item->slug,
             'price_minor' => $minor,
@@ -255,6 +257,8 @@ class LandingPageEngine
     {
         return [
             'id' => $product->uuid,
+            'backend_id' => $product->id,
+            'content_id' => 'product:'.$product->id,
             'name' => $product->name,
             'slug' => $product->slug,
             'cover' => $product->cover_image_path,

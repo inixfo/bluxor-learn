@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { ToastProvider } from '@/components/ui/Toast';
 import { AuthProvider } from '@/services/auth-context';
 import { PublicLayout } from '@/layouts/PublicLayout';
@@ -52,12 +53,14 @@ import AdminContentPages from '@/pages/admin/ContentPages';
 import AdminFaqManager from '@/pages/admin/FaqManager';
 import AdminHelpCenterManager from '@/pages/admin/HelpCenterManager';
 import NotFound from '@/pages/NotFound';
+import { rememberLandingSource, trackMetaPageView } from '@/services/metaTracking';
 
 export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
         <BrowserRouter>
+          <MetaRouteTracker />
           <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
@@ -129,4 +132,15 @@ export default function App() {
       </AuthProvider>
     </ToastProvider>
   );
+}
+
+function MetaRouteTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    rememberLandingSource();
+    void trackMetaPageView(location.pathname);
+  }, [location.pathname]);
+
+  return null;
 }

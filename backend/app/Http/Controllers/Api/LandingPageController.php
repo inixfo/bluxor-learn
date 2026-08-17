@@ -154,7 +154,7 @@ class LandingPageController extends Controller
 
     private function csp(): string
     {
-        return "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' https:; connect-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        return "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.facebook.com; font-src 'self' data:; media-src 'self' https:; connect-src 'self' https://www.facebook.com https://connect.facebook.net; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
     }
 
     private function htmlResponse(LandingPage $page, LandingPageVersion $version, bool $preview = false)

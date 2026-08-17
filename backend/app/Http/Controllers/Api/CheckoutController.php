@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\GuestAccessService;
+use App\Services\MetaConversionsService;
 use App\Services\OrderPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,8 @@ class CheckoutController extends Controller
 {
     public function __construct(
         private readonly OrderPricingService $pricing,
-        private readonly GuestAccessService $guestAccess
+        private readonly GuestAccessService $guestAccess,
+        private readonly MetaConversionsService $metaConversions
     ) {}
 
     public function quote(Request $request)
@@ -45,6 +47,13 @@ class CheckoutController extends Controller
             'customer_email' => ['required', 'email', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:40'],
             'payment_method' => ['required', 'string', 'max:40'],
+            'tracking_context' => ['nullable', 'array'],
+            'tracking_context.fbp' => ['nullable', 'string', 'max:255'],
+            'tracking_context.fbc' => ['nullable', 'string', 'max:255'],
+            'tracking_context.event_source_url' => ['nullable', 'url', 'max:2048'],
+            'tracking_context.landing_page_url' => ['nullable', 'url', 'max:2048'],
+            'tracking_context.referrer' => ['nullable', 'string', 'max:2048'],
+            'tracking_context.marketing_consent' => ['nullable', 'boolean'],
         ]);
 
         $quote = $this->pricing->quote($data);
@@ -72,6 +81,7 @@ class CheckoutController extends Controller
                     'payment_method' => $data['payment_method'],
                     'landing_page_id' => $quote['landing_page']?->id,
                     'offer_key' => $quote['offer_key'],
+                    'tracking_context' => $this->trackingContext($request, $data['tracking_context'] ?? []),
                 ],
             ]);
 
@@ -109,9 +119,35 @@ class CheckoutController extends Controller
             abort_unless($this->guestAccess->resolve($order, $request->query('guest_access_token')), 403);
         }
 
-        return response()->json([
-            'data' => $order,
-        ]);
+        return response()->json(['data' => $this->receiptPayload($order)]);
+    }
+
+    private function receiptPayload(Order $order): array
+    {
+        return $order->toArray() + [
+            'meta' => [
+                'purchase_event_id' => $this->metaConversions->purchaseEventId($order),
+                'content_ids' => $this->metaConversions->contentIds($order),
+                'content_type' => 'product',
+                'num_items' => max(1, (int) $order->items->sum('quantity')),
+                'value' => $this->metaConversions->minorToDecimal((int) $order->total_minor, (string) $order->currency),
+                'currency' => strtoupper((string) $order->currency),
+            ],
+        ];
+    }
+
+    private function trackingContext(Request $request, array $context): array
+    {
+        return array_filter([
+            'fbp' => is_string($context['fbp'] ?? null) ? $context['fbp'] : null,
+            'fbc' => is_string($context['fbc'] ?? null) ? $context['fbc'] : null,
+            'event_source_url' => is_string($context['event_source_url'] ?? null) ? $context['event_source_url'] : null,
+            'landing_page_url' => is_string($context['landing_page_url'] ?? null) ? $context['landing_page_url'] : null,
+            'referrer' => is_string($context['referrer'] ?? null) ? $context['referrer'] : null,
+            'marketing_consent' => array_key_exists('marketing_consent', $context) ? (bool) $context['marketing_consent'] : null,
+            'client_ip_address' => $request->ip(),
+            'client_user_agent' => $request->userAgent(),
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     private function quotePayload(array $quote): array

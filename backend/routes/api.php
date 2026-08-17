@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\N8nAutomationLabResourceController;
 use App\Http\Controllers\Api\PublicSettingsController;
 use App\Http\Controllers\Api\PublicCatalogController;
 use App\Http\Controllers\Api\PublicResourceController;
+use App\Http\Controllers\Api\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('web')->prefix('v1')->group(function () {
@@ -37,6 +38,7 @@ Route::middleware('web')->prefix('v1')->group(function () {
     Route::get('/help-center', [HelpCenterController::class, 'index']);
     Route::get('/help-center/{categorySlug}/{articleSlug}', [HelpCenterController::class, 'show']);
     Route::get('/settings/contact', [PublicSettingsController::class, 'contact']);
+    Route::get('/tracking/config', [TrackingController::class, 'config']);
     Route::get('/public-resource-library/n8n-automation-lab', [N8nAutomationLabResourceController::class, 'manifest']);
     Route::get('/public-resource-library/n8n-automation-lab/download/master-pack', [N8nAutomationLabResourceController::class, 'downloadMasterPack'])->middleware('throttle:1000,1');
     Route::get('/public-resource-library/n8n-automation-lab/download/{projectSlug}/{fileName}', [N8nAutomationLabResourceController::class, 'downloadProjectResource'])
@@ -135,6 +137,9 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::get('/settings', [AdminController::class, 'settings']);
         Route::patch('/settings/{section}', [AdminController::class, 'updateSettings']);
         Route::post('/settings/email/test', [AdminEmailController::class, 'test'])->middleware('throttle:6,1');
+        Route::get('/tracking/meta', [TrackingController::class, 'adminStatus']);
+        Route::patch('/tracking/meta', [TrackingController::class, 'updateAdminSettings']);
+        Route::post('/tracking/meta/test', [TrackingController::class, 'sendTestEvent'])->middleware('throttle:6,1');
         Route::apiResource('content-pages', AdminContentPageController::class)->except(['destroy']);
         Route::apiResource('faq-categories', AdminFaqCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::apiResource('faq-items', AdminFaqItemController::class)->only(['index', 'store', 'update', 'destroy']);

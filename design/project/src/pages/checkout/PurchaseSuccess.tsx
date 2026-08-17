@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { formatBDT } from '@/data/store';
 import { apiRequest, minorToDisplay } from '@/services/api/client';
 import { verifyPipraPayRedirect } from '@/services/api/checkout';
+import { trackMetaPurchase } from '@/services/metaTracking';
 
 type Receipt = {
   order_number: string;
@@ -13,6 +14,14 @@ type Receipt = {
   total_minor: number;
   currency: string;
   items: { product_name: string; total_minor: number }[];
+  meta?: {
+    purchase_event_id: string;
+    content_ids: string[];
+    content_type: string;
+    num_items: number;
+    value: number;
+    currency: string;
+  };
 };
 
 export default function PurchaseSuccess() {
@@ -45,6 +54,18 @@ export default function PurchaseSuccess() {
       }
     });
   }, [orderNumber, guestAccessToken, ppId]);
+
+  useEffect(() => {
+    if (receipt?.payment_status !== 'paid' || !receipt.meta?.purchase_event_id) return;
+    void trackMetaPurchase({
+      eventId: receipt.meta.purchase_event_id,
+      contentIds: receipt.meta.content_ids,
+      contentType: receipt.meta.content_type,
+      value: receipt.meta.value,
+      currency: receipt.meta.currency,
+      numItems: receipt.meta.num_items,
+    });
+  }, [receipt]);
 
   const firstItem = receipt?.items[0];
   const paid = receipt?.payment_status === 'paid';

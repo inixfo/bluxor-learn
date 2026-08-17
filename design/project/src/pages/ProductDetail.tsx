@@ -10,6 +10,7 @@ import { Breadcrumb, Card, EmptyState } from '@/components/ui/Card';
 import { formatBDT } from '@/data/store';
 import { getCatalogItem, getProducts, type ApiBundle, type ApiProduct } from '@/services/api/catalog';
 import { ProductCard } from '@/components/commerce/ProductCard';
+import { trackMetaViewContent } from '@/services/metaTracking';
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -40,6 +41,19 @@ export default function ProductDetail() {
       })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (!product) return;
+    const isBundle = 'productIds' in product;
+    const value = isBundle ? product.bundlePrice : (product.salePrice || product.regularPrice);
+    void trackMetaViewContent({
+      contentIds: [`${isBundle ? 'bundle' : 'product'}:${product.backendId}`],
+      contentName: product.title,
+      contentType: 'product',
+      value,
+      currency: product.currency,
+    });
+  }, [product]);
 
   if (loading) {
     return <div className="container-page py-20 text-sm text-ink-500">Loading product...</div>;

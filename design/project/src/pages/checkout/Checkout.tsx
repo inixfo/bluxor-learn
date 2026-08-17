@@ -10,6 +10,7 @@ import { ApiError } from '@/services/api/client';
 import { createCheckoutOrder, initiatePipraPay, quoteCheckout, type CheckoutQuote } from '@/services/api/checkout';
 import { googleRedirectUrl } from '@/services/api/auth';
 import { useAuth } from '@/services/auth-context';
+import { metaTrackingContext, trackMetaInitiateCheckout } from '@/services/metaTracking';
 
 export default function Checkout() {
   const [params] = useSearchParams();
@@ -63,6 +64,18 @@ export default function Checkout() {
       .finally(() => setQuoteLoading(false));
   }, [bundleId, landingPageSlug, offerPayload, productId]);
 
+  useEffect(() => {
+    if (!quote) return;
+    void trackMetaInitiateCheckout({
+      contentIds: [`${quote.type}:${quote.id}`],
+      contentName: quote.title,
+      contentType: 'product',
+      value: quote.total,
+      currency: quote.currency,
+      numItems: 1,
+    });
+  }, [quote]);
+
   const applyCoupon = async () => {
     if (!coupon.trim()) return;
     try {
@@ -106,6 +119,7 @@ export default function Checkout() {
         customer_email: customer.email,
         customer_phone: customer.phone,
         payment_method: 'piprapay',
+        tracking_context: metaTrackingContext(),
       });
       if (order.guest_access_token) {
         sessionStorage.setItem(`guest_access_token:${order.order_number}`, order.guest_access_token);

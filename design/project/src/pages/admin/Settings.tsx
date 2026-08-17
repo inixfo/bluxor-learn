@@ -5,7 +5,15 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/Toast';
-import { getAdminSettings, sendAdminTestEmail, updateAdminSettings } from '@/services/api/admin';
+import {
+  getAdminMetaTracking,
+  getAdminSettings,
+  sendAdminMetaTestEvent,
+  sendAdminTestEmail,
+  updateAdminMetaTracking,
+  updateAdminSettings,
+  type AdminMetaTrackingStatus,
+} from '@/services/api/admin';
 
 const sections = [
   { id: 'general', label: 'General', icon: Globe },
@@ -24,6 +32,8 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  const [metaTracking, setMetaTracking] = useState<AdminMetaTrackingStatus | null>(null);
+  const [metaForm, setMetaForm] = useState({ pixel_enabled: false, pixel_id: '', capi_enabled: false, graph_api_version: 'v25.0' });
   const [general, setGeneral] = useState({
     site_name: 'Learn by Bluxor',
     site_url: 'https://learn.bluxor.com',
@@ -41,27 +51,35 @@ export default function AdminSettings() {
   });
 
   useEffect(() => {
-    getAdminSettings()
+    Promise.all([getAdminSettings(), getAdminMetaTracking()])
       .then((settings) => {
-        const group = settings.general || {};
-        const contactGroup = settings.contact || {};
+        const [settingsPayload, metaPayload] = settings;
+        const contactGroup = settingsPayload.contact || {};
+        const generalGroup = settingsPayload.general || {};
         setGeneral((prev) => ({
           ...prev,
-          site_name: String(group.site_name ?? prev.site_name),
-          timezone: String(group.timezone ?? prev.timezone),
-          support_email: String(group.support_email ?? prev.support_email),
-          site_url: String(group.site_url ?? prev.site_url),
-          default_currency: String(group.default_currency ?? prev.default_currency),
+          site_name: String(generalGroup.site_name ?? prev.site_name),
+          timezone: String(generalGroup.timezone ?? prev.timezone),
+          support_email: String(generalGroup.support_email ?? prev.support_email),
+          site_url: String(generalGroup.site_url ?? prev.site_url),
+          default_currency: String(generalGroup.default_currency ?? prev.default_currency),
         }));
         setContact((prev) => ({
           ...prev,
-          support_email: String(contactGroup.support_email ?? group.support_email ?? prev.support_email),
+          support_email: String(contactGroup.support_email ?? generalGroup.support_email ?? prev.support_email),
           support_phone: String(contactGroup.support_phone ?? prev.support_phone),
           support_whatsapp: String(contactGroup.support_whatsapp ?? prev.support_whatsapp),
           business_name: String(contactGroup.business_name ?? prev.business_name),
           business_address: String(contactGroup.business_address ?? prev.business_address),
           support_availability_text: String(contactGroup.support_availability_text ?? prev.support_availability_text),
         }));
+        setMetaTracking(metaPayload);
+        setMetaForm({
+          pixel_enabled: metaPayload.meta.pixel_enabled,
+          pixel_id: metaPayload.meta.pixel_id,
+          capi_enabled: metaPayload.meta.capi_enabled,
+          graph_api_version: metaPayload.meta.graph_api_version,
+        });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -90,6 +108,19 @@ export default function AdminSettings() {
     }
   };
 
+  const saveMetaTracking = async () => {
+    setSaving(true);
+    try {
+      const status = await updateAdminMetaTracking(metaForm);
+      setMetaTracking(status);
+      toast({ type: 'success', title: 'Meta tracking settings saved' });
+    } catch {
+      toast({ type: 'error', title: 'Could not save Meta tracking settings' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -99,6 +130,7 @@ export default function AdminSettings() {
         </div>
         {active === 'general' && <Button leftIcon={<Save className="h-4 w-4" />} loading={saving} onClick={saveGeneral}>Save</Button>}
         {active === 'contact' && <Button leftIcon={<Save className="h-4 w-4" />} loading={saving} onClick={saveContact}>Save</Button>}
+        {active === 'analytics' && <Button leftIcon={<Save className="h-4 w-4" />} loading={saving} onClick={saveMetaTracking}>Save</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -172,7 +204,72 @@ export default function AdminSettings() {
               </div>
             </Card>
           )}
-          {active === 'analytics' && <EnvironmentManaged title="Analytics" icon={<BarChart3 className="h-5 w-5" />} lines={['Internal analytics are captured by backend events.', 'External pixels should be added only after privacy/legal review.']} />}
+          {active === 'analytics' && (
+            <Card className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-bold text-ink-900">Tracking & Analytics</h2>
+                  <p className="mt-1 text-sm text-ink-500">Configure Meta Pixel browser tracking and server-side Conversions API status.</p>
+                </div>
+                <Badge tone={metaTracking?.meta.pixel_effective_enabled ? 'success' : 'warning'}>
+                  Pixel {metaTracking?.meta.pixel_effective_enabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <label className="flex items-center justify-between rounded-xl border border-ink-200/60 bg-white px-4 py-3 text-sm font-medium text-ink-800">
+                  Enable Meta Pixel
+                  <input type="checkbox" checked={metaForm.pixel_enabled} onChange={(event) => setMetaForm((prev) => ({ ...prev, pixel_enabled: event.target.checked }))} />
+                </label>
+                <label className="flex items-center justify-between rounded-xl border border-ink-200/60 bg-white px-4 py-3 text-sm font-medium text-ink-800">
+                  Enable Conversions API
+                  <input type="checkbox" checked={metaForm.capi_enabled} onChange={(event) => setMetaForm((prev) => ({ ...prev, capi_enabled: event.target.checked }))} />
+                </label>
+                <Input label="Pixel / Dataset ID" value={metaForm.pixel_id} onChange={(event) => setMetaForm((prev) => ({ ...prev, pixel_id: event.target.value }))} />
+                <Input label="Graph API Version" value={metaForm.graph_api_version} onChange={(event) => setMetaForm((prev) => ({ ...prev, graph_api_version: event.target.value }))} />
+              </div>
+
+              {metaTracking && (
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <InfoTile label="Pixel env switch" value={metaTracking.meta.pixel_env_enabled ? 'Enabled' : 'Disabled'} tone={metaTracking.meta.pixel_env_enabled ? 'brand' : 'danger'} />
+                  <InfoTile label="Pixel ID" value={metaTracking.meta.pixel_id_configured ? 'Configured' : 'Missing'} tone={metaTracking.meta.pixel_id_configured ? 'brand' : 'danger'} />
+                  <InfoTile label="CAPI token" value={metaTracking.meta.capi_token_configured ? 'Configured' : 'Missing'} tone={metaTracking.meta.capi_token_configured ? 'brand' : 'danger'} />
+                  <InfoTile label="Test event code" value={metaTracking.meta.test_event_code_configured ? 'Configured' : 'Missing'} />
+                </div>
+              )}
+
+              <div className="mt-6 border-t border-ink-100 pt-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-ink-900">Meta Test Event</h3>
+                    <p className="mt-1 text-xs text-ink-400">Uses the configured server token without exposing it.</p>
+                  </div>
+                  <Button variant="outline" onClick={async () => {
+                    try {
+                      const result = await sendAdminMetaTestEvent();
+                      toast({ type: result.ok ? 'success' : 'error', title: result.ok ? 'Meta accepted test event' : 'Meta rejected test event', message: result.message });
+                    } catch {
+                      toast({ type: 'error', title: 'Meta test failed', message: 'Check Pixel ID, token, Graph API version, and backend logs.' });
+                    }
+                  }}>Send Test Event</Button>
+                </div>
+              </div>
+
+              {metaTracking?.recent_events.length ? (
+                <div className="mt-6 overflow-hidden rounded-xl border border-ink-100">
+                  {metaTracking.recent_events.map((event) => (
+                    <div key={event.event_id} className="grid gap-2 border-b border-ink-100 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[1fr_auto]">
+                      <div>
+                        <p className="font-semibold text-ink-900">{event.event_name} <span className="font-normal text-ink-400">{event.event_id}</span></p>
+                        {event.last_error_message && <p className="mt-1 text-xs text-danger-600">{event.last_error_message}</p>}
+                      </div>
+                      <Badge tone={event.status === 'sent' ? 'success' : event.status === 'failed' ? 'danger' : 'warning'}>{event.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          )}
           {active === 'security' && <EnvironmentManaged title="Security" icon={<Shield className="h-5 w-5" />} lines={['Admin access is enforced by backend roles.', '2FA policy is a planned hardening item and is not exposed as an inactive toggle.']} />}
           {active === 'storage' && <EnvironmentManaged title="Storage" icon={<HardDrive className="h-5 w-5" />} lines={['Private product files and original landing ZIPs stay outside the public web root.', 'Local Docker volumes or S3/R2-compatible storage are configured server-side.']} />}
           {active === 'landing-platform' && (
