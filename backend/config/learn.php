@@ -3,6 +3,8 @@
 return [
     'guest_access_days' => env('GUEST_ACCESS_DAYS', 30),
     'download_url_minutes' => env('DOWNLOAD_URL_MINUTES', 10),
+    'admin_timezone' => env('ADMIN_TIMEZONE', 'Asia/Dhaka'),
+    'support_email' => env('SUPPORT_EMAIL', 'support@bluxor.com'),
     'resource_library' => [
         'max_upload_bytes' => env('RESOURCE_MAX_UPLOAD_BYTES', 100 * 1024 * 1024),
     ],

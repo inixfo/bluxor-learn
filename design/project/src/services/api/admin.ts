@@ -17,6 +17,9 @@ export type AdminProduct = {
   sale_price_minor?: number | null;
   currency: string;
   cover_image_path?: string | null;
+  community_enabled?: boolean;
+  community_name?: string | null;
+  community_url?: string | null;
   short_description?: string | null;
   description?: string | null;
   updated_at: string;
@@ -97,6 +100,9 @@ export type AdminProductPayload = {
   cover_image_path?: string;
   cover_image?: File | null;
   remove_cover_image?: boolean;
+  community_enabled?: boolean;
+  community_name?: string | null;
+  community_url?: string | null;
   category_id?: number | null;
 };
 
@@ -252,6 +258,7 @@ export type AdminOrder = {
   }[];
   admin_notes?: string | null;
   payment_completed_at?: string | null;
+  communities?: { name: string; url: string; product_id?: number; product_name?: string }[];
   attribution?: {
     source?: string | null;
     medium?: string | null;

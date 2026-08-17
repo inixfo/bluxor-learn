@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Copy, Eye, FileText, FolderDown, Image as ImageIcon, Link2, Save, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Copy, Eye, FileText, FolderDown, Image as ImageIcon, Link2, Save, Trash2, Upload, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -25,7 +25,7 @@ import {
   type AdminResource,
 } from '@/services/api/admin';
 
-const tabs = ['Basic Info', 'Pricing', 'Media', 'Digital Files', 'Resources', 'Bundles', 'SEO', 'Status'];
+const tabs = ['Basic Info', 'Pricing', 'Media', 'Digital Files', 'Resources', 'Community', 'Bundles', 'SEO', 'Status'];
 
 export default function AdminProductEditor() {
   const toast = useToast();
@@ -55,6 +55,9 @@ export default function AdminProductEditor() {
     short_description: '',
     description: '',
     cover_image_path: '',
+    community_enabled: false,
+    community_name: '',
+    community_url: '',
     category_id: '',
   });
 
@@ -77,6 +80,9 @@ export default function AdminProductEditor() {
         short_description: product.short_description || '',
         description: product.description || '',
         cover_image_path: product.cover_image_path || '',
+        community_enabled: !!product.community_enabled,
+        community_name: product.community_name || '',
+        community_url: product.community_url || '',
         category_id: product.category_id ? String(product.category_id) : '',
       });
       setFiles(product.files || []);
@@ -85,7 +91,7 @@ export default function AdminProductEditor() {
     });
   }, [id]);
 
-  const updateField = (field: keyof typeof form, value: string) => {
+  const updateField = (field: keyof typeof form, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -100,6 +106,9 @@ export default function AdminProductEditor() {
     short_description: form.short_description,
     description: form.description,
     cover_image_path: form.cover_image_path,
+    community_enabled: form.community_enabled,
+    community_name: form.community_enabled ? form.community_name : null,
+    community_url: form.community_enabled ? form.community_url : null,
     category_id: form.category_id ? Number(form.category_id) : null,
     cover_image: coverFile,
     remove_cover_image: removeCover,
@@ -375,6 +384,52 @@ export default function AdminProductEditor() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </Card>
+          )}
+
+          {activeTab === 'Community' && (
+            <Card className="p-6">
+              <div className="mb-5 flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-ink-900">Community Access</h2>
+                  <p className="mt-1 text-sm leading-6 text-ink-500">
+                    Customers who purchase this product will receive access to this community after payment and in their purchase email.
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 p-4 hover:bg-ink-50">
+                <input
+                  type="checkbox"
+                  checked={form.community_enabled}
+                  onChange={(event) => updateField('community_enabled', event.target.checked)}
+                  className="mt-1 h-4 w-4 text-brand-600"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Enable community access</p>
+                  <p className="mt-1 text-xs text-ink-400">Only paid customers and valid guest buyers can see the community URL.</p>
+                </div>
+              </label>
+
+              <div className="mt-5 space-y-4">
+                <Input
+                  label="Community Name"
+                  placeholder="N8N Automation Lab Community"
+                  value={form.community_name}
+                  disabled={!form.community_enabled}
+                  onChange={(event) => updateField('community_name', event.target.value)}
+                />
+                <Input
+                  label="Facebook Group / Community URL"
+                  placeholder="https://www.facebook.com/groups/..."
+                  value={form.community_url}
+                  disabled={!form.community_enabled}
+                  onChange={(event) => updateField('community_url', event.target.value)}
+                />
               </div>
             </Card>
           )}

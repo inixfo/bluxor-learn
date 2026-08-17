@@ -15,11 +15,13 @@ class Product extends Model
     protected $fillable = [
         'uuid', 'category_id', 'name', 'name_bn', 'slug', 'short_description', 'description',
         'product_type', 'status', 'regular_price_minor', 'sale_price_minor', 'currency',
-        'cover_image_path', 'featured_image_path', 'featured', 'published_at', 'metadata',
+        'cover_image_path', 'featured_image_path', 'featured', 'community_enabled',
+        'community_name', 'community_url', 'published_at', 'metadata',
     ];
 
     protected $casts = [
         'featured' => 'boolean',
+        'community_enabled' => 'boolean',
         'published_at' => 'datetime',
         'metadata' => 'array',
     ];

@@ -14,6 +14,13 @@ export type LibraryResource = {
   expires_at?: string;
 };
 
+export type ProductCommunity = {
+  name: string;
+  url: string;
+  product_id?: number;
+  product_name?: string;
+};
+
 export type LibraryItem = {
   entitlement_id: number;
   product_id: number;
@@ -24,6 +31,7 @@ export type LibraryItem = {
   description: string;
   purchased_at: string;
   resource_count: number;
+  communities: ProductCommunity[];
   files: LibraryResource[];
 };
 
@@ -35,6 +43,7 @@ export type AccountOrder = {
   currency: string;
   order_status: string;
   payment_status: string;
+  communities?: ProductCommunity[];
   items: { name: string; total_minor: number; currency: string }[];
 };
 

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Jobs\SendPurchaseConfirmationEmail;
 use App\Services\AuditLogger;
 use App\Services\LandingPagePackageValidator;
+use App\Services\ProductCommunityAccessService;
 use App\Services\PublicMediaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,10 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ProductCommunityAccessService $communities
+    ) {}
 
     public function dashboard()
     {
@@ -94,9 +98,13 @@ class AdminController extends Controller
             'description' => ['nullable', 'string'],
             'cover_image_path' => ['nullable', 'string'],
             'cover_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'community_enabled' => ['nullable', 'boolean'],
+            'community_name' => ['nullable', 'required_if:community_enabled,1,true', 'string', 'max:255'],
+            'community_url' => ['nullable', 'required_if:community_enabled,1,true', 'url', 'max:2048'],
         ]);
 
         unset($data['cover_image']);
+        $data = $this->normalizeCommunityFields($data);
         if ($request->hasFile('cover_image')) {
             $data['cover_image_path'] = $media->storeImage($request->file('cover_image'), 'product-images');
         }
@@ -123,10 +131,14 @@ class AdminController extends Controller
             'cover_image_path' => ['nullable', 'string'],
             'cover_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'remove_cover_image' => ['nullable', 'boolean'],
+            'community_enabled' => ['nullable', 'boolean'],
+            'community_name' => ['nullable', 'required_if:community_enabled,1,true', 'string', 'max:255'],
+            'community_url' => ['nullable', 'required_if:community_enabled,1,true', 'url', 'max:2048'],
         ]);
 
         $oldCover = $product->cover_image_path;
         unset($data['cover_image']);
+        $data = $this->normalizeCommunityFields($data);
         if ($request->boolean('remove_cover_image')) {
             $data['cover_image_path'] = null;
         }
@@ -404,6 +416,7 @@ class AdminController extends Controller
             'payment_completed_at' => $paidTransaction?->paid_at,
             'admin_notes' => $metadata['admin_notes'] ?? null,
             'attribution' => $this->adminOrderAttribution($metadata),
+            'communities' => $order->payment_status === 'paid' ? $this->communities->forOrder($order) : [],
             'items' => $order->items->map(fn ($item) => [
                 'id' => $item->id,
                 'product_name' => $item->product_name,
@@ -574,6 +587,20 @@ class AdminController extends Controller
         abort_unless(is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL), 404);
 
         return [User::with('roles')->whereRaw('lower(email) = ?', [strtolower($email)])->first(), strtolower($email)];
+    }
+
+    private function normalizeCommunityFields(array $data): array
+    {
+        if (array_key_exists('community_enabled', $data)) {
+            $data['community_enabled'] = (bool) $data['community_enabled'];
+        }
+
+        if (array_key_exists('community_enabled', $data) && $data['community_enabled'] === false) {
+            $data['community_name'] = null;
+            $data['community_url'] = null;
+        }
+
+        return $data;
     }
 
     public function offerItems(Request $request)

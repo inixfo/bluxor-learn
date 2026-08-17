@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, BookOpen } from 'lucide-react';
+import { Download, BookOpen, Users } from 'lucide-react';
 import { CustomerMobileNav } from '@/components/customer/CustomerSidebar';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -44,6 +44,12 @@ export default function CustomerLibrary() {
               <div className="p-4">
                 <h3 className="text-base font-bold text-ink-900">{item.title}</h3>
                 <p className="mt-1 text-xs text-ink-400">Purchased on {item.purchased_at} · {item.resource_count} files</p>
+                {item.communities.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">
+                    <Users className="mr-1 inline h-3.5 w-3.5" />
+                    Community Access: {item.communities[0].name}
+                  </div>
+                )}
                 <div className="mt-3 flex gap-2">
                   <Link to={`/account/library/${item.product_id}`} className="flex-1">
                     <Button size="sm" className="w-full"><BookOpen className="h-4 w-4" /> Read</Button>

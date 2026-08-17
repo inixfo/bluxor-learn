@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Services\GuestAccessService;
 use App\Services\MetaConversionsService;
 use App\Services\OrderPricingService;
+use App\Services\ProductCommunityAccessService;
 use App\Services\TrafficAttributionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,7 @@ class CheckoutController extends Controller
         private readonly OrderPricingService $pricing,
         private readonly GuestAccessService $guestAccess,
         private readonly MetaConversionsService $metaConversions,
+        private readonly ProductCommunityAccessService $communities,
         private readonly TrafficAttributionService $attribution
     ) {}
 
@@ -133,6 +135,7 @@ class CheckoutController extends Controller
     private function receiptPayload(Order $order): array
     {
         return $order->toArray() + [
+            'communities' => $order->payment_status === 'paid' ? $this->communities->forOrder($order) : [],
             'meta' => [
                 'purchase_event_id' => $this->metaConversions->purchaseEventId($order),
                 'content_ids' => $this->metaConversions->contentIds($order),

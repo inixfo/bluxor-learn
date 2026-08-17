@@ -10,6 +10,7 @@ use App\Models\ProductFile;
 use App\Services\DownloadDeliveryService;
 use App\Services\GuestAccessService;
 use App\Services\MetaConversionsService;
+use App\Services\ProductCommunityAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -21,7 +22,8 @@ class AccountController extends Controller
     public function __construct(
         private readonly DownloadDeliveryService $downloads,
         private readonly GuestAccessService $guestAccess,
-        private readonly MetaConversionsService $metaConversions
+        private readonly MetaConversionsService $metaConversions,
+        private readonly ProductCommunityAccessService $communities
     ) {}
 
     public function overview(Request $request)
@@ -172,6 +174,7 @@ class AccountController extends Controller
                         return $this->filePayload($file, $entitlement) + $this->downloads->signedGuestUrl($file, $entitlement, (string) $request->query('guest_access_token'));
                     });
                 })->values(),
+                'communities' => $this->communities->forEntitlements($order->entitlements),
             ],
         ]);
     }
@@ -243,6 +246,7 @@ class AccountController extends Controller
             'description' => $product->short_description,
             'purchased_at' => $entitlement->granted_at?->toDateString(),
             'resource_count' => $product->files->where('status', 'active')->count(),
+            'communities' => $this->communities->forProduct($product),
             'files' => $detail ? $product->files->where('status', 'active')->map(fn (ProductFile $file) => $this->filePayload($file, $entitlement))->values() : [],
         ];
     }
@@ -272,6 +276,7 @@ class AccountController extends Controller
                 'currency' => $item->currency,
                 'snapshot' => $detail ? $item->snapshot : null,
             ]),
+            'communities' => $detail && $order->payment_status === 'paid' ? $this->communities->forOrder($order) : [],
             'meta' => $order->payment_status === 'paid' ? [
                 'purchase_event_id' => $this->metaConversions->purchaseEventId($order),
                 'content_ids' => $this->metaConversions->contentIds($order),

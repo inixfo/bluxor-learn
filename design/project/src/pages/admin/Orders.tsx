@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, Eye, Mail, MessageCircle, Phone, RotateCcw, Save, Search, User } from 'lucide-react';
+import { Ban, Eye, ExternalLink, Mail, MessageCircle, Phone, RotateCcw, Save, Search, User } from 'lucide-react';
 import { Badge, type Tone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -338,6 +338,25 @@ export default function AdminOrders() {
                 <Info label="Session" value={selected.attribution?.session_id || '-'} />
               </div>
             </div>
+
+            {selected.communities?.length ? (
+              <div className="rounded-xl border border-ink-100 p-4">
+                <p className="mb-3 text-xs font-semibold text-ink-400">Included Communities</p>
+                <div className="space-y-2">
+                  {selected.communities.map((community) => (
+                    <div key={community.url} className="flex items-center justify-between gap-3 rounded-lg bg-ink-50 px-3 py-2">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-900">{community.name}</p>
+                        <p className="text-xs text-ink-400">{community.product_name || 'Included with purchase'}</p>
+                      </div>
+                      <a href={community.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600">
+                        Open Group <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="rounded-xl border border-ink-100 p-4">
               <p className="mb-3 text-xs font-semibold text-ink-400">Entitlements</p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Download, BookOpen, Mail, ArrowRight, UserPlus, ShieldCheck, Clock3, XCircle } from 'lucide-react';
+import { CheckCircle2, Download, BookOpen, Mail, ArrowRight, UserPlus, ShieldCheck, Clock3, XCircle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { formatBDT } from '@/data/store';
@@ -14,6 +14,7 @@ type Receipt = {
   total_minor: number;
   currency: string;
   items: { product_name: string; total_minor: number }[];
+  communities?: { name: string; url: string }[];
   meta?: {
     purchase_event_id: string;
     content_ids: string[];
@@ -28,6 +29,7 @@ export default function PurchaseSuccess() {
   const [params] = useSearchParams();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [guestDownloads, setGuestDownloads] = useState<{ download_url: string; name: string }[]>([]);
+  const [guestCommunities, setGuestCommunities] = useState<{ name: string; url: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const orderNumber = params.get('order') || '';
@@ -48,8 +50,11 @@ export default function PurchaseSuccess() {
         .catch(() => setError('We could not confirm this order yet. Please check your account orders or contact support.'))
         .finally(() => setLoading(false));
       if (guestAccessToken) {
-        apiRequest<{ data: { downloads: { download_url: string; name: string }[] } }>(`/guest/orders/${orderNumber}${suffix}`)
-          .then((response) => setGuestDownloads(response.data.downloads))
+        apiRequest<{ data: { downloads: { download_url: string; name: string }[]; communities: { name: string; url: string }[] } }>(`/guest/orders/${orderNumber}${suffix}`)
+          .then((response) => {
+            setGuestDownloads(response.data.downloads);
+            setGuestCommunities(response.data.communities || []);
+          })
           .catch(() => undefined);
       }
     });
@@ -70,6 +75,7 @@ export default function PurchaseSuccess() {
   const firstItem = receipt?.items[0];
   const paid = receipt?.payment_status === 'paid';
   const pending = loading || (!receipt && !error);
+  const communities = guestCommunities.length ? guestCommunities : (receipt?.communities || []);
 
   return (
     <div className="container-page py-12 lg:py-16">
@@ -127,6 +133,31 @@ export default function PurchaseSuccess() {
             </div>
           </div>
         </div>
+
+        {paid && communities.length > 0 && (
+          <div className="mt-5 rounded-2xl border border-brand-200 bg-white p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-600">
+                <Users className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-bold uppercase tracking-wide text-brand-600">Join the community</p>
+                <h2 className="mt-1 text-lg font-bold text-ink-900">You're not learning alone.</h2>
+                <p className="mt-2 text-sm leading-6 text-ink-600">Join other Learn by Bluxor learners, share your workflows, ask questions and discuss what you're building.</p>
+                <div className="mt-4 space-y-3">
+                  {communities.map((community) => (
+                    <div key={community.url} className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-ink-50/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-sm font-semibold text-ink-900">{community.name}</span>
+                      <a href={community.url} target="_blank" rel="noopener noreferrer">
+                        <Button size="sm" variant="outline" rightIcon={<ArrowRight className="h-4 w-4" />}>Join Facebook Community</Button>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {paid && <div className="mt-5 flex items-start gap-3 rounded-xl border border-ink-200/60 bg-white p-4">
           <Mail className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />

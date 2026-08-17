@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Download, FileText, BookOpen, Check, RefreshCw } from 'lucide-react';
+import { Download, FileText, BookOpen, Check, RefreshCw, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/ui/Card';
@@ -63,6 +63,28 @@ export default function CustomerLibraryDetail() {
           <Badge tone="success"><Check className="h-3 w-3" /> Owned - Lifetime Access</Badge>
           <h1 className="mt-3 font-display text-2xl font-bold text-ink-900">{item.title}</h1>
           <p className="mt-2 text-sm text-ink-500">Purchased on {item.purchased_at}</p>
+
+          {item.communities.length > 0 && (
+            <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+              <div className="flex items-start gap-3">
+                <Users className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
+                <div className="flex-1">
+                  <h2 className="text-base font-bold text-ink-900">Community Access</h2>
+                  <p className="mt-1 text-sm leading-6 text-ink-600">Join other Learn by Bluxor learners, ask questions, share workflows and stay connected.</p>
+                  <div className="mt-3 space-y-2">
+                    {item.communities.map((community) => (
+                      <div key={community.url} className="flex flex-col gap-2 rounded-lg bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-sm font-semibold text-ink-900">{community.name}</span>
+                        <a href={community.url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" rightIcon={<ExternalLink className="h-4 w-4" />}>Join Community</Button>
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             <h2 className="text-lg font-bold text-ink-900">Files & Resources</h2>
