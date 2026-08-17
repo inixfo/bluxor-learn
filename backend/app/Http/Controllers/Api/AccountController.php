@@ -11,6 +11,7 @@ use App\Services\DownloadDeliveryService;
 use App\Services\GuestAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
@@ -133,7 +134,17 @@ class AccountController extends Controller
 
     public function serveCustomerDownload(Request $request, ProductFile $file, Entitlement $entitlement)
     {
-        abort_unless($request->hasValidSignature(), 403);
+        $signatureValid = $request->hasValidSignature(false);
+
+        if (! $signatureValid) {
+            Log::warning('Customer download rejected: invalid relative signature.', [
+                'file_id' => $file->id,
+                'entitlement_id' => $entitlement->id,
+                'signature_valid' => false,
+            ]);
+        }
+
+        abort_unless($signatureValid, 403);
         abort_unless($request->user() && (int) $entitlement->user_id === (int) $request->user()->id, 403);
         $this->downloads->ensureDownloadable($file, $entitlement);
         $this->downloads->record($request, $file, $entitlement);
@@ -165,9 +176,37 @@ class AccountController extends Controller
 
     public function serveGuestDownload(Request $request, ProductFile $file, Entitlement $entitlement)
     {
-        abort_unless($request->hasValidSignature(), 403);
+        $signatureValid = $request->hasValidSignature(false);
+
+        if (! $signatureValid) {
+            Log::warning('Guest download rejected: invalid relative signature.', [
+                'file_id' => $file->id,
+                'entitlement_id' => $entitlement->id,
+                'order_id' => $entitlement->order_id,
+                'signature_valid' => false,
+                'guest_token_present' => is_string($request->query('token')) && $request->query('token') !== '',
+            ]);
+        }
+
+        abort_unless($signatureValid, 403);
         $order = $entitlement->order;
-        abort_unless($this->guestAccess->resolve($order, $request->query('token')) && $order->payment_status === 'paid', 403);
+        $token = $request->query('token');
+        $guestToken = $this->guestAccess->resolve($order, is_string($token) ? $token : null);
+        $guestAccessValid = (bool) $guestToken;
+
+        if (! $guestAccessValid || $order->payment_status !== 'paid') {
+            Log::warning('Guest download rejected: authorization failed.', [
+                'file_id' => $file->id,
+                'entitlement_id' => $entitlement->id,
+                'order_id' => $order->id,
+                'signature_valid' => true,
+                'guest_token_present' => is_string($token) && $token !== '',
+                'guest_access_valid' => $guestAccessValid,
+                'payment_status' => $order->payment_status,
+            ]);
+        }
+
+        abort_unless($guestAccessValid && $order->payment_status === 'paid', 403);
         $this->downloads->ensureDownloadable($file, $entitlement);
         $this->downloads->record($request, $file, $entitlement);
 

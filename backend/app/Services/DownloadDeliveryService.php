@@ -19,7 +19,7 @@ class DownloadDeliveryService
                 'file' => $file->id,
                 'entitlement' => $entitlement->id,
                 'nonce' => Str::random(16),
-            ]),
+            ], absolute: false),
             'expires_at' => now()->addMinutes(10)->toISOString(),
         ];
     }
@@ -32,7 +32,7 @@ class DownloadDeliveryService
                 'entitlement' => $entitlement->id,
                 'token' => $guestToken,
                 'nonce' => Str::random(16),
-            ]),
+            ], absolute: false),
             'expires_at' => now()->addMinutes(10)->toISOString(),
         ];
     }
