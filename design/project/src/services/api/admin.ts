@@ -213,6 +213,7 @@ export type AdminOrder = {
   order_number: string;
   customer_name?: string | null;
   customer_email: string;
+  customer_phone?: string | null;
   total_minor: number;
   currency: string;
   order_status: string;

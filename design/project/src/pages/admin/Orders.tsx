@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, Eye, RotateCcw, Search } from 'lucide-react';
+import { Download, Eye, MessageCircle, Phone, RotateCcw, Search } from 'lucide-react';
 import { Badge, type Tone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -43,7 +43,7 @@ export default function AdminOrders() {
   };
 
   const filtered = orders.filter((order) => {
-    const customer = `${order.customer_name || ''} ${order.customer_email}`.toLowerCase();
+    const customer = `${order.customer_name || ''} ${order.customer_email} ${order.customer_phone || ''}`.toLowerCase();
     if (query && !order.order_number.toLowerCase().includes(query.toLowerCase()) && !customer.includes(query.toLowerCase())) return false;
     if (statusFilter && order.payment_status !== statusFilter) return false;
     return true;
@@ -58,7 +58,7 @@ export default function AdminOrders() {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <div className="flex-1">
-          <Input placeholder="Search by order ID or customer..." value={query} onChange={(e) => setQuery(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
+          <Input placeholder="Search by order ID, customer, email, or phone..." value={query} onChange={(e) => setQuery(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
         </div>
         <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="sm:w-44">
           <option value="">All Status</option>
@@ -92,6 +92,7 @@ export default function AdminOrders() {
                     <div>
                       <p className="text-ink-900">{order.customer_name || 'Guest'}</p>
                       <p className="text-xs text-ink-400">{order.customer_email}</p>
+                      <p className="text-xs text-ink-400">{phoneDisplay(order.customer_phone)}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-ink-600">{order.items.map((item) => item.product_name).join(', ')}</td>
@@ -100,7 +101,31 @@ export default function AdminOrders() {
                   <td className="px-4 py-3"><Badge tone={statusTone[order.payment_status] || 'neutral'}>{order.payment_status}</Badge></td>
                   <td className="px-4 py-3 text-ink-400">{new Date(order.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
-                    <Button size="icon" variant="ghost"><Eye className="h-4 w-4" /></Button>
+                    <div className="flex items-center gap-1">
+                      {order.customer_phone && (
+                        <>
+                          <a
+                            href={phoneHref(order.customer_phone)}
+                            onClick={(event) => event.stopPropagation()}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-700 transition-colors hover:bg-ink-100"
+                            title="Call customer"
+                          >
+                            <Phone className="h-4 w-4" />
+                          </a>
+                          <a
+                            href={whatsappHref(order.customer_phone)}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-700 transition-colors hover:bg-ink-100"
+                            title="Message on WhatsApp"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </a>
+                        </>
+                      )}
+                      <Button size="icon" variant="ghost"><Eye className="h-4 w-4" /></Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -135,6 +160,19 @@ export default function AdminOrders() {
                 <p className="text-xs text-ink-400">Customer</p>
                 <p className="text-sm font-semibold text-ink-900">{selected.customer_name || 'Guest'}</p>
                 <p className="text-xs text-ink-500">{selected.customer_email}</p>
+                <p className="text-xs text-ink-500">{phoneDisplay(selected.customer_phone)}</p>
+                {selected.customer_phone && (
+                  <div className="mt-2 flex gap-2">
+                    <a href={phoneHref(selected.customer_phone)} className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+                      <Phone className="h-3.5 w-3.5" />
+                      Call
+                    </a>
+                    <a href={whatsappHref(selected.customer_phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </a>
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-xs text-ink-400">Payment</p>
@@ -177,4 +215,16 @@ export default function AdminOrders() {
       </Modal>
     </div>
   );
+}
+
+function phoneDisplay(phone?: string | null): string {
+  return phone?.trim() || '—';
+}
+
+function phoneHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
+}
+
+function whatsappHref(phone: string): string {
+  return `https://wa.me/${phone.replace(/\D/g, '')}`;
 }

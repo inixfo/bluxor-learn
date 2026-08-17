@@ -42,6 +42,16 @@ class CommerceFlowTest extends TestCase
         $this->assertSame(19800, $order->discount_minor);
         $this->assertSame(79200, $order->total_minor);
         $this->assertNull($order->user_id);
+
+        $admin = User::where('email', 'admin@learn.bluxor.test')->firstOrFail();
+        $adminOrders = $this->actingAs($admin)
+            ->getJson('/api/v1/admin/orders')
+            ->assertOk()
+            ->json('data.data');
+
+        $this->assertTrue(collect($adminOrders)->contains(
+            fn (array $row) => $row['order_number'] === $order->order_number && $row['customer_phone'] === '01700000000'
+        ));
     }
 
     public function test_piprapay_redirect_checkout_success_persists_provider_identifier(): void
