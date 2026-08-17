@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LandingPage;
 use App\Models\LandingPageVersion;
 use App\Services\LandingPageEngine;
+use App\Services\TrafficAttributionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,7 +32,10 @@ class LandingPageController extends Controller
         'webm' => 'video/webm',
     ];
 
-    public function __construct(private readonly LandingPageEngine $engine) {}
+    public function __construct(
+        private readonly LandingPageEngine $engine,
+        private readonly TrafficAttributionService $attribution
+    ) {}
 
     public function context(string $slug)
     {
@@ -53,7 +57,25 @@ class LandingPageController extends Controller
             'bundle_id' => ['nullable', 'integer', 'exists:bundles,id'],
             'visitor_id' => ['nullable', 'string', 'max:120'],
             'session_id' => ['nullable', 'string', 'max:120'],
+            'current_url' => ['nullable', 'url', 'max:2048'],
+            'path' => ['nullable', 'string', 'max:512'],
+            'referrer' => ['nullable', 'string', 'max:2048'],
+            'referrer_host' => ['nullable', 'string', 'max:255'],
+            'utm_source' => ['nullable', 'string', 'max:255'],
+            'utm_medium' => ['nullable', 'string', 'max:255'],
+            'utm_campaign' => ['nullable', 'string', 'max:255'],
+            'utm_content' => ['nullable', 'string', 'max:255'],
+            'utm_term' => ['nullable', 'string', 'max:255'],
+            'fbclid' => ['nullable', 'string', 'max:512'],
+            'gclid' => ['nullable', 'string', 'max:512'],
+            'msclkid' => ['nullable', 'string', 'max:512'],
+            'ttclid' => ['nullable', 'string', 'max:512'],
             'properties' => ['nullable', 'array'],
+        ]);
+
+        $touch = $this->attribution->normalize($data + [
+            'landing_url' => $data['current_url'] ?? null,
+            'occurred_at' => now()->toISOString(),
         ]);
 
         DB::table('analytics_events')->updateOrInsert(
@@ -68,6 +90,20 @@ class LandingPageController extends Controller
                 'session_key_hash' => isset($data['session_id']) ? hash('sha256', $data['session_id']) : null,
                 'event_name' => $data['event_name'],
                 'properties' => json_encode($this->safeProperties($data['properties'] ?? [])),
+                'current_url' => $data['current_url'] ?? null,
+                'path' => $data['path'] ?? null,
+                'referrer' => $data['referrer'] ?? null,
+                'referrer_host' => $touch['referrer_host'] ?? null,
+                'source' => $touch['source'] ?? null,
+                'medium' => $touch['medium'] ?? null,
+                'campaign' => $touch['campaign'] ?? null,
+                'content' => $touch['content'] ?? null,
+                'term' => $touch['term'] ?? null,
+                'fbclid' => $touch['fbclid'] ?? null,
+                'gclid' => $touch['gclid'] ?? null,
+                'msclkid' => $touch['msclkid'] ?? null,
+                'ttclid' => $touch['ttclid'] ?? null,
+                'attribution' => json_encode($touch),
                 'occurred_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),

@@ -37,7 +37,7 @@ class OrderPricingService
         ];
     }
 
-    private function resolvePurchasable(array $payload): array
+    private function resolvePurchasable(array &$payload): array
     {
         if (! empty($payload['landing_page_id']) || ! empty($payload['landing_page_slug'])) {
             return $this->resolveLandingOffer($payload);

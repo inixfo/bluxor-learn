@@ -17,6 +17,7 @@ import {
   type AdminOrder,
 } from '@/services/api/admin';
 import { useToast } from '@/components/ui/Toast';
+import { formatAdminDateTime } from '@/utils/datetime';
 
 const statusTone: Record<string, Tone> = { paid: 'success', pending: 'warning', refunded: 'danger', failed: 'danger', completed: 'success' };
 
@@ -148,8 +149,9 @@ export default function AdminOrders() {
                 <th className="px-4 py-3 font-medium">Products</th>
                 <th className="px-4 py-3 font-medium">Amount</th>
                 <th className="px-4 py-3 font-medium">Payment</th>
+                <th className="px-4 py-3 font-medium">Source</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -169,8 +171,12 @@ export default function AdminOrders() {
                   <td className="px-4 py-3 text-ink-600">{order.items.map((item) => item.product_name).join(', ')}</td>
                   <td className="px-4 py-3 font-semibold text-ink-900">{formatBDT(displayMinor(order.total_minor))}</td>
                   <td className="px-4 py-3 text-ink-600">{order.payment_gateway || 'PipraPay'}</td>
+                  <td className="px-4 py-3">
+                    <p className="text-xs font-semibold text-ink-700">{order.attribution?.source || 'Unknown'}</p>
+                    <p className="text-xs text-ink-400">{order.attribution?.campaign || order.attribution?.medium || '-'}</p>
+                  </td>
                   <td className="px-4 py-3"><Badge tone={statusTone[order.payment_status] || 'neutral'}>{order.payment_status}</Badge></td>
-                  <td className="px-4 py-3 text-ink-400">{new Date(order.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-xs text-ink-500">{formatAdminDateTime(order.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       {order.customer_phone && (
@@ -271,8 +277,12 @@ export default function AdminOrders() {
                 <p className="text-sm font-semibold text-ink-900">{selected.order_status}</p>
               </div>
               <div>
-                <p className="text-xs text-ink-400">Date</p>
-                <p className="text-sm font-semibold text-ink-900">{new Date(selected.created_at).toLocaleDateString()}</p>
+                <p className="text-xs text-ink-400">Created</p>
+                <p className="text-sm font-semibold text-ink-900">{formatAdminDateTime(selected.created_at)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-ink-400">Payment completed</p>
+                <p className="text-sm font-semibold text-ink-900">{formatAdminDateTime(selected.payment_completed_at)}</p>
               </div>
             </div>
 
@@ -312,6 +322,21 @@ export default function AdminOrders() {
                   ))}
                 </div>
               ) : <p className="text-sm text-ink-400">—</p>}
+            </div>
+
+            <div className="rounded-xl border border-ink-100 p-4">
+              <p className="mb-3 text-xs font-semibold text-ink-400">Attribution</p>
+              <div className="grid gap-3 text-sm sm:grid-cols-3">
+                <Info label="Source" value={selected.attribution?.source || 'Unknown'} />
+                <Info label="Medium" value={selected.attribution?.medium || '-'} />
+                <Info label="Campaign" value={selected.attribution?.campaign || '-'} />
+                <Info label="Content" value={selected.attribution?.content || '-'} />
+                <Info label="Term" value={selected.attribution?.term || '-'} />
+                <Info label="Offer" value={selected.attribution?.offer_key || '-'} />
+                <Info label="Landing" value={selected.attribution?.path || selected.attribution?.landing_url || '-'} />
+                <Info label="Referrer" value={selected.attribution?.referrer_host || selected.attribution?.referrer || '-'} />
+                <Info label="Session" value={selected.attribution?.session_id || '-'} />
+              </div>
             </div>
 
             <div className="rounded-xl border border-ink-100 p-4">

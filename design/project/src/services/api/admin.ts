@@ -251,6 +251,25 @@ export type AdminOrder = {
     expires_at?: string | null;
   }[];
   admin_notes?: string | null;
+  payment_completed_at?: string | null;
+  attribution?: {
+    source?: string | null;
+    medium?: string | null;
+    campaign?: string | null;
+    content?: string | null;
+    term?: string | null;
+    landing_url?: string | null;
+    path?: string | null;
+    referrer?: string | null;
+    referrer_host?: string | null;
+    visitor_id?: string | null;
+    session_id?: string | null;
+    landing_page_id?: number | null;
+    landing_page_version_id?: number | null;
+    offer_key?: string | null;
+    first_touch?: Record<string, unknown> | null;
+    last_touch?: Record<string, unknown> | null;
+  };
   actions?: {
     can_cancel: boolean;
     can_refund: boolean;

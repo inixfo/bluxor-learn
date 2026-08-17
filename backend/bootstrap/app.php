@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO
         );
 
+        $middleware->validateCsrfTokens(except: [
+            'api/v1/analytics/events',
+        ]);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\RequireRole::class,
         ]);

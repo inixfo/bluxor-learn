@@ -367,8 +367,13 @@ class AdminController extends Controller
     {
         $order->loadMissing('items', 'entitlements.product', 'paymentTransactions', 'user.roles');
         $transaction = $order->paymentTransactions->sortByDesc('created_at')->first();
+        $paidTransaction = $order->paymentTransactions
+            ->filter(fn ($payment) => $payment->paid_at)
+            ->sortByDesc('paid_at')
+            ->first();
         $user = $order->user ?: User::with('roles')->whereRaw('lower(email) = ?', [strtolower($order->customer_email)])->first();
         $checkoutType = $order->checkout_type;
+        $metadata = $order->metadata ?: [];
 
         return [
             'id' => $order->id,
@@ -396,7 +401,9 @@ class AdminController extends Controller
             'payment_gateway' => $transaction?->gateway,
             'created_at' => $order->created_at,
             'updated_at' => $order->updated_at,
-            'admin_notes' => $order->metadata['admin_notes'] ?? null,
+            'payment_completed_at' => $paidTransaction?->paid_at,
+            'admin_notes' => $metadata['admin_notes'] ?? null,
+            'attribution' => $this->adminOrderAttribution($metadata),
             'items' => $order->items->map(fn ($item) => [
                 'id' => $item->id,
                 'product_name' => $item->product_name,
@@ -438,6 +445,33 @@ class AdminController extends Controller
                 'can_resend_email' => $order->payment_status === 'paid',
                 'can_mark_paid' => false,
             ],
+        ];
+    }
+
+    private function adminOrderAttribution(array $metadata): array
+    {
+        $attribution = is_array($metadata['order_attribution'] ?? null) ? $metadata['order_attribution'] : [];
+        $lastTouch = is_array($attribution['last_touch'] ?? null) ? $attribution['last_touch'] : [];
+        $firstTouch = is_array($attribution['first_touch'] ?? null) ? $attribution['first_touch'] : [];
+        $displayTouch = $lastTouch ?: $firstTouch;
+
+        return [
+            'source' => $displayTouch['source'] ?? 'Unknown',
+            'medium' => $displayTouch['medium'] ?? null,
+            'campaign' => $displayTouch['campaign'] ?? null,
+            'content' => $displayTouch['content'] ?? null,
+            'term' => $displayTouch['term'] ?? null,
+            'landing_url' => $displayTouch['landing_url'] ?? $displayTouch['current_url'] ?? null,
+            'path' => $displayTouch['path'] ?? null,
+            'referrer' => $displayTouch['referrer'] ?? null,
+            'referrer_host' => $displayTouch['referrer_host'] ?? null,
+            'visitor_id' => $attribution['visitor_id'] ?? null,
+            'session_id' => $attribution['session_id'] ?? null,
+            'landing_page_id' => $attribution['landing_page_id'] ?? $metadata['landing_page_id'] ?? null,
+            'landing_page_version_id' => $attribution['landing_page_version_id'] ?? null,
+            'offer_key' => $attribution['offer_key'] ?? $metadata['offer_key'] ?? null,
+            'first_touch' => $firstTouch ?: null,
+            'last_touch' => $lastTouch ?: null,
         ];
     }
 

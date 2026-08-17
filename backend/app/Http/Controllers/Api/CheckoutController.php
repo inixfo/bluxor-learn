@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Services\GuestAccessService;
 use App\Services\MetaConversionsService;
 use App\Services\OrderPricingService;
+use App\Services\TrafficAttributionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,7 +17,8 @@ class CheckoutController extends Controller
     public function __construct(
         private readonly OrderPricingService $pricing,
         private readonly GuestAccessService $guestAccess,
-        private readonly MetaConversionsService $metaConversions
+        private readonly MetaConversionsService $metaConversions,
+        private readonly TrafficAttributionService $attribution
     ) {}
 
     public function quote(Request $request)
@@ -54,6 +56,10 @@ class CheckoutController extends Controller
             'tracking_context.landing_page_url' => ['nullable', 'url', 'max:2048'],
             'tracking_context.referrer' => ['nullable', 'string', 'max:2048'],
             'tracking_context.marketing_consent' => ['nullable', 'boolean'],
+            'tracking_context.visitor_id' => ['nullable', 'string', 'max:120'],
+            'tracking_context.session_id' => ['nullable', 'string', 'max:120'],
+            'tracking_context.first_touch' => ['nullable', 'array'],
+            'tracking_context.last_touch' => ['nullable', 'array'],
         ]);
 
         $quote = $this->pricing->quote($data);
@@ -83,6 +89,7 @@ class CheckoutController extends Controller
                     'landing_page_id' => $quote['landing_page']?->id,
                     'offer_key' => $quote['offer_key'],
                     'tracking_context' => $this->trackingContext($request, $data['tracking_context'] ?? []),
+                    'order_attribution' => $this->orderAttribution($data['tracking_context'] ?? [], $quote),
                 ],
             ]);
 
@@ -148,6 +155,22 @@ class CheckoutController extends Controller
             'marketing_consent' => array_key_exists('marketing_consent', $context) ? (bool) $context['marketing_consent'] : null,
             'client_ip_address' => $request->ip(),
             'client_user_agent' => $request->userAgent(),
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function orderAttribution(array $context, array $quote): array
+    {
+        $firstTouch = is_array($context['first_touch'] ?? null) ? $this->attribution->normalize($context['first_touch']) : null;
+        $lastTouch = is_array($context['last_touch'] ?? null) ? $this->attribution->normalize($context['last_touch']) : null;
+
+        return array_filter([
+            'visitor_id' => is_string($context['visitor_id'] ?? null) ? $context['visitor_id'] : null,
+            'session_id' => is_string($context['session_id'] ?? null) ? $context['session_id'] : null,
+            'first_touch' => $firstTouch,
+            'last_touch' => $lastTouch ?: $firstTouch,
+            'landing_page_id' => $quote['landing_page']?->id ?? $lastTouch['landing_page_id'] ?? $firstTouch['landing_page_id'] ?? null,
+            'landing_page_version_id' => $quote['landing_page_version']?->id ?? $lastTouch['landing_page_version_id'] ?? $firstTouch['landing_page_version_id'] ?? null,
+            'offer_key' => $quote['offer_key'],
         ], fn ($value) => $value !== null && $value !== '');
     }
 

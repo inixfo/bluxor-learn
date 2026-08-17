@@ -8,6 +8,7 @@ import { formatBDT } from '@/data/store';
 import { ApiError } from '@/services/api/client';
 import { assignLandingOffers, displayMinor, displaySize, getLandingAnalytics, getLandingPage, getPreviewUrl, publishLandingVersion, searchOfferItems, updateLandingProduct, type LandingAnalytics, type LandingOfferPayload, type LandingPageAdmin, type OfferItem } from '@/services/api/landing';
 import { useToast } from '@/components/ui/Toast';
+import { formatAdminDateTime } from '@/utils/datetime';
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: FileCode2 },
@@ -25,6 +26,7 @@ export default function AdminLandingPageDetail() {
   const [offerItems, setOfferItems] = useState<{ product: OfferItem[]; bundle: OfferItem[] }>({ product: [], bundle: [] });
   const [offerDrafts, setOfferDrafts] = useState<LandingOfferPayload[]>([]);
   const [associatedProductId, setAssociatedProductId] = useState('');
+  const [analyticsRange, setAnalyticsRange] = useState('30d');
 
   const applyPage = (next: LandingPageAdmin) => {
     setPage(next);
@@ -40,10 +42,10 @@ export default function AdminLandingPageDetail() {
 
   const load = () => {
     getLandingPage(id).then(applyPage);
-    getLandingAnalytics(Number(id)).then(setAnalytics);
+    getLandingAnalytics(Number(id), { range: analyticsRange }).then(setAnalytics);
   };
 
-  useEffect(load, [id]);
+  useEffect(load, [id, analyticsRange]);
   useEffect(() => {
     searchOfferItems('product').then((items) => setOfferItems((prev) => ({ ...prev, product: items })));
     searchOfferItems('bundle').then((items) => setOfferItems((prev) => ({ ...prev, bundle: items })));
@@ -233,11 +235,104 @@ export default function AdminLandingPageDetail() {
       )}
 
       {activeTab === 'analytics' && analytics && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-4"><p className="text-xs text-ink-400">Visitors</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.visitors.toLocaleString()}</p></Card>
-          <Card className="p-4"><p className="text-xs text-ink-400">Conversion Rate</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.conversion_rate}%</p></Card>
-          <Card className="p-4"><p className="text-xs text-ink-400">Revenue</p><p className="mt-1 text-2xl font-bold text-ink-900">{formatBDT(displayMinor(analytics.revenue_minor))}</p></Card>
-          <Card className="p-4"><p className="text-xs text-ink-400">AOV</p><p className="mt-1 text-2xl font-bold text-ink-900">{formatBDT(displayMinor(analytics.aov_minor))}</p></Card>
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-ink-900">Traffic and conversion attribution</p>
+              <p className="text-xs text-ink-400">{formatAdminDateTime(analytics.from)} to {formatAdminDateTime(analytics.to)}</p>
+            </div>
+            <select value={analyticsRange} onChange={(event) => setAnalyticsRange(event.target.value)} className="rounded-lg border border-ink-200 px-3 py-2 text-sm">
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+            </select>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Card className="p-4"><p className="text-xs text-ink-400">Unique Visitors</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.visitors.toLocaleString()}</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">Sessions</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.sessions.toLocaleString()}</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">Page Views</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.page_views.toLocaleString()}</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">Conversion Rate</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.conversion_rate}%</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">Orders</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.orders.toLocaleString()}</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">Paid Orders</p><p className="mt-1 text-2xl font-bold text-ink-900">{analytics.paid_orders.toLocaleString()}</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">Revenue</p><p className="mt-1 text-2xl font-bold text-ink-900">{formatBDT(displayMinor(analytics.revenue_minor))}</p></Card>
+            <Card className="p-4"><p className="text-xs text-ink-400">AOV</p><p className="mt-1 text-2xl font-bold text-ink-900">{formatBDT(displayMinor(analytics.aov_minor))}</p></Card>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="border-b border-ink-100 px-5 py-4">
+              <p className="text-sm font-bold text-ink-900">Source Breakdown</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-ink-50/60 text-left text-xs text-ink-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Source</th>
+                    <th className="px-4 py-3 font-medium">Medium</th>
+                    <th className="px-4 py-3 font-medium">Campaign</th>
+                    <th className="px-4 py-3 font-medium">Visitors</th>
+                    <th className="px-4 py-3 font-medium">Sessions</th>
+                    <th className="px-4 py-3 font-medium">Orders</th>
+                    <th className="px-4 py-3 font-medium">Paid</th>
+                    <th className="px-4 py-3 font-medium">CVR</th>
+                    <th className="px-4 py-3 font-medium">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.source_breakdown.map((row) => (
+                    <tr key={`${row.source}-${row.medium}-${row.campaign || ''}`} className="border-t border-ink-50">
+                      <td className="px-4 py-3 font-semibold text-ink-900">{row.source}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.medium}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.campaign || '-'}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.visitors.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.sessions.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.orders.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.paid_orders.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-ink-600">{row.conversion_rate}%</td>
+                      <td className="px-4 py-3 font-semibold text-ink-900">{formatBDT(displayMinor(row.revenue_minor))}</td>
+                    </tr>
+                  ))}
+                  {analytics.source_breakdown.length === 0 && (
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-ink-400">No traffic recorded for this range.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="border-b border-ink-100 px-5 py-4">
+              <p className="text-sm font-bold text-ink-900">Recent Conversions</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-ink-50/60 text-left text-xs text-ink-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Order</th>
+                    <th className="px-4 py-3 font-medium">Customer</th>
+                    <th className="px-4 py-3 font-medium">Source</th>
+                    <th className="px-4 py-3 font-medium">Created</th>
+                    <th className="px-4 py-3 font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.recent_conversions.map((order) => (
+                    <tr key={order.id} className="border-t border-ink-50">
+                      <td className="px-4 py-3 font-semibold text-ink-900">{order.order_number}</td>
+                      <td className="px-4 py-3 text-ink-600">{order.customer_name || order.customer_email}</td>
+                      <td className="px-4 py-3 text-ink-600">{order.source} / {order.campaign || order.medium}</td>
+                      <td className="px-4 py-3 text-xs text-ink-500">{formatAdminDateTime(order.created_at)}</td>
+                      <td className="px-4 py-3 font-semibold text-ink-900">{formatBDT(displayMinor(order.amount_minor))}</td>
+                    </tr>
+                  ))}
+                  {analytics.recent_conversions.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-ink-400">No paid conversions yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       )}
 

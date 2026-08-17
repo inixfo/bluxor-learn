@@ -93,12 +93,28 @@ export function metaTrackingContext(marketingConsent?: boolean): Record<string, 
     landing_page_url: sessionStorage.getItem('lbx_landing_page_url') || undefined,
     referrer: document.referrer || undefined,
     marketing_consent: marketingConsent,
+    visitor_id: persistentId('lbx_vid', 'v'),
+    session_id: activeSessionId(),
+    first_touch: localJson('lbx_first_touch'),
+    last_touch: localJson('lbx_last_touch'),
   };
 }
 
 export function rememberLandingSource(): void {
-  if (location.pathname.startsWith('/go/')) {
-    sessionStorage.setItem('lbx_landing_page_url', location.href);
+  try {
+    if (location.pathname.startsWith('/go/')) {
+      sessionStorage.setItem('lbx_landing_page_url', location.href);
+    }
+    const touch = attributionTouch();
+    if (!localJson('lbx_first_touch')) {
+      localStorage.setItem('lbx_first_touch', JSON.stringify(touch));
+    }
+    const lastTouch = localJson('lbx_last_touch');
+    if (!lastTouch || sourceOf(touch).toLowerCase() !== 'direct') {
+      localStorage.setItem('lbx_last_touch', JSON.stringify(touch));
+    }
+  } catch {
+    // Attribution storage is best-effort and must not block checkout or Meta tracking.
   }
 }
 
@@ -166,4 +182,86 @@ function once(key: string, callback: () => void): void {
 function cookie(name: string): string | undefined {
   const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+function persistentId(key: string, prefix: string): string | undefined {
+  try {
+    let value = localStorage.getItem(key);
+    if (!value) {
+      value = `${prefix}_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      localStorage.setItem(key, value);
+    }
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
+function activeSessionId(): string | undefined {
+  try {
+    const nowMs = Date.now();
+    const key = 'lbx_sid';
+    const seenKey = 'lbx_session_seen_at';
+    const lastSeen = Number(sessionStorage.getItem(seenKey) || localStorage.getItem(seenKey) || 0);
+    let value = localStorage.getItem(key);
+    if (!value || !lastSeen || nowMs - lastSeen > 30 * 60 * 1000) {
+      value = `s_${Math.random().toString(36).slice(2)}${nowMs.toString(36)}`;
+      localStorage.setItem(key, value);
+    }
+    sessionStorage.setItem(seenKey, String(nowMs));
+    localStorage.setItem(seenKey, String(nowMs));
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
+function localJson(key: string): Record<string, unknown> | undefined {
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return undefined;
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function attributionTouch(): Record<string, unknown> {
+  const params = new URLSearchParams(location.search);
+  return {
+    current_url: location.href,
+    landing_url: location.href,
+    path: location.pathname,
+    referrer: document.referrer || undefined,
+    referrer_host: hostFrom(document.referrer) || undefined,
+    utm_source: params.get('utm_source') || undefined,
+    utm_medium: params.get('utm_medium') || undefined,
+    utm_campaign: params.get('utm_campaign') || undefined,
+    utm_content: params.get('utm_content') || undefined,
+    utm_term: params.get('utm_term') || undefined,
+    fbclid: params.get('fbclid') || undefined,
+    gclid: params.get('gclid') || undefined,
+    msclkid: params.get('msclkid') || undefined,
+    ttclid: params.get('ttclid') || undefined,
+    occurred_at: new Date().toISOString(),
+  };
+}
+
+function sourceOf(touch: Record<string, unknown>): string {
+  if (typeof touch.utm_source === 'string' && touch.utm_source) return touch.utm_source;
+  if (typeof touch.fbclid === 'string' && touch.fbclid) return 'Facebook';
+  if (typeof touch.gclid === 'string' && touch.gclid) return 'Google';
+  if (typeof touch.msclkid === 'string' && touch.msclkid) return 'Microsoft';
+  if (typeof touch.ttclid === 'string' && touch.ttclid) return 'TikTok';
+  if (typeof touch.referrer_host === 'string' && touch.referrer_host) return touch.referrer_host;
+  return 'Direct';
+}
+
+function hostFrom(value: string): string | undefined {
+  try {
+    return value ? new URL(value).hostname : undefined;
+  } catch {
+    return undefined;
+  }
 }

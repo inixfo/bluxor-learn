@@ -47,13 +47,43 @@ export type OfferItem = {
 };
 
 export type LandingAnalytics = {
+  range?: string;
+  from?: string;
+  to?: string;
   visitors: number;
+  sessions: number;
+  page_views: number;
+  orders: number;
+  paid_orders: number;
   cta_clicks: number;
   checkout_started: number;
   purchases: number;
   conversion_rate: number;
   revenue_minor: number;
   aov_minor: number;
+  source_breakdown: {
+    source: string;
+    medium: string;
+    campaign?: string | null;
+    visitors: number;
+    sessions: number;
+    orders: number;
+    paid_orders: number;
+    conversion_rate: number;
+    revenue_minor: number;
+  }[];
+  recent_conversions: {
+    id: number;
+    order_number: string;
+    customer_email: string;
+    customer_name?: string | null;
+    created_at: string;
+    amount_minor: number;
+    currency: string;
+    source: string;
+    medium: string;
+    campaign?: string | null;
+  }[];
 };
 
 export async function getLandingPages(): Promise<LandingPageAdmin[]> {
@@ -80,8 +110,13 @@ export async function getPreviewUrl(versionId: number): Promise<string> {
   return (await apiRequest<{ data: { url: string } }>(`/admin/landing-page-versions/${versionId}/preview-url`)).data.url;
 }
 
-export async function getLandingAnalytics(pageId: number): Promise<LandingAnalytics> {
-  return (await apiRequest<{ data: LandingAnalytics }>(`/admin/landing-pages/${pageId}/analytics`)).data;
+export async function getLandingAnalytics(pageId: number, filters: { range?: string; from?: string; to?: string } = {}): Promise<LandingAnalytics> {
+  const params = new URLSearchParams();
+  if (filters.range) params.set('range', filters.range);
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return (await apiRequest<{ data: LandingAnalytics }>(`/admin/landing-pages/${pageId}/analytics${suffix}`)).data;
 }
 
 export async function assignLandingOffers(pageId: number, payload: { primary_product_id?: number | null; offers: LandingOfferPayload[] }): Promise<LandingPageAdmin> {

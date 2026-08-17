@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\LandingPage;
+use App\Models\Order;
+use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -351,6 +353,161 @@ class LandingPageEngineTest extends TestCase
             ->assertJsonValidationErrors('primary_product_id');
 
         $this->assertSame(0, $page->fresh()->offers()->count());
+    }
+
+    public function test_anonymous_landing_events_capture_attribution_and_admin_reports_conversions(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->useTempStorage();
+        $admin = User::where('email', 'admin@learn.bluxor.test')->firstOrFail();
+        $product = Product::where('slug', 'ai-automation-n8n')->firstOrFail();
+
+        $versionId = $this->actingAs($admin)->post('/api/v1/admin/landing-pages/uploads', [
+            'package' => $this->zipUpload('analytics.zip'),
+            'slug' => 'analytics-page',
+            'primary_product_id' => $product->id,
+            'offers' => [
+                ['offer_key' => 'single', 'offer_type' => 'product', 'product_id' => $product->id, 'is_primary' => true],
+            ],
+        ])->assertCreated()->json('data.id');
+
+        $page = LandingPage::where('slug', 'analytics-page')->firstOrFail();
+        $this->actingAs($admin)->postJson('/api/v1/admin/landing-pages/'.$page->id.'/versions/'.$versionId.'/publish')->assertOk();
+
+        $eventPayload = [
+            'landing_page_id' => $page->id,
+            'landing_page_version_id' => $versionId,
+            'visitor_id' => 'visitor-1',
+            'session_id' => 'session-1',
+            'current_url' => 'https://learn.bluxor.com/go/analytics-page?utm_source=facebook&utm_medium=paid_social&utm_campaign=launch&fbclid=fb-click',
+            'path' => '/go/analytics-page',
+            'referrer' => 'https://facebook.com/ad',
+            'utm_source' => 'facebook',
+            'utm_medium' => 'paid_social',
+            'utm_campaign' => 'launch',
+            'fbclid' => 'fb-click',
+        ];
+
+        $this->postJson('/api/v1/analytics/events', ['event_name' => 'landing_page_view'] + $eventPayload)->assertOk();
+        $this->postJson('/api/v1/analytics/events', ['event_name' => 'landing_page_view', 'event_uuid' => (string) Str::uuid()] + $eventPayload)->assertOk();
+        $this->postJson('/api/v1/analytics/events', ['event_name' => 'checkout_started'] + $eventPayload)->assertOk();
+
+        $this->assertDatabaseHas('analytics_events', [
+            'landing_page_id' => $page->id,
+            'source' => 'Facebook',
+            'medium' => 'paid_social',
+            'campaign' => 'launch',
+            'fbclid' => 'fb-click',
+        ]);
+
+        $orderId = $this->postJson('/api/v1/checkout/orders', [
+            'landing_page_slug' => 'analytics-page',
+            'offer_key' => 'single',
+            'customer_name' => 'Analytics Buyer',
+            'customer_email' => 'analytics-buyer@example.com',
+            'customer_phone' => '+8801711111111',
+            'payment_method' => 'piprapay',
+            'tracking_context' => [
+                'visitor_id' => 'visitor-1',
+                'session_id' => 'session-1',
+                'first_touch' => $eventPayload,
+                'last_touch' => $eventPayload,
+            ],
+        ])->assertCreated()->json('data.order.id');
+
+        $order = Order::findOrFail($orderId);
+        $order->forceFill(['payment_status' => 'paid', 'order_status' => 'completed'])->save();
+        PaymentTransaction::create([
+            'uuid' => (string) Str::uuid(),
+            'order_id' => $order->id,
+            'gateway' => 'piprapay',
+            'amount_minor' => $order->total_minor,
+            'currency' => $order->currency,
+            'status' => 'paid',
+            'normalized_state' => 'paid',
+            'paid_at' => now()->subMinute(),
+            'verified_at' => now(),
+        ]);
+
+        $this->assertSame('Facebook', $order->fresh()->metadata['order_attribution']['last_touch']['source']);
+
+        $this->actingAs($admin)->getJson('/api/v1/admin/landing-pages/'.$page->id.'/analytics?range=30d')
+            ->assertOk()
+            ->assertJsonPath('data.visitors', 1)
+            ->assertJsonPath('data.sessions', 1)
+            ->assertJsonPath('data.page_views', 2)
+            ->assertJsonPath('data.checkout_started', 1)
+            ->assertJsonPath('data.orders', 1)
+            ->assertJsonPath('data.paid_orders', 1)
+            ->assertJsonPath('data.revenue_minor', $order->total_minor)
+            ->assertJsonPath('data.source_breakdown.0.source', 'Facebook')
+            ->assertJsonPath('data.source_breakdown.0.medium', 'paid_social')
+            ->assertJsonPath('data.source_breakdown.0.campaign', 'launch')
+            ->assertJsonPath('data.recent_conversions.0.order_number', $order->order_number);
+
+        $orderResponse = $this->actingAs($admin)->getJson('/api/v1/admin/orders/'.$order->id)
+            ->assertOk()
+            ->assertJsonPath('data.attribution.source', 'Facebook')
+            ->assertJsonPath('data.attribution.campaign', 'launch');
+        $this->assertNotEmpty($orderResponse->json('data.payment_completed_at'));
+    }
+
+    public function test_landing_analytics_classifies_direct_and_google_organic_sources(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->useTempStorage();
+        $admin = User::where('email', 'admin@learn.bluxor.test')->firstOrFail();
+        $product = Product::where('slug', 'ai-automation-n8n')->firstOrFail();
+
+        $versionId = $this->actingAs($admin)->post('/api/v1/admin/landing-pages/uploads', [
+            'package' => $this->zipUpload('sources.zip'),
+            'slug' => 'source-page',
+            'primary_product_id' => $product->id,
+        ])->assertCreated()->json('data.id');
+
+        $page = LandingPage::where('slug', 'source-page')->firstOrFail();
+        $this->actingAs($admin)->postJson('/api/v1/admin/landing-pages/'.$page->id.'/versions/'.$versionId.'/publish')->assertOk();
+
+        $this->postJson('/api/v1/analytics/events', [
+            'event_name' => 'landing_page_view',
+            'landing_page_id' => $page->id,
+            'landing_page_version_id' => $versionId,
+            'visitor_id' => 'direct-visitor',
+            'session_id' => 'direct-session',
+            'current_url' => 'https://learn.bluxor.com/go/source-page',
+            'path' => '/go/source-page',
+        ])->assertOk();
+
+        $this->postJson('/api/v1/analytics/events', [
+            'event_name' => 'landing_page_view',
+            'landing_page_id' => $page->id,
+            'landing_page_version_id' => $versionId,
+            'visitor_id' => 'google-visitor',
+            'session_id' => 'google-session',
+            'current_url' => 'https://learn.bluxor.com/go/source-page',
+            'path' => '/go/source-page',
+            'referrer' => 'https://www.google.com/search?q=n8n',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('analytics_events', ['landing_page_id' => $page->id, 'source' => 'Direct', 'medium' => 'direct']);
+        $this->assertDatabaseHas('analytics_events', ['landing_page_id' => $page->id, 'source' => 'Google', 'medium' => 'organic']);
+
+        $this->actingAs($admin)->getJson('/api/v1/admin/landing-pages/'.$page->id.'/analytics?range=30d')
+            ->assertOk()
+            ->assertJsonPath('data.visitors', 2)
+            ->assertJsonPath('data.sessions', 2);
+    }
+
+    public function test_landing_analytics_requires_admin_authentication(): void
+    {
+        $page = LandingPage::create([
+            'uuid' => (string) Str::uuid(),
+            'name' => 'Private Analytics',
+            'slug' => 'private-analytics',
+            'status' => 'draft',
+        ]);
+
+        $this->getJson('/api/v1/admin/landing-pages/'.$page->id.'/analytics')->assertUnauthorized();
     }
 
     private function zipUpload(string $name, string $heading = 'Hello', array $extra = []): UploadedFile

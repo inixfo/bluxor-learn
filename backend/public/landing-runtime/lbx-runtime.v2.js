@@ -1,8 +1,14 @@
 (function () {
   "use strict";
 
-  var visitorKey = "lblx_visitor_id";
-  var sessionKey = "lblx_session_id";
+  var visitorKey = "lbx_vid";
+  var sessionKey = "lbx_sid";
+  var firstTouchKey = "lbx_first_touch";
+  var lastTouchKey = "lbx_last_touch";
+  var sessionSeenKey = "lbx_session_seen_at";
+  var legacyVisitorKey = "lblx_visitor_id";
+  var legacySessionKey = "lblx_session_id";
+  var sessionTtlMs = 30 * 60 * 1000;
   var metaConfigPromise = null;
   var metaInitialized = false;
   var metaTracked = {};
@@ -11,9 +17,13 @@
     return prefix + "_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
-  function stored(key, prefix) {
+  function stored(key, prefix, legacyKey) {
     try {
       var value = localStorage.getItem(key);
+      if (!value && legacyKey) {
+        value = localStorage.getItem(legacyKey);
+        if (value) localStorage.setItem(key, value);
+      }
       if (!value) {
         value = uid(prefix);
         localStorage.setItem(key, value);
@@ -22,6 +32,113 @@
     } catch (_) {
       return uid(prefix);
     }
+  }
+
+  function visitorId() {
+    return stored(visitorKey, "v", legacyVisitorKey);
+  }
+
+  function sessionId() {
+    try {
+      var nowMs = Date.now();
+      var lastSeen = Number(sessionStorage.getItem(sessionSeenKey) || localStorage.getItem(sessionSeenKey) || 0);
+      var value = localStorage.getItem(sessionKey) || localStorage.getItem(legacySessionKey);
+      if (!value || !lastSeen || nowMs - lastSeen > sessionTtlMs) {
+        value = uid("s");
+        localStorage.setItem(sessionKey, value);
+      }
+      sessionStorage.setItem(sessionSeenKey, String(nowMs));
+      localStorage.setItem(sessionSeenKey, String(nowMs));
+      return value;
+    } catch (_) {
+      return stored(sessionKey, "s", legacySessionKey);
+    }
+  }
+
+  function readJson(key) {
+    try {
+      var value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (_) {}
+  }
+
+  function hostFrom(url) {
+    try {
+      return url ? new URL(url).hostname : "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function paramsObject() {
+    var params = new URLSearchParams(location.search);
+    return {
+      utm_source: params.get("utm_source") || "",
+      utm_medium: params.get("utm_medium") || "",
+      utm_campaign: params.get("utm_campaign") || "",
+      utm_content: params.get("utm_content") || "",
+      utm_term: params.get("utm_term") || "",
+      fbclid: params.get("fbclid") || "",
+      gclid: params.get("gclid") || "",
+      msclkid: params.get("msclkid") || "",
+      ttclid: params.get("ttclid") || ""
+    };
+  }
+
+  function touchSource(touch) {
+    if (touch.utm_source) return touch.utm_source;
+    if (touch.fbclid) return "Facebook";
+    if (touch.gclid) return "Google";
+    if (touch.msclkid) return "Microsoft";
+    if (touch.ttclid) return "TikTok";
+    return touch.referrer_host ? touch.referrer_host : "Direct";
+  }
+
+  function attributionTouch(data) {
+    var params = paramsObject();
+    return {
+      current_url: location.href,
+      landing_url: location.href,
+      path: location.pathname,
+      referrer: document.referrer || "",
+      referrer_host: hostFrom(document.referrer),
+      landing_page_id: data && data.analytics ? data.analytics.landing_page_id : null,
+      landing_page_version_id: data && data.analytics ? data.analytics.landing_page_version_id : null,
+      utm_source: params.utm_source,
+      utm_medium: params.utm_medium,
+      utm_campaign: params.utm_campaign,
+      utm_content: params.utm_content,
+      utm_term: params.utm_term,
+      fbclid: params.fbclid,
+      gclid: params.gclid,
+      msclkid: params.msclkid,
+      ttclid: params.ttclid,
+      occurred_at: new Date().toISOString()
+    };
+  }
+
+  function attributionContext(data) {
+    var touch = attributionTouch(data);
+    var first = readJson(firstTouchKey);
+    if (!first) {
+      first = touch;
+      writeJson(firstTouchKey, first);
+    }
+    var last = readJson(lastTouchKey);
+    if (!last || touchSource(touch).toLowerCase() !== "direct") {
+      last = touch;
+      writeJson(lastTouchKey, last);
+    }
+
+    return { current: touch, first_touch: first, last_touch: last };
   }
 
   function pageSlug() {
@@ -167,18 +284,28 @@
   async function track(eventName, properties) {
     var data = await context();
     if (!data || !data.analytics || data.page.preview) return;
+    var attribution = attributionContext(data);
+    var payload = Object.assign({}, attribution.current, {
+      event_name: eventName,
+      landing_page_id: data.analytics.landing_page_id,
+      landing_page_version_id: data.analytics.landing_page_version_id,
+      visitor_id: visitorId(),
+      session_id: sessionId(),
+      properties: properties || {}
+    });
+    var body = JSON.stringify(payload);
+    try {
+      if (navigator.sendBeacon) {
+        var blob = new Blob([body], { type: "application/json" });
+        if (navigator.sendBeacon("/api/v1/analytics/events", blob)) return Promise.resolve();
+      }
+    } catch (_) {}
     return fetch("/api/v1/analytics/events", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        event_name: eventName,
-        landing_page_id: data.analytics.landing_page_id,
-        landing_page_version_id: data.analytics.landing_page_version_id,
-        visitor_id: stored(visitorKey, "v"),
-        session_id: stored(sessionKey, "s"),
-        properties: properties || {}
-      })
+      keepalive: true,
+      body: body
     }).catch(function () {});
   }
 
