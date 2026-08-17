@@ -112,8 +112,15 @@ Route::middleware('web')->prefix('v1')->group(function () {
         Route::delete('/products/{product}/resources/{resource}', [AdminResourceController::class, 'detach']);
         Route::apiResource('categories', AdminCategoryController::class);
         Route::get('/orders', [AdminController::class, 'orders']);
+        Route::get('/orders/{order}', [AdminController::class, 'showOrder']);
+        Route::post('/orders/{order}/cancel', [AdminController::class, 'cancelOrder']);
+        Route::post('/orders/{order}/resend-email', [AdminController::class, 'resendOrderEmail']);
+        Route::patch('/orders/{order}/notes', [AdminController::class, 'updateOrderNotes']);
         Route::post('/orders/{order}/refund', [PaymentController::class, 'refund'])->middleware('throttle:6,1');
         Route::get('/customers', [AdminController::class, 'customers']);
+        Route::get('/customers/{customerKey}', [AdminController::class, 'showCustomer']);
+        Route::post('/customers/{user}/suspend', [AdminController::class, 'suspendCustomer']);
+        Route::post('/customers/{user}/reactivate', [AdminController::class, 'reactivateCustomer']);
         Route::get('/offer-items', [AdminController::class, 'offerItems']);
         Route::get('/coupons', [AdminController::class, 'coupons']);
         Route::post('/coupons', [AdminController::class, 'storeCoupon']);

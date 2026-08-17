@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductFile;
 use App\Models\User;
+use App\Jobs\SendPurchaseConfirmationEmail;
 use App\Services\AuditLogger;
 use App\Services\LandingPagePackageValidator;
 use App\Services\PublicMediaService;
@@ -260,14 +261,52 @@ class AdminController extends Controller
 
     public function orders()
     {
-        $orders = Order::with('items', 'entitlements', 'paymentTransactions')->latest()->paginate(20);
-        $orders->getCollection()->transform(function (Order $order) {
-            $order->payment_gateway = $order->paymentTransactions->first()?->gateway;
-
-            return $order;
-        });
+        $orders = Order::with('items', 'entitlements.product', 'paymentTransactions', 'user.roles')->latest()->paginate(20);
+        $orders->getCollection()->transform(fn (Order $order) => $this->adminOrderPayload($order));
 
         return response()->json(['data' => $orders]);
+    }
+
+    public function showOrder(Order $order)
+    {
+        return response()->json(['data' => $this->adminOrderPayload($order->load('items', 'entitlements.product', 'paymentTransactions', 'user.roles'), true)]);
+    }
+
+    public function cancelOrder(Request $request, Order $order)
+    {
+        abort_if($order->payment_status === 'paid', 422, 'Paid orders cannot be cancelled from admin.');
+        abort_if($order->payment_status === 'refunded', 422, 'Refunded orders cannot be cancelled.');
+
+        $order->forceFill([
+            'order_status' => 'cancelled',
+            'payment_status' => $order->payment_status === 'pending' ? 'cancelled' : $order->payment_status,
+        ])->save();
+
+        $this->audit->log('order.cancelled', $order, ['order_number' => $order->order_number], $request);
+
+        return $this->showOrder($order);
+    }
+
+    public function resendOrderEmail(Request $request, Order $order)
+    {
+        abort_unless($order->payment_status === 'paid', 422, 'Purchase emails can only be resent for paid orders.');
+
+        SendPurchaseConfirmationEmail::dispatch($order->id);
+        $this->audit->log('order.email_resent', $order, ['order_number' => $order->order_number], $request);
+
+        return response()->json(['data' => ['message' => 'Purchase email queued.']]);
+    }
+
+    public function updateOrderNotes(Request $request, Order $order)
+    {
+        $data = $request->validate(['admin_notes' => ['nullable', 'string', 'max:5000']]);
+        $metadata = $order->metadata ?: [];
+        $metadata['admin_notes'] = $data['admin_notes'] ?? null;
+        $order->forceFill(['metadata' => $metadata])->save();
+
+        $this->audit->log('order.notes_updated', $order, ['order_number' => $order->order_number], $request);
+
+        return $this->showOrder($order);
     }
 
     public function customers()
@@ -276,38 +315,231 @@ class AdminController extends Controller
         $orders = Order::with('items')->get()->groupBy(fn ($order) => strtolower($order->customer_email));
 
         $rows = collect($users->keys())->merge($orders->keys())->unique()->map(function ($email) use ($users, $orders) {
-            $user = $users->get($email);
-            $customerOrders = $orders->get($email, collect());
-            $paidOrders = $customerOrders->where('payment_status', 'paid');
-            $refundedOrders = $customerOrders->where('payment_status', 'refunded');
-            $firstOrder = $customerOrders->sortBy('created_at')->first();
-            $lastOrder = $customerOrders->sortByDesc('created_at')->first();
-            $productNames = $customerOrders->flatMap(fn ($order) => $order->items->pluck('product_name'))->unique()->values();
-            $paidRevenue = (int) $paidOrders->sum('total_minor');
-            $refundedAmount = (int) $refundedOrders->sum('total_minor');
-
-            return [
-                'id' => $user?->id ?: crc32($email),
-                'name' => $user?->name ?: ($lastOrder?->customer_name ?: 'Guest Customer'),
-                'email' => $email,
-                'account_status' => $user ? $user->status : 'guest',
-                'verified' => (bool) $user?->email_verified_at,
-                'orders_count' => $customerOrders->count(),
-                'products_count' => $productNames->count(),
-                'products' => $productNames->all(),
-                'paid_revenue_minor' => $paidRevenue,
-                'refunded_amount_minor' => $refundedAmount,
-                'net_revenue_minor' => $paidRevenue - $refundedAmount,
-                'ltv_minor' => $paidRevenue - $refundedAmount,
-                'first_purchase_at' => $firstOrder?->created_at,
-                'last_purchase_at' => $lastOrder?->created_at,
-                'created_at' => $user?->created_at ?: $firstOrder?->created_at,
-                'updated_at' => $user?->updated_at ?: $lastOrder?->updated_at,
-                'roles' => $user?->roles ?? [],
-            ];
+            return $this->adminCustomerSummary($email, $users->get($email), $orders->get($email, collect()));
         })->sortByDesc('last_purchase_at')->values();
 
         return response()->json(['data' => ['data' => $rows, 'total' => $rows->count()]]);
+    }
+
+    public function showCustomer(string $customerKey)
+    {
+        [$user, $email] = $this->customerFromKey($customerKey);
+        $orders = Order::with('items', 'entitlements.product', 'paymentTransactions', 'user.roles')
+            ->whereRaw('lower(customer_email) = ?', [$email])
+            ->latest()
+            ->get();
+        $entitlements = \App\Models\Entitlement::with('product')
+            ->whereRaw('lower(customer_email) = ?', [$email])
+            ->latest()
+            ->get();
+
+        return response()->json(['data' => [
+            'summary' => $this->adminCustomerSummary($email, $user, $orders),
+            'orders' => $orders->map(fn (Order $order) => $this->adminOrderPayload($order))->values(),
+            'entitlements' => $entitlements->map(fn ($entitlement) => [
+                'id' => $entitlement->id,
+                'product_id' => $entitlement->product_id,
+                'product_name' => $entitlement->product?->name,
+                'status' => $entitlement->status,
+                'granted_at' => $entitlement->granted_at,
+                'expires_at' => $entitlement->expires_at,
+            ])->values(),
+        ]]);
+    }
+
+    public function suspendCustomer(Request $request, User $user)
+    {
+        $user->forceFill(['status' => 'suspended'])->save();
+        $this->audit->log('customer.suspended', $user, ['email' => $user->email], $request);
+
+        return response()->json(['data' => $this->adminCustomerDetailForUser($user)]);
+    }
+
+    public function reactivateCustomer(Request $request, User $user)
+    {
+        $user->forceFill(['status' => 'active'])->save();
+        $this->audit->log('customer.reactivated', $user, ['email' => $user->email], $request);
+
+        return response()->json(['data' => $this->adminCustomerDetailForUser($user)]);
+    }
+
+    private function adminOrderPayload(Order $order, bool $detail = false): array
+    {
+        $order->loadMissing('items', 'entitlements.product', 'paymentTransactions', 'user.roles');
+        $transaction = $order->paymentTransactions->sortByDesc('created_at')->first();
+        $user = $order->user ?: User::with('roles')->whereRaw('lower(email) = ?', [strtolower($order->customer_email)])->first();
+        $checkoutType = $order->checkout_type;
+
+        return [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
+            'customer_email' => $order->customer_email,
+            'customer_phone' => $order->customer_phone,
+            'customer_key' => $this->customerKey($user, strtolower($order->customer_email)),
+            'user_id' => $user?->id,
+            'checkout_type' => $checkoutType,
+            'checkout_type_label' => match ($checkoutType) {
+                'guest' => 'Guest Checkout',
+                'account' => 'Account Checkout',
+                default => 'Unknown',
+            },
+            'current_account_status' => $this->currentAccountStatus($user, $order),
+            'current_account_status_label' => $this->currentAccountStatusLabel($user, $order),
+            'subtotal_minor' => $order->subtotal_minor,
+            'discount_minor' => $order->discount_minor,
+            'total_minor' => $order->total_minor,
+            'currency' => $order->currency,
+            'coupon_id' => $order->coupon_id,
+            'order_status' => $order->order_status,
+            'payment_status' => $order->payment_status,
+            'payment_gateway' => $transaction?->gateway,
+            'created_at' => $order->created_at,
+            'updated_at' => $order->updated_at,
+            'admin_notes' => $order->metadata['admin_notes'] ?? null,
+            'items' => $order->items->map(fn ($item) => [
+                'id' => $item->id,
+                'product_name' => $item->product_name,
+                'product_slug' => $item->product_slug,
+                'quantity' => $item->quantity,
+                'unit_price_minor' => $item->unit_price_minor,
+                'discount_minor' => $item->discount_minor,
+                'total_minor' => $item->total_minor,
+                'currency' => $item->currency,
+                'product_id' => $item->product_id,
+                'bundle_id' => $item->bundle_id,
+                'purchasable_type' => $item->purchasable_type,
+            ])->values(),
+            'payment_transactions' => $order->paymentTransactions->map(fn ($payment) => [
+                'id' => $payment->id,
+                'gateway' => $payment->gateway,
+                'provider_transaction_id' => $payment->provider_transaction_id,
+                'provider_reference' => $payment->provider_reference,
+                'validation_id' => $payment->validation_id,
+                'amount_minor' => $payment->amount_minor,
+                'currency' => $payment->currency,
+                'status' => $payment->status,
+                'normalized_state' => $payment->normalized_state,
+                'paid_at' => $payment->paid_at,
+                'failed_at' => $payment->failed_at,
+                'verified_at' => $payment->verified_at,
+            ])->values(),
+            'entitlements' => $order->entitlements->map(fn ($entitlement) => [
+                'id' => $entitlement->id,
+                'product_id' => $entitlement->product_id,
+                'product_name' => $entitlement->product?->name,
+                'status' => $entitlement->status,
+                'granted_at' => $entitlement->granted_at,
+                'expires_at' => $entitlement->expires_at,
+            ])->values(),
+            'actions' => [
+                'can_cancel' => ! in_array($order->payment_status, ['paid', 'refunded', 'cancelled'], true),
+                'can_refund' => $order->payment_status === 'paid',
+                'can_resend_email' => $order->payment_status === 'paid',
+                'can_mark_paid' => false,
+            ],
+        ];
+    }
+
+    private function adminCustomerSummary(string $email, ?User $user, $customerOrders): array
+    {
+        $customerOrders = collect($customerOrders);
+        $paidOrders = $customerOrders->where('payment_status', 'paid');
+        $pendingOrders = $customerOrders->whereIn('payment_status', ['pending', 'cancelled', 'failed']);
+        $refundedOrders = $customerOrders->where('payment_status', 'refunded');
+        $firstOrder = $customerOrders->sortBy('created_at')->first();
+        $lastOrder = $customerOrders->sortByDesc('created_at')->first();
+        $productNames = $customerOrders->flatMap(fn ($order) => $order->items->pluck('product_name'))->unique()->values();
+        $paidRevenue = (int) $paidOrders->sum('total_minor');
+        $refundedAmount = (int) $refundedOrders->sum('total_minor');
+
+        return [
+            'id' => $user?->id ?: crc32($email),
+            'customer_key' => $this->customerKey($user, $email),
+            'name' => $user?->name ?: ($lastOrder?->customer_name ?: 'Guest Customer'),
+            'email' => $email,
+            'phone' => $user?->phone ?: $lastOrder?->customer_phone,
+            'account_status' => $user ? ($user->status ?: 'active') : 'guest',
+            'account_status_label' => $user ? (($user->status === 'suspended') ? 'Suspended' : 'Registered') : 'No Account',
+            'has_account' => (bool) $user,
+            'verified' => (bool) $user?->email_verified_at,
+            'orders_count' => $customerOrders->count(),
+            'paid_orders_count' => $paidOrders->count(),
+            'unpaid_orders_count' => $pendingOrders->count(),
+            'products_count' => $productNames->count(),
+            'products' => $productNames->all(),
+            'paid_revenue_minor' => $paidRevenue,
+            'refunded_amount_minor' => $refundedAmount,
+            'net_revenue_minor' => $paidRevenue - $refundedAmount,
+            'ltv_minor' => $paidRevenue - $refundedAmount,
+            'first_purchase_at' => $firstOrder?->created_at,
+            'last_purchase_at' => $lastOrder?->created_at,
+            'created_at' => $user?->created_at ?: $firstOrder?->created_at,
+            'updated_at' => $user?->updated_at ?: $lastOrder?->updated_at,
+            'last_order_number' => $lastOrder?->order_number,
+            'auth_provider' => $user?->socialAccounts()->latest()->value('provider') ?: 'password',
+            'roles' => $user?->roles ?? [],
+        ];
+    }
+
+    private function adminCustomerDetailForUser(User $user): array
+    {
+        $email = strtolower($user->email);
+        $orders = Order::with('items')->whereRaw('lower(customer_email) = ?', [$email])->get();
+
+        return $this->adminCustomerSummary($email, $user->load('roles'), $orders);
+    }
+
+    private function currentAccountStatus(?User $user, Order $order): string
+    {
+        if (! $user) {
+            return 'no_account';
+        }
+
+        if (($user->status ?: 'active') === 'suspended') {
+            return 'suspended';
+        }
+
+        if ($order->checkout_type === 'guest') {
+            return 'claimed';
+        }
+
+        return 'registered';
+    }
+
+    private function currentAccountStatusLabel(?User $user, Order $order): string
+    {
+        return match ($this->currentAccountStatus($user, $order)) {
+            'no_account' => 'No Account',
+            'suspended' => 'Suspended',
+            'claimed' => 'Claimed',
+            default => 'Registered',
+        };
+    }
+
+    private function customerKey(?User $user, string $email): string
+    {
+        if ($user) {
+            return 'user-'.$user->id;
+        }
+
+        return 'email-'.rtrim(strtr(base64_encode(strtolower($email)), '+/', '-_'), '=');
+    }
+
+    private function customerFromKey(string $customerKey): array
+    {
+        if (Str::startsWith($customerKey, 'user-')) {
+            $user = User::with('roles')->findOrFail((int) Str::after($customerKey, 'user-'));
+
+            return [$user, strtolower($user->email)];
+        }
+
+        abort_unless(Str::startsWith($customerKey, 'email-'), 404);
+        $encoded = (string) Str::after($customerKey, 'email-');
+        $email = base64_decode(strtr($encoded, '-_', '+/').str_repeat('=', (4 - strlen($encoded) % 4) % 4), true);
+        abort_unless(is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL), 404);
+
+        return [User::with('roles')->whereRaw('lower(email) = ?', [strtolower($email)])->first(), strtolower($email)];
     }
 
     public function offerItems(Request $request)

@@ -66,6 +66,7 @@ class CheckoutController extends Controller
                 'uuid' => (string) Str::uuid(),
                 'order_number' => $this->nextOrderNumber(),
                 'user_id' => $request->user()?->id,
+                'checkout_type' => $request->user() ? 'account' : 'guest',
                 'customer_name' => $data['customer_name'],
                 'customer_email' => strtolower($data['customer_email']),
                 'customer_phone' => $data['customer_phone'] ?? null,

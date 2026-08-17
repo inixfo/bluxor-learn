@@ -214,33 +214,98 @@ export type AdminOrder = {
   customer_name?: string | null;
   customer_email: string;
   customer_phone?: string | null;
+  customer_key?: string;
+  user_id?: number | null;
+  checkout_type?: 'guest' | 'account' | null;
+  checkout_type_label?: string;
+  current_account_status?: string;
+  current_account_status_label?: string;
+  subtotal_minor?: number;
+  discount_minor?: number;
   total_minor: number;
   currency: string;
+  coupon_id?: number | null;
   order_status: string;
   payment_status: string;
   payment_gateway?: string | null;
-  payment_transactions?: { gateway?: string | null }[];
+  payment_transactions?: {
+    id: number;
+    gateway?: string | null;
+    provider_transaction_id?: string | null;
+    provider_reference?: string | null;
+    validation_id?: string | null;
+    amount_minor?: number;
+    currency?: string;
+    status?: string;
+    normalized_state?: string | null;
+    paid_at?: string | null;
+    failed_at?: string | null;
+    verified_at?: string | null;
+  }[];
+  entitlements?: {
+    id: number;
+    product_id: number;
+    product_name?: string | null;
+    status: string;
+    granted_at?: string | null;
+    expires_at?: string | null;
+  }[];
+  admin_notes?: string | null;
+  actions?: {
+    can_cancel: boolean;
+    can_refund: boolean;
+    can_resend_email: boolean;
+    can_mark_paid: boolean;
+  };
   created_at: string;
-  items: { product_name: string; total_minor: number }[];
+  updated_at?: string;
+  items: {
+    id?: number;
+    product_name: string;
+    product_slug?: string;
+    quantity?: number;
+    unit_price_minor?: number;
+    discount_minor?: number;
+    total_minor: number;
+    currency?: string;
+    product_id?: number | null;
+    bundle_id?: number | null;
+    purchasable_type?: string;
+  }[];
 };
 
 export type AdminCustomer = {
   id: number;
+  customer_key: string;
   name: string;
   email: string;
+  phone?: string | null;
   account_status?: string;
+  account_status_label?: string;
+  has_account?: boolean;
   verified?: boolean;
   created_at: string;
   updated_at: string;
   orders_count?: number;
+  paid_orders_count?: number;
+  unpaid_orders_count?: number;
   products_count?: number;
+  products?: string[];
   paid_revenue_minor?: number;
   refunded_amount_minor?: number;
   net_revenue_minor?: number;
   ltv_minor?: number;
   first_purchase_at?: string | null;
   last_purchase_at?: string | null;
+  last_order_number?: string | null;
+  auth_provider?: string | null;
   roles?: { name: string }[];
+};
+
+export type AdminCustomerDetail = {
+  summary: AdminCustomer;
+  orders: AdminOrder[];
+  entitlements: NonNullable<AdminOrder['entitlements']>;
 };
 
 export type AdminCoupon = {
@@ -558,8 +623,33 @@ export async function getAdminOrders(): Promise<AdminOrder[]> {
   const orders = pageItems(await apiRequest<{ data: Paginated<AdminOrder> }>('/admin/orders'));
   return orders.map((order) => ({
     ...order,
-    payment_gateway: order.payment_transactions?.[0]?.gateway || null,
+    payment_gateway: order.payment_gateway || order.payment_transactions?.[0]?.gateway || null,
   }));
+}
+
+export async function getAdminOrder(id: number): Promise<AdminOrder> {
+  return (await apiRequest<{ data: AdminOrder }>(`/admin/orders/${id}`)).data;
+}
+
+export async function cancelAdminOrder(id: number): Promise<AdminOrder> {
+  return (await apiRequest<{ data: AdminOrder }>(`/admin/orders/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function resendAdminOrderEmail(id: number): Promise<string> {
+  return (await apiRequest<{ data: { message: string } }>(`/admin/orders/${id}/resend-email`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data.message;
+}
+
+export async function updateAdminOrderNotes(id: number, adminNotes: string): Promise<AdminOrder> {
+  return (await apiRequest<{ data: AdminOrder }>(`/admin/orders/${id}/notes`, {
+    method: 'PATCH',
+    body: JSON.stringify({ admin_notes: adminNotes }),
+  })).data;
 }
 
 export async function refundAdminOrder(orderId: number): Promise<unknown> {
@@ -571,6 +661,24 @@ export async function refundAdminOrder(orderId: number): Promise<unknown> {
 
 export async function getAdminCustomers(): Promise<AdminCustomer[]> {
   return pageItems(await apiRequest<{ data: Paginated<AdminCustomer> }>('/admin/customers'));
+}
+
+export async function getAdminCustomer(customerKey: string): Promise<AdminCustomerDetail> {
+  return (await apiRequest<{ data: AdminCustomerDetail }>(`/admin/customers/${customerKey}`)).data;
+}
+
+export async function suspendAdminCustomer(userId: number): Promise<AdminCustomer> {
+  return (await apiRequest<{ data: AdminCustomer }>(`/admin/customers/${userId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function reactivateAdminCustomer(userId: number): Promise<AdminCustomer> {
+  return (await apiRequest<{ data: AdminCustomer }>(`/admin/customers/${userId}/reactivate`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
 }
 
 export async function getAdminCategories(): Promise<AdminCategory[]> {

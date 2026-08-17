@@ -1,32 +1,110 @@
-import { useEffect, useState } from 'react';
-import { Search, User, UserCheck } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Ban, CheckCircle2, Eye, MessageCircle, Phone, Search, User } from 'lucide-react';
+import { Badge, type Tone } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { getAdminCustomers, type AdminCustomer } from '@/services/api/admin';
+import { Input, Select } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { formatBDT } from '@/data/store';
+import {
+  displayMinor,
+  getAdminCustomer,
+  getAdminCustomers,
+  reactivateAdminCustomer,
+  suspendAdminCustomer,
+  type AdminCustomer,
+  type AdminCustomerDetail,
+} from '@/services/api/admin';
+import { useToast } from '@/components/ui/Toast';
 
 export default function AdminCustomers() {
+  const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('');
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
+  const [selected, setSelected] = useState<AdminCustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState(false);
+  const toast = useToast();
+
+  const load = () => getAdminCustomers().then(setCustomers).finally(() => setLoading(false));
 
   useEffect(() => {
-    getAdminCustomers().then(setCustomers).finally(() => setLoading(false));
+    load();
   }, []);
 
-  const filtered = customers.filter((customer) =>
-    !query || customer.name.toLowerCase().includes(query.toLowerCase()) || customer.email.toLowerCase().includes(query.toLowerCase())
-  );
+  useEffect(() => {
+    const key = params.get('customer');
+    if (key && customers.length > 0) void openCustomer(key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers, params]);
+
+  const filtered = useMemo(() => customers.filter((customer) => {
+    const haystack = `${customer.name} ${customer.email} ${customer.phone || ''} ${customer.last_order_number || ''}`.toLowerCase();
+    if (query && !haystack.includes(query.toLowerCase())) return false;
+    if (filter === 'registered' && !customer.has_account) return false;
+    if (filter === 'guest' && customer.has_account) return false;
+    if (filter === 'paid' && !(customer.paid_orders_count || 0)) return false;
+    if (filter === 'unpaid' && !(customer.unpaid_orders_count || 0)) return false;
+    if (filter === 'suspended' && customer.account_status !== 'suspended') return false;
+    if (filter === 'active' && customer.account_status === 'suspended') return false;
+    return true;
+  }), [customers, filter, query]);
+
+  const openCustomer = async (key: string) => {
+    try {
+      const detail = await getAdminCustomer(key);
+      setSelected(detail);
+      setParams({ customer: key });
+    } catch {
+      toast({ type: 'error', title: 'Could not load customer detail' });
+    }
+  };
+
+  const close = () => {
+    setSelected(null);
+    setParams({});
+  };
+
+  const updateStatus = async (status: 'suspended' | 'active') => {
+    const userId = selected?.summary.has_account ? selected.summary.id : null;
+    const customerKey = selected?.summary.customer_key;
+    if (!userId) return;
+    setActing(true);
+    try {
+      await (status === 'suspended' ? suspendAdminCustomer(userId) : reactivateAdminCustomer(userId));
+      const detail = await getAdminCustomer(customerKey || '');
+      setSelected(detail);
+      await load();
+      toast({ type: 'success', title: status === 'suspended' ? 'Customer suspended' : 'Customer reactivated' });
+    } catch {
+      toast({ type: 'error', title: 'Could not update customer' });
+    } finally {
+      setActing(false);
+    }
+  };
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-ink-900">Customers</h1>
-        <p className="mt-1 text-sm text-ink-500">{loading ? 'Loading customers...' : 'Registered customers.'}</p>
+        <p className="mt-1 text-sm text-ink-500">{loading ? 'Loading customers...' : 'Registered and guest customer reporting.'}</p>
       </div>
 
-      <div className="mb-4 max-w-xs">
-        <Input placeholder="Search customers..." value={query} onChange={(e) => setQuery(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <div className="flex-1">
+          <Input placeholder="Search by name, email, phone, or order..." value={query} onChange={(e) => setQuery(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
+        </div>
+        <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="sm:w-56">
+          <option value="">All Customers</option>
+          <option value="registered">Registered accounts</option>
+          <option value="guest">Guest-only customers</option>
+          <option value="paid">Has paid orders</option>
+          <option value="unpaid">Has unpaid orders</option>
+          <option value="suspended">Suspended</option>
+          <option value="active">Active</option>
+        </Select>
       </div>
 
       <Card className="overflow-hidden">
@@ -35,49 +113,163 @@ export default function AdminCustomers() {
             <thead className="border-b border-ink-100 bg-ink-50/50 text-left text-xs text-ink-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Customer</th>
-                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 font-medium">Account</th>
+                <th className="px-4 py-3 font-medium">Verified</th>
                 <th className="px-4 py-3 font-medium">Orders</th>
-                <th className="px-4 py-3 font-medium">Joined</th>
-                <th className="px-4 py-3 font-medium">Last Activity</th>
+                <th className="px-4 py-3 font-medium">Paid</th>
+                <th className="px-4 py-3 font-medium">Total Spent</th>
+                <th className="px-4 py-3 font-medium">Last Order</th>
+                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((customer) => {
-                const isAdmin = customer.roles?.some((role) => role.name === 'admin');
-                return (
-                  <tr key={customer.id} className="border-b border-ink-50 last:border-0 hover:bg-ink-50/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-violet-500 text-xs font-bold text-white">
-                          {customer.name[0]}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-ink-900">{customer.name}</p>
-                          <p className="text-xs text-ink-400">{customer.email}</p>
-                        </div>
+              {filtered.map((customer) => (
+                <tr key={customer.customer_key} className="cursor-pointer border-b border-ink-50 last:border-0 hover:bg-ink-50/30" onClick={() => { void openCustomer(customer.customer_key); }}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-violet-500 text-xs font-bold text-white">
+                        {customer.name[0]}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={isAdmin ? 'violet' : 'brand'}>
-                        {isAdmin ? <UserCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                        {isAdmin ? 'admin' : 'customer'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-ink-600">{customer.orders_count || 0}</td>
-                    <td className="px-4 py-3 text-ink-400">{new Date(customer.created_at).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-ink-400">{new Date(customer.updated_at).toLocaleDateString()}</td>
-                  </tr>
-                );
-              })}
+                      <div>
+                        <p className="font-semibold text-ink-900">{customer.name}</p>
+                        <p className="text-xs text-ink-400">{customer.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-ink-600">{phoneDisplay(customer.phone)}</td>
+                  <td className="px-4 py-3"><Badge tone={accountTone(customer)}>{customer.account_status_label || 'No Account'}</Badge></td>
+                  <td className="px-4 py-3"><Badge tone={customer.verified ? 'success' : 'neutral'}>{customer.verified ? 'Verified' : 'Unverified'}</Badge></td>
+                  <td className="px-4 py-3 text-ink-600">{customer.orders_count || 0}</td>
+                  <td className="px-4 py-3 text-ink-600">{customer.paid_orders_count || 0}</td>
+                  <td className="px-4 py-3 font-semibold text-ink-900">{formatBDT(displayMinor(customer.net_revenue_minor || 0))}</td>
+                  <td className="px-4 py-3 text-ink-500">{customer.last_order_number || '—'}</td>
+                  <td className="px-4 py-3 text-ink-400">{customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '—'}</td>
+                  <td className="px-4 py-3"><Button size="icon" variant="ghost"><Eye className="h-4 w-4" /></Button></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </Card>
 
+      <Modal
+        open={!!selected}
+        onClose={close}
+        title={selected ? selected.summary.name : ''}
+        size="lg"
+        footer={selected?.summary.has_account ? (
+          selected.summary.account_status === 'suspended'
+            ? <Button leftIcon={<CheckCircle2 className="h-4 w-4" />} loading={acting} onClick={() => updateStatus('active')}>Reactivate</Button>
+            : <Button variant="destructive" leftIcon={<Ban className="h-4 w-4" />} loading={acting} onClick={() => updateStatus('suspended')}>Suspend</Button>
+        ) : undefined}
+      >
+        {selected && (
+          <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Info label="Email" value={selected.summary.email} />
+              <div>
+                <p className="text-xs text-ink-400">Phone</p>
+                <p className="text-sm font-semibold text-ink-900">{phoneDisplay(selected.summary.phone)}</p>
+                {selected.summary.phone && (
+                  <div className="mt-2 flex gap-2">
+                    <a href={phoneHref(selected.summary.phone)} className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+                      <Phone className="h-3.5 w-3.5" />
+                      Call
+                    </a>
+                    <a href={whatsappHref(selected.summary.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </a>
+                  </div>
+                )}
+              </div>
+              <Info label="Account" value={selected.summary.account_status_label || 'No Account'} />
+              <Info label="Email verified" value={selected.summary.verified ? 'Yes' : 'No'} />
+              <Info label="Auth provider" value={selected.summary.has_account ? (selected.summary.auth_provider || 'password') : '—'} />
+              <Info label="Account created" value={selected.summary.has_account && selected.summary.created_at ? new Date(selected.summary.created_at).toLocaleString() : '—'} />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Stat label="Orders" value={selected.summary.orders_count || 0} />
+              <Stat label="Paid" value={selected.summary.paid_orders_count || 0} />
+              <Stat label="Unpaid" value={selected.summary.unpaid_orders_count || 0} />
+              <Stat label="Spent" value={formatBDT(displayMinor(selected.summary.net_revenue_minor || 0))} />
+            </div>
+
+            <div className="rounded-xl border border-ink-100 p-4">
+              <p className="mb-3 text-xs font-semibold text-ink-400">Orders</p>
+              <div className="space-y-2">
+                {selected.orders.map((order) => (
+                  <Link key={order.id} to="/admin/orders" className="flex items-center justify-between rounded-lg border border-ink-100 px-3 py-2 text-sm hover:bg-ink-50">
+                    <span>
+                      <span className="font-semibold text-ink-900">{order.order_number}</span>
+                      <span className="ml-2 text-ink-400">{order.checkout_type_label || 'Unknown'}</span>
+                    </span>
+                    <span className="font-semibold text-ink-900">{formatBDT(displayMinor(order.total_minor))}</span>
+                  </Link>
+                ))}
+                {selected.orders.length === 0 && <p className="text-sm text-ink-400">No orders found.</p>}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-ink-100 p-4">
+              <p className="mb-3 text-xs font-semibold text-ink-400">Entitlements</p>
+              {selected.entitlements.length ? (
+                <div className="space-y-2">
+                  {selected.entitlements.map((entitlement) => (
+                    <div key={entitlement.id} className="flex justify-between text-sm">
+                      <span className="font-semibold text-ink-900">{entitlement.product_name || `Product #${entitlement.product_id}`}</span>
+                      <Badge tone={entitlement.status === 'active' ? 'success' : 'warning'}>{entitlement.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-sm text-ink-400">—</p>}
+            </div>
+          </div>
+        )}
+      </Modal>
+
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/50 p-4 text-sm text-ink-600">
         <User className="h-4 w-4 text-brand-600" />
-        <span><strong className="text-ink-800">Guest purchases</strong> are claimed automatically when a buyer verifies an account with the same email.</span>
+        <span><strong className="text-ink-800">Guest customers</strong> remain guests. Claimed purchases show Registered/Claimed without changing the historical checkout type.</span>
       </div>
+    </div>
+  );
+}
+
+function accountTone(customer: AdminCustomer): Tone {
+  if (customer.account_status === 'suspended') return 'danger';
+  return customer.has_account ? 'success' : 'neutral';
+}
+
+function phoneDisplay(phone?: string | null): string {
+  return phone?.trim() || '—';
+}
+
+function phoneHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
+}
+
+function whatsappHref(phone: string): string {
+  return `https://wa.me/${phone.replace(/\D/g, '')}`;
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-ink-400">{label}</p>
+      <p className="text-sm font-semibold text-ink-900">{value}</p>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl bg-ink-50 p-4">
+      <p className="text-xs text-ink-400">{label}</p>
+      <p className="mt-1 text-lg font-bold text-ink-900">{value}</p>
     </div>
   );
 }
