@@ -17,10 +17,14 @@ use App\Services\GuestPurchaseClaimService;
 
 class AuthController extends Controller
 {
-    public function me(Request $request)
+    public function me(Request $request, GuestPurchaseClaimService $claims)
     {
+        if ($request->user()?->hasVerifiedEmail()) {
+            $claims->claimForVerifiedUser($request->user());
+        }
+
         return response()->json([
-            'data' => $request->user()?->load('roles'),
+            'data' => $request->user()?->fresh()?->load('roles'),
         ]);
     }
 
@@ -45,7 +49,7 @@ class AuthController extends Controller
         return response()->json(['data' => $user->load('roles')], 201);
     }
 
-    public function login(Request $request)
+    public function login(Request $request, GuestPurchaseClaimService $claims)
     {
         if ($request->user()) {
             return response()->json(['message' => 'Already authenticated.'], 409);
@@ -64,7 +68,11 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $request->user()->forceFill(['last_login_at' => now()])->save();
 
-        return response()->json(['data' => $request->user()->load('roles')]);
+        if ($request->user()->hasVerifiedEmail()) {
+            $claims->claimForVerifiedUser($request->user());
+        }
+
+        return response()->json(['data' => $request->user()->fresh()->load('roles')]);
     }
 
     public function logout(Request $request)

@@ -71,4 +71,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(SocialAccount::class);
     }
+
+    public function resourceAccessGrants(): HasMany
+    {
+        return $this->hasMany(ResourceAccessGrant::class);
+    }
 }

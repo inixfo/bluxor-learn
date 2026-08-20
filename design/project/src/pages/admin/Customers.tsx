@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Ban, CheckCircle2, Eye, MessageCircle, Phone, Search, User } from 'lucide-react';
+import { Ban, CheckCircle2, Eye, MessageCircle, Phone, Plus, Search, User, XCircle } from 'lucide-react';
 import { Badge, type Tone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -11,10 +11,18 @@ import {
   displayMinor,
   getAdminCustomer,
   getAdminCustomers,
+  getAdminProducts,
+  getAdminResources,
+  grantAdminProductAccess,
+  grantAdminResourceAccess,
   reactivateAdminCustomer,
+  revokeAdminProductAccess,
+  revokeAdminResourceAccess,
   suspendAdminCustomer,
   type AdminCustomer,
   type AdminCustomerDetail,
+  type AdminProduct,
+  type AdminResource,
 } from '@/services/api/admin';
 import { useToast } from '@/components/ui/Toast';
 
@@ -24,6 +32,10 @@ export default function AdminCustomers() {
   const [filter, setFilter] = useState('');
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [selected, setSelected] = useState<AdminCustomerDetail | null>(null);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [resources, setResources] = useState<AdminResource[]>([]);
+  const [grant, setGrant] = useState({ type: 'product', product_id: '', resource_id: '', expires_at: '', reason: '' });
+  const [revokeReason, setRevokeReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const toast = useToast();
@@ -32,6 +44,8 @@ export default function AdminCustomers() {
 
   useEffect(() => {
     load();
+    getAdminProducts({ status: 'published' }).then(setProducts).catch(() => undefined);
+    getAdminResources({ status: 'published' }).then(setResources).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -80,6 +94,59 @@ export default function AdminCustomers() {
       toast({ type: 'success', title: status === 'suspended' ? 'Customer suspended' : 'Customer reactivated' });
     } catch {
       toast({ type: 'error', title: 'Could not update customer' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const refreshSelected = async () => {
+    if (!selected) return;
+    setSelected(await getAdminCustomer(selected.summary.customer_key));
+    await load();
+  };
+
+  const grantAccess = async () => {
+    if (!selected?.summary.has_account) return;
+    setActing(true);
+    try {
+      if (grant.type === 'product') {
+        await grantAdminProductAccess(selected.summary.id, { product_id: Number(grant.product_id), expires_at: grant.expires_at || undefined, reason: grant.reason });
+      } else {
+        await grantAdminResourceAccess(selected.summary.id, { resource_id: Number(grant.resource_id), expires_at: grant.expires_at || undefined, reason: grant.reason });
+      }
+      setGrant({ type: 'product', product_id: '', resource_id: '', expires_at: '', reason: '' });
+      await refreshSelected();
+      toast({ type: 'success', title: 'Access granted' });
+    } catch {
+      toast({ type: 'error', title: 'Grant failed', message: 'Select an item and provide an internal reason.' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const revokeProductGrant = async (entitlementId: number) => {
+    setActing(true);
+    try {
+      await revokeAdminProductAccess(entitlementId, revokeReason || 'Manual grant revoked by admin');
+      setRevokeReason('');
+      await refreshSelected();
+      toast({ type: 'success', title: 'Product access revoked' });
+    } catch {
+      toast({ type: 'error', title: 'Revoke failed', message: 'Only manual product grants can be revoked here.' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const revokeResourceGrant = async (grantId: number) => {
+    setActing(true);
+    try {
+      await revokeAdminResourceAccess(grantId, revokeReason || 'Manual resource grant revoked by admin');
+      setRevokeReason('');
+      await refreshSelected();
+      toast({ type: 'success', title: 'Resource access revoked' });
+    } catch {
+      toast({ type: 'error', title: 'Revoke failed' });
     } finally {
       setActing(false);
     }
@@ -215,18 +282,67 @@ export default function AdminCustomers() {
             </div>
 
             <div className="rounded-xl border border-ink-100 p-4">
-              <p className="mb-3 text-xs font-semibold text-ink-400">Entitlements</p>
+              <p className="mb-3 text-xs font-semibold text-ink-400">Product Access</p>
               {selected.entitlements.length ? (
                 <div className="space-y-2">
                   {selected.entitlements.map((entitlement) => (
                     <div key={entitlement.id} className="flex justify-between text-sm">
-                      <span className="font-semibold text-ink-900">{entitlement.product_name || `Product #${entitlement.product_id}`}</span>
-                      <Badge tone={entitlement.status === 'active' ? 'success' : 'warning'}>{entitlement.status}</Badge>
+                      <span className="font-semibold text-ink-900">{entitlement.product_name || `Product #${entitlement.product_id}`} <span className="font-normal text-ink-400">({entitlement.access_label || 'Purchased Access'})</span></span>
+                      <span className="flex items-center gap-2">
+                        <Badge tone={entitlement.status === 'active' ? 'success' : 'warning'}>{entitlement.status}</Badge>
+                        {entitlement.can_revoke && <Button size="sm" variant="outline" loading={acting} leftIcon={<XCircle className="h-4 w-4" />} onClick={() => revokeProductGrant(entitlement.id)}>Revoke</Button>}
+                      </span>
                     </div>
                   ))}
                 </div>
               ) : <p className="text-sm text-ink-400">—</p>}
             </div>
+
+            <div className="rounded-xl border border-ink-100 p-4">
+              <p className="mb-3 text-xs font-semibold text-ink-400">Manual Resource Access</p>
+              {selected.resource_grants?.length ? (
+                <div className="space-y-2">
+                  {selected.resource_grants.map((resource) => (
+                    <div key={resource.id} className="flex justify-between gap-3 text-sm">
+                      <span className="font-semibold text-ink-900">{resource.resource_title || `Resource #${resource.resource_id}`}</span>
+                      <span className="flex items-center gap-2">
+                        <Badge tone={resource.status === 'active' ? 'success' : 'warning'}>{resource.status}</Badge>
+                        {resource.can_revoke && <Button size="sm" variant="outline" loading={acting} leftIcon={<XCircle className="h-4 w-4" />} onClick={() => revokeResourceGrant(resource.id)}>Revoke</Button>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-sm text-ink-400">-</p>}
+            </div>
+
+            {selected.summary.has_account && (
+              <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4">
+                <p className="mb-3 text-xs font-semibold text-brand-700">Grant Access</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Select value={grant.type} onChange={(event) => setGrant((prev) => ({ ...prev, type: event.target.value }))}>
+                    <option value="product">Product</option>
+                    <option value="resource">Resource</option>
+                  </Select>
+                  {grant.type === 'product' ? (
+                    <Select value={grant.product_id} onChange={(event) => setGrant((prev) => ({ ...prev, product_id: event.target.value }))}>
+                      <option value="">Select product</option>
+                      {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                    </Select>
+                  ) : (
+                    <Select value={grant.resource_id} onChange={(event) => setGrant((prev) => ({ ...prev, resource_id: event.target.value }))}>
+                      <option value="">Select resource</option>
+                      {resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.title}</option>)}
+                    </Select>
+                  )}
+                  <Input type="datetime-local" value={grant.expires_at} onChange={(event) => setGrant((prev) => ({ ...prev, expires_at: event.target.value }))} />
+                  <Input placeholder="Internal reason" value={grant.reason} onChange={(event) => setGrant((prev) => ({ ...prev, reason: event.target.value }))} />
+                </div>
+                <Input className="mt-3" placeholder="Revocation reason used by revoke buttons" value={revokeReason} onChange={(event) => setRevokeReason(event.target.value)} />
+                <Button className="mt-3" loading={acting} leftIcon={<Plus className="h-4 w-4" />} disabled={!grant.reason || (grant.type === 'product' ? !grant.product_id : !grant.resource_id)} onClick={grantAccess}>
+                  Grant Access
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>

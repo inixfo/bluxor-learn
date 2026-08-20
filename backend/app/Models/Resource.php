@@ -31,4 +31,9 @@ class Resource extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function accessGrants()
+    {
+        return $this->hasMany(ResourceAccessGrant::class);
+    }
 }

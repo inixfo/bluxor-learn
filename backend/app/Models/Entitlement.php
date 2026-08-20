@@ -9,7 +9,8 @@ class Entitlement extends Model
 {
     protected $fillable = [
         'uuid', 'user_id', 'order_id', 'order_item_id', 'product_id', 'customer_email',
-        'status', 'granted_at', 'expires_at', 'revoked_at', 'revocation_reason', 'revocation_reference',
+        'grant_source', 'granted_by_user_id', 'grant_note', 'status', 'granted_at',
+        'expires_at', 'revoked_at', 'revoked_by_user_id', 'revocation_reason', 'revocation_reference',
     ];
 
     protected $casts = ['granted_at' => 'datetime', 'expires_at' => 'datetime', 'revoked_at' => 'datetime'];
@@ -22,5 +23,15 @@ class Entitlement extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function grantedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'granted_by_user_id');
+    }
+
+    public function revokedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by_user_id');
     }
 }

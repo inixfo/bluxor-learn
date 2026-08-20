@@ -62,6 +62,27 @@ export type AccountProfile = {
   email_verified_at?: string | null;
 };
 
+export type AccountResourceGrant = {
+  grant_id: number;
+  resource_id: number;
+  title: string;
+  slug: string;
+  description?: string | null;
+  resource_type: string;
+  source_type: string;
+  version: string;
+  granted_at?: string | null;
+  expires_at?: string | null;
+  open_url: string;
+  download_url: string;
+};
+
+export type PurchaseClaimResult = {
+  orders_claimed: number;
+  entitlements_claimed: number;
+  products_claimed?: number;
+};
+
 export async function getOverview(): Promise<AccountOverview> {
   return (await apiRequest<{ data: AccountOverview }>('/account/overview')).data;
 }
@@ -84,6 +105,10 @@ export async function getOrderDetail(orderNumber: string): Promise<AccountOrder>
 
 export async function getDownloads(): Promise<LibraryResource[]> {
   return (await apiRequest<{ data: LibraryResource[] }>('/account/downloads')).data;
+}
+
+export async function getAccountResources(): Promise<AccountResourceGrant[]> {
+  return (await apiRequest<{ data: AccountResourceGrant[] }>('/account/resources')).data;
 }
 
 export async function requestDownload(fileId: number): Promise<LibraryResource> {
@@ -110,6 +135,20 @@ export async function updatePassword(payload: { current_password: string; passwo
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+}
+
+export async function claimPreviousPurchases(): Promise<PurchaseClaimResult> {
+  return (await apiRequest<{ data: PurchaseClaimResult }>('/account/claim-purchases', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })).data;
+}
+
+export async function claimPurchase(payload: { order_number: string; guest_access_token: string }): Promise<PurchaseClaimResult> {
+  return (await apiRequest<{ data: PurchaseClaimResult }>('/account/claim-purchase', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })).data;
 }
 
 export function displayMoney(minor: number): number {

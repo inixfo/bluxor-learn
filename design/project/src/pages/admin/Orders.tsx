@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, Eye, ExternalLink, Mail, MessageCircle, Phone, RotateCcw, Save, Search, User } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, Eye, ExternalLink, Mail, MessageCircle, Phone, RotateCcw, Save, Search, User } from 'lucide-react';
 import { Badge, type Tone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -9,6 +9,7 @@ import { formatBDT } from '@/data/store';
 import {
   cancelAdminOrder,
   displayMinor,
+  approveAdminOrderPayment,
   getAdminOrder,
   getAdminOrders,
   refundAdminOrder,
@@ -31,6 +32,8 @@ export default function AdminOrders() {
   const [refunding, setRefunding] = useState(false);
   const [acting, setActing] = useState(false);
   const [confirmRefund, setConfirmRefund] = useState(false);
+  const [approvingPayment, setApprovingPayment] = useState(false);
+  const [approval, setApproval] = useState({ payment_method: 'bkash', reference: '', reason: '', confirmation: false });
   const toast = useToast();
 
   const load = () => getAdminOrders().then(setOrders).finally(() => setLoading(false));
@@ -58,12 +61,35 @@ export default function AdminOrders() {
     setConfirmRefund(false);
     setSelected(order);
     setNotes(order.admin_notes || '');
+    setApproval({ payment_method: 'bkash', reference: '', reason: '', confirmation: false });
     try {
       const detail = await getAdminOrder(order.id);
       setSelected(detail);
       setNotes(detail.admin_notes || '');
     } catch {
       toast({ type: 'error', title: 'Could not load order detail' });
+    }
+  };
+
+  const approvePayment = async () => {
+    if (!selected) return;
+    setApprovingPayment(true);
+    try {
+      const next = await approveAdminOrderPayment(selected.id, {
+        confirmation: approval.confirmation,
+        amount_minor: selected.total_minor,
+        currency: selected.currency,
+        payment_method: approval.payment_method as 'piprapay_manual' | 'bkash' | 'nagad' | 'bank_transfer' | 'cash' | 'other',
+        reference: approval.reference,
+        reason: approval.reason,
+      });
+      setSelected(next);
+      await load();
+      toast({ type: 'success', title: 'Payment approved', message: 'Payment approved. Order completed and customer access granted.' });
+    } catch {
+      toast({ type: 'error', title: 'Approval failed', message: 'Confirm the amount, currency, reason, and checkbox before approving.' });
+    } finally {
+      setApprovingPayment(false);
     }
   };
 
@@ -225,6 +251,7 @@ export default function AdminOrders() {
           ) : (
             <>
               <Button variant="outline" leftIcon={<Mail className="h-4 w-4" />} loading={acting} disabled={!selected?.actions?.can_resend_email} onClick={resendEmail}>Resend Email</Button>
+              <Button variant="outline" leftIcon={<AlertTriangle className="h-4 w-4" />} loading={approvingPayment} disabled={!selected?.actions?.can_approve_payment || !approval.confirmation || approval.reason.trim().length < 10} onClick={approvePayment}>Approve Payment</Button>
               <Button variant="outline" leftIcon={<Ban className="h-4 w-4" />} loading={acting} disabled={!selected?.actions?.can_cancel} onClick={cancelOrder}>Cancel Unpaid</Button>
               <Button variant="destructive" leftIcon={<RotateCcw className="h-4 w-4" />} disabled={!selected?.actions?.can_refund} onClick={() => setConfirmRefund(true)}>Refund</Button>
             </>
@@ -323,6 +350,52 @@ export default function AdminOrders() {
                 </div>
               ) : <p className="text-sm text-ink-400">—</p>}
             </div>
+
+            {selected.actions?.can_approve_payment && (
+              <div className="rounded-xl border border-warning-200 bg-warning-50 p-4">
+                <div className="mb-3 flex items-center gap-2 text-warning-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  <p className="text-sm font-bold">Approve Payment</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Select value={approval.payment_method} onChange={(event) => setApproval((prev) => ({ ...prev, payment_method: event.target.value }))}>
+                    <option value="piprapay_manual">PipraPay manual</option>
+                    <option value="bkash">bKash</option>
+                    <option value="nagad">Nagad</option>
+                    <option value="bank_transfer">Bank transfer</option>
+                    <option value="cash">Cash</option>
+                    <option value="other">Other</option>
+                  </Select>
+                  <Input placeholder="Transaction/reference" value={approval.reference} onChange={(event) => setApproval((prev) => ({ ...prev, reference: event.target.value }))} />
+                </div>
+                <textarea
+                  value={approval.reason}
+                  onChange={(event) => setApproval((prev) => ({ ...prev, reason: event.target.value }))}
+                  className="mt-3 min-h-20 w-full rounded-xl border border-warning-200 bg-white px-3 py-2 text-sm outline-none focus:border-warning-400 focus:ring-2 focus:ring-warning-100"
+                  placeholder="Reason: payment confirmed manually in merchant account..."
+                />
+                <label className="mt-3 flex items-start gap-2 text-sm font-medium text-warning-800">
+                  <input type="checkbox" checked={approval.confirmation} onChange={(event) => setApproval((prev) => ({ ...prev, confirmation: event.target.checked }))} className="mt-0.5 h-4 w-4 rounded border-warning-300 text-warning-600 focus:ring-warning-500" />
+                  <span>I have independently confirmed that this payment was received.</span>
+                </label>
+                <Button className="mt-3" leftIcon={<CheckCircle2 className="h-4 w-4" />} loading={approvingPayment} disabled={!approval.confirmation || approval.reason.trim().length < 10} onClick={approvePayment}>
+                  Approve Payment & Complete Order
+                </Button>
+              </div>
+            )}
+
+            {selected.manual_payment_approval && (
+              <div className="rounded-xl border border-success-100 bg-success-50 p-4">
+                <p className="mb-3 text-xs font-semibold text-success-700">Manual Payment Confirmation</p>
+                <div className="grid gap-3 text-sm sm:grid-cols-3">
+                  <Info label="Approved by" value={selected.manual_payment_approval.approved_by?.name || '-'} />
+                  <Info label="Method" value={selected.manual_payment_approval.payment_method} />
+                  <Info label="Reference" value={selected.manual_payment_approval.reference || '-'} />
+                  <Info label="Approved at" value={formatAdminDateTime(selected.manual_payment_approval.approved_at)} />
+                  <Info label="Reason" value={selected.manual_payment_approval.reason} />
+                </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-ink-100 p-4">
               <p className="mb-3 text-xs font-semibold text-ink-400">Attribution</p>

@@ -4,9 +4,11 @@ import { ShieldCheck, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-r
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { ApiError } from '@/services/api/client';
 import { useAuth } from '@/services/auth-context';
 import { googleRedirectUrl } from '@/services/api/auth';
 import { safeInternalReturnTo } from '@/services/auth-routing';
+import { claimPendingPurchase, getPendingPurchaseClaim } from '@/services/pending-purchase-claim';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function Register() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [hasPendingClaim] = useState(() => !!getPendingPurchaseClaim());
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -23,6 +26,20 @@ export default function Register() {
     try {
       await register({ ...form, password_confirmation: form.password });
       toast({ type: 'success', title: 'Account created', message: 'Check your email to verify your account.' });
+      try {
+        const claim = await claimPendingPurchase();
+        if (claim) {
+          toast({ type: 'success', title: 'Purchase added', message: 'Purchase added to your account.' });
+          navigate('/account/library', { replace: true });
+          return;
+        }
+      } catch (error) {
+        toast({
+          type: 'error',
+          title: 'Purchase claim failed',
+          message: error instanceof ApiError && error.status === 422 ? 'Use the same email address you used when purchasing.' : 'Your account was created, but this purchase was not added yet.',
+        });
+      }
       navigate(safeInternalReturnTo(params.get('return_to')) || '/account', { replace: true });
     } catch {
       toast({ type: 'error', title: 'Registration failed', message: 'Check the form and try again.' });
@@ -47,7 +64,9 @@ export default function Register() {
             <ShieldCheck className="h-7 w-7" />
           </div>
           <h1 className="font-display text-2xl font-bold text-ink-900">Create your account</h1>
-          <p className="mt-1 text-sm text-ink-500">Access your purchases anytime, from anywhere.</p>
+          <p className="mt-1 text-sm text-ink-500">
+            {hasPendingClaim ? "Create your account with the same email used for checkout and we'll add this purchase to your library." : 'Access your purchases anytime, from anywhere.'}
+          </p>
         </div>
 
         <div className="card-surface p-6">
@@ -92,7 +111,7 @@ export default function Register() {
 
         <p className="mt-6 text-center text-sm text-ink-500">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700">
+          <Link to={`/login?${new URLSearchParams({ return_to: safeInternalReturnTo(params.get('return_to')) || '/account' }).toString()}`} className="font-semibold text-brand-600 hover:text-brand-700">
             Log in
           </Link>
         </p>

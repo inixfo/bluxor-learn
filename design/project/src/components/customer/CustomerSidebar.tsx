@@ -1,5 +1,5 @@
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutGrid, BookOpen, Package, Download, User, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, BookOpen, Package, Download, User, LogOut, ShieldCheck, FileText } from 'lucide-react';
 import { logout } from '@/services/api/auth';
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/account/library', label: 'My Library', icon: BookOpen },
   { to: '/account/orders', label: 'Orders', icon: Package },
   { to: '/account/downloads', label: 'Downloads', icon: Download },
+  { to: '/account/resources', label: 'My Resources', icon: FileText },
   { to: '/account/profile', label: 'Profile', icon: User },
 ];
 

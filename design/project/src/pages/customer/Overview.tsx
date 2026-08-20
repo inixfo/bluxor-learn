@@ -1,20 +1,57 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Package, Download, TrendingUp, type LucideIcon } from 'lucide-react';
+import { BookOpen, Package, Download, TrendingUp, RefreshCw, MailCheck, type LucideIcon } from 'lucide-react';
 import { CustomerMobileNav } from '@/components/customer/CustomerSidebar';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useToast } from '@/components/ui/Toast';
 import { formatBDT } from '@/data/store';
-import { displayMoney, getOverview, type AccountOverview } from '@/services/api/account';
+import { resendVerification } from '@/services/api/auth';
+import { claimPreviousPurchases, displayMoney, getOverview, type AccountOverview } from '@/services/api/account';
 
 export default function CustomerOverview() {
   const [overview, setOverview] = useState<AccountOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
+  const [resending, setResending] = useState(false);
+  const toast = useToast();
   const recentOrder = overview?.recent_orders[0];
   const latestDownload = overview?.recent_library_items[0];
 
+  const loadOverview = useCallback(() => getOverview().then(setOverview), []);
+
   useEffect(() => {
-    getOverview().then(setOverview).finally(() => setLoading(false));
-  }, []);
+    loadOverview().finally(() => setLoading(false));
+  }, [loadOverview]);
+
+  const handleClaimPrevious = async () => {
+    setClaiming(true);
+    try {
+      const result = await claimPreviousPurchases();
+      const count = result.orders_claimed;
+      toast({
+        type: 'success',
+        title: count > 0 ? 'Purchases added' : 'No purchases found',
+        message: count > 0 ? `${count} ${count === 1 ? 'purchase' : 'purchases'} added to your account.` : 'No unclaimed purchases were found for this email.',
+      });
+      await loadOverview();
+    } catch {
+      toast({ type: 'error', title: 'Claim failed', message: 'Please verify your email and try again.' });
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResending(true);
+    try {
+      toast({ type: 'success', title: 'Verification sent', message: await resendVerification() });
+    } catch {
+      toast({ type: 'error', title: 'Could not send verification', message: 'Try again in a few minutes.' });
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div>
@@ -82,6 +119,32 @@ export default function CustomerOverview() {
           )}
         </Card>
       </div>
+      {overview && (
+        <Card className="mt-6 p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-100 text-success-600">
+                <MailCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-ink-900">Purchased before creating your account?</h2>
+                <p className="mt-1 text-sm text-ink-500">
+                  {overview.customer.email_verified ? 'Claim paid purchases made with this email and add them to your library.' : 'Verify your email first to claim previous purchases.'}
+                </p>
+              </div>
+            </div>
+            {overview.customer.email_verified ? (
+              <Button size="sm" loading={claiming} onClick={handleClaimPrevious} leftIcon={<RefreshCw className="h-4 w-4" />}>
+                Claim previous purchases
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" loading={resending} onClick={handleResendVerification} leftIcon={<MailCheck className="h-4 w-4" />}>
+                Send verification email
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
       <div className="mt-8 rounded-xl border border-brand-200 bg-brand-50/50 p-4 text-sm text-ink-600">
         New purchases and downloads appear here automatically after backend entitlements are created.
       </div>

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\ProductFile;
 use App\Services\DownloadDeliveryService;
 use App\Services\GuestAccessService;
+use App\Services\GuestPurchaseClaimService;
 use App\Services\MetaConversionsService;
 use App\Services\ProductCommunityAccessService;
 use Illuminate\Http\Request;
@@ -29,11 +30,11 @@ class AccountController extends Controller
     public function overview(Request $request)
     {
         $orders = $request->user()->orders()->with('items')->latest()->limit(3)->get();
-        $library = $request->user()->entitlements()->with('product.files')->where('status', 'active')->latest()->limit(3)->get();
+        $library = $this->activeEntitlements($request)->take(3);
 
         return response()->json(['data' => [
             'customer' => $this->userPayload($request->user()),
-            'purchased_product_count' => $request->user()->entitlements()->where('status', 'active')->distinct('product_id')->count('product_id'),
+            'purchased_product_count' => $this->activeEntitlements($request)->count(),
             'recent_orders' => $orders->map(fn (Order $order) => $this->orderPayload($order)),
             'recent_library_items' => $library->map(fn (Entitlement $entitlement) => $this->libraryPayload($entitlement)),
         ]]);
@@ -42,18 +43,14 @@ class AccountController extends Controller
     public function library(Request $request)
     {
         return response()->json([
-            'data' => $request->user()->entitlements()->with('product.files')->where('status', 'active')->latest()->get()
+            'data' => $this->activeEntitlements($request)
                 ->map(fn (Entitlement $entitlement) => $this->libraryPayload($entitlement)),
         ]);
     }
 
     public function libraryDetail(Request $request, int $productId)
     {
-        $entitlement = Entitlement::with('product.files', 'order')
-            ->where('user_id', $request->user()->id)
-            ->where('product_id', $productId)
-            ->where('status', 'active')
-            ->first();
+        $entitlement = $this->activeEntitlements($request)->firstWhere('product_id', $productId);
 
         abort_unless($entitlement, 403);
 
@@ -81,7 +78,7 @@ class AccountController extends Controller
 
     public function downloads(Request $request)
     {
-        $entitlements = $request->user()->entitlements()->with('product.files')->where('status', 'active')->get();
+        $entitlements = $this->activeEntitlements($request);
 
         return response()->json(['data' => $entitlements->flatMap(function (Entitlement $entitlement) {
             return $entitlement->product->files
@@ -119,12 +116,64 @@ class AccountController extends Controller
         return response()->json(['data' => ['ok' => true]]);
     }
 
+    public function claimPurchases(Request $request, GuestPurchaseClaimService $claims)
+    {
+        if (! $request->user()->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Verify your email before claiming purchases.',
+                'errors' => ['email' => ['Verify your email before claiming purchases.']],
+            ], 422);
+        }
+
+        return response()->json(['data' => $claims->claimForVerifiedUser($request->user())]);
+    }
+
+    public function claimPurchase(Request $request, GuestPurchaseClaimService $claims)
+    {
+        $data = $request->validate([
+            'order_number' => ['required', 'string', 'max:80'],
+            'guest_access_token' => ['required', 'string', 'max:128'],
+        ]);
+
+        return response()->json([
+            'data' => $claims->claimWithGuestToken(
+                $request->user(),
+                $data['order_number'],
+                $data['guest_access_token']
+            ),
+        ]);
+    }
+
+    public function resources(Request $request)
+    {
+        $grants = $request->user()->resourceAccessGrants()
+            ->with('resource')
+            ->where('status', 'active')
+            ->whereNull('revoked_at')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->whereHas('resource', fn ($query) => $query->where('status', 'published'))
+            ->latest('granted_at')
+            ->get();
+
+        return response()->json(['data' => $grants->map(fn ($grant) => [
+            'grant_id' => $grant->id,
+            'resource_id' => $grant->resource_id,
+            'title' => $grant->resource->title,
+            'slug' => $grant->resource->slug,
+            'description' => $grant->resource->description,
+            'resource_type' => $grant->resource->resource_type,
+            'source_type' => $grant->resource->source_type,
+            'version' => $grant->resource->version,
+            'granted_at' => $grant->granted_at?->toDateString(),
+            'expires_at' => $grant->expires_at?->toDateString(),
+            'open_url' => '/r/'.$grant->resource->slug,
+            'download_url' => '/api/v1/resources/'.$grant->resource->slug.'/download',
+        ])->values()]);
+    }
+
     public function download(Request $request, ProductFile $file)
     {
-        $entitlement = Entitlement::where('user_id', $request->user()->id)
-            ->where('product_id', $file->product_id)
-            ->where('status', 'active')
-            ->first();
+        $entitlement = $this->activeEntitlements($request)->firstWhere('product_id', $file->product_id);
 
         abort_unless($entitlement, 403);
         $this->downloads->ensureDownloadable($file, $entitlement);
@@ -230,6 +279,20 @@ class AccountController extends Controller
             'email_verified' => (bool) $user->email_verified_at,
             'roles' => $user->roles->pluck('name')->values(),
         ];
+    }
+
+    private function activeEntitlements(Request $request)
+    {
+        return $request->user()->entitlements()
+            ->with('product.files', 'order')
+            ->where('status', 'active')
+            ->whereNull('revoked_at')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderByRaw("case when grant_source = 'purchase' then 0 else 1 end")
+            ->latest('granted_at')
+            ->get()
+            ->unique('product_id')
+            ->values();
     }
 
     private function libraryPayload(Entitlement $entitlement, bool $detail = false): array

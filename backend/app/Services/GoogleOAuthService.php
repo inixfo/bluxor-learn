@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class GoogleOAuthService
 {
+    public function __construct(private readonly GuestPurchaseClaimService $claims) {}
+
     public function redirectUrl(Request $request): string
     {
         $state = Str::random(40);
@@ -91,11 +93,19 @@ class GoogleOAuthService
             ]);
         }
 
+        if ($verified && ! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
         $user->forceFill(['last_login_at' => now()])->save();
 
-        return ['user' => $user->load('roles'), 'return_to' => $this->safeReturnTo((string) ($session['return_to'] ?? '/account'))];
+        if ($verified) {
+            $this->claims->claimForVerifiedUser($user);
+        }
+
+        return ['user' => $user->fresh()->load('roles'), 'return_to' => $this->safeReturnTo((string) ($session['return_to'] ?? '/account'))];
     }
 
     public function safeReturnTo(string $value): string

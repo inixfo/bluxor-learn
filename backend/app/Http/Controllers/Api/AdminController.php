@@ -8,16 +8,22 @@ use App\Models\Bundle;
 use App\Models\Category;
 use App\Models\ContactInquiry;
 use App\Models\Coupon;
+use App\Models\Entitlement;
 use App\Models\LandingPage;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductFile;
+use App\Models\Resource;
+use App\Models\ResourceAccessGrant;
 use App\Models\User;
 use App\Jobs\SendPurchaseConfirmationEmail;
 use App\Services\AuditLogger;
 use App\Services\LandingPagePackageValidator;
+use App\Services\ManualPaymentApprovalService;
+use App\Services\ManualProductAccessService;
 use App\Services\ProductCommunityAccessService;
 use App\Services\PublicMediaService;
+use App\Services\ResourceAccessGrantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -321,6 +327,24 @@ class AdminController extends Controller
         return $this->showOrder($order);
     }
 
+    public function approveOrderPayment(Request $request, Order $order, ManualPaymentApprovalService $manualPayments)
+    {
+        $data = $request->validate([
+            'confirmation' => ['accepted'],
+            'amount_minor' => ['required', 'integer', 'min:0'],
+            'currency' => ['required', 'string', 'size:3'],
+            'payment_method' => ['required', Rule::in(['piprapay_manual', 'bkash', 'nagad', 'bank_transfer', 'cash', 'other'])],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'reason' => ['required', 'string', 'min:10', 'max:5000'],
+        ]);
+
+        $next = $manualPayments->approve($order, $request->user(), $data, $request);
+
+        return response()->json([
+            'data' => $this->adminOrderPayload($next->load('items', 'entitlements.product', 'paymentTransactions', 'manualPaymentApproval.approver', 'user.roles'), true),
+        ]);
+    }
+
     public function customers()
     {
         $users = User::with('roles')->get()->keyBy(fn ($user) => strtolower($user->email));
@@ -353,10 +377,73 @@ class AdminController extends Controller
                 'product_id' => $entitlement->product_id,
                 'product_name' => $entitlement->product?->name,
                 'status' => $entitlement->status,
+                'grant_source' => $entitlement->grant_source ?? 'purchase',
+                'access_label' => ($entitlement->grant_source ?? 'purchase') === 'admin_manual' ? 'Manual Product Access' : 'Purchased Access',
+                'can_revoke' => ($entitlement->grant_source ?? 'purchase') === 'admin_manual' && $entitlement->order_id === null && $entitlement->status === 'active',
+                'order_id' => $entitlement->order_id,
                 'granted_at' => $entitlement->granted_at,
                 'expires_at' => $entitlement->expires_at,
             ])->values(),
+            'resource_grants' => $user ? $this->resourceGrantPayloads($user) : [],
         ]]);
+    }
+
+    public function customerAccess(User $user)
+    {
+        return response()->json(['data' => [
+            'entitlements' => Entitlement::with('product')->where('user_id', $user->id)->latest()->get()->map(fn ($entitlement) => $this->accessEntitlementPayload($entitlement))->values(),
+            'resource_grants' => $this->resourceGrantPayloads($user),
+        ]]);
+    }
+
+    public function grantProductAccess(Request $request, User $user, ManualProductAccessService $manualAccess)
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'expires_at' => ['nullable', 'date', 'after:now'],
+            'reason' => ['required', 'string', 'min:5', 'max:5000'],
+        ]);
+
+        $product = Product::where('id', $data['product_id'])->whereIn('status', ['published', 'archived'])->firstOrFail();
+        $result = $manualAccess->grant($user, $product, $request->user(), $data['expires_at'] ?? null, $data['reason'], $request);
+
+        return response()->json(['data' => [
+            'status' => $result['status'],
+            'entitlement' => $this->accessEntitlementPayload($result['entitlement']->loadMissing('product')),
+        ]], $result['status'] === 'granted' ? 201 : 200);
+    }
+
+    public function grantResourceAccess(Request $request, User $user, ResourceAccessGrantService $resourceGrants)
+    {
+        $data = $request->validate([
+            'resource_id' => ['required', 'integer', 'exists:resources,id'],
+            'expires_at' => ['nullable', 'date', 'after:now'],
+            'reason' => ['required', 'string', 'min:5', 'max:5000'],
+        ]);
+
+        $resource = Resource::where('id', $data['resource_id'])->whereIn('status', ['published', 'archived'])->firstOrFail();
+        $result = $resourceGrants->grant($user, $resource, $request->user(), $data['expires_at'] ?? null, $data['reason'], $request);
+
+        return response()->json(['data' => [
+            'status' => $result['status'],
+            'grant' => $this->resourceGrantPayload($result['grant']->loadMissing('resource')),
+        ]], 201);
+    }
+
+    public function revokeProductAccess(Request $request, Entitlement $entitlement, ManualProductAccessService $manualAccess)
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:5000']]);
+        $entitlement = $manualAccess->revoke($entitlement, $request->user(), $data['reason'], $request);
+
+        return response()->json(['data' => $this->accessEntitlementPayload($entitlement->loadMissing('product'))]);
+    }
+
+    public function revokeResourceAccess(Request $request, ResourceAccessGrant $grant, ResourceAccessGrantService $resourceGrants)
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:5000']]);
+        $grant = $resourceGrants->revoke($grant, $request->user(), $data['reason'], $request);
+
+        return response()->json(['data' => $this->resourceGrantPayload($grant->loadMissing('resource'))]);
     }
 
     public function suspendCustomer(Request $request, User $user)
@@ -377,7 +464,7 @@ class AdminController extends Controller
 
     private function adminOrderPayload(Order $order, bool $detail = false): array
     {
-        $order->loadMissing('items', 'entitlements.product', 'paymentTransactions', 'user.roles');
+        $order->loadMissing('items', 'entitlements.product', 'paymentTransactions', 'manualPaymentApproval.approver', 'user.roles');
         $transaction = $order->paymentTransactions->sortByDesc('created_at')->first();
         $paidTransaction = $order->paymentTransactions
             ->filter(fn ($payment) => $payment->paid_at)
@@ -414,6 +501,20 @@ class AdminController extends Controller
             'created_at' => $order->created_at,
             'updated_at' => $order->updated_at,
             'payment_completed_at' => $paidTransaction?->paid_at,
+            'manual_payment_approval' => $order->manualPaymentApproval ? [
+                'id' => $order->manualPaymentApproval->id,
+                'amount_minor' => $order->manualPaymentApproval->amount_minor,
+                'currency' => $order->manualPaymentApproval->currency,
+                'payment_method' => $order->manualPaymentApproval->payment_method,
+                'reference' => $order->manualPaymentApproval->reference,
+                'reason' => $order->manualPaymentApproval->reason,
+                'approved_at' => $order->manualPaymentApproval->approved_at,
+                'approved_by' => $order->manualPaymentApproval->approver ? [
+                    'id' => $order->manualPaymentApproval->approver->id,
+                    'name' => $order->manualPaymentApproval->approver->name,
+                    'email' => $order->manualPaymentApproval->approver->email,
+                ] : null,
+            ] : null,
             'admin_notes' => $metadata['admin_notes'] ?? null,
             'attribution' => $this->adminOrderAttribution($metadata),
             'communities' => $order->payment_status === 'paid' ? $this->communities->forOrder($order) : [],
@@ -454,10 +555,58 @@ class AdminController extends Controller
             ])->values(),
             'actions' => [
                 'can_cancel' => ! in_array($order->payment_status, ['paid', 'refunded', 'cancelled'], true),
+                'can_approve_payment' => ! in_array($order->payment_status, ['paid', 'refunded'], true),
                 'can_refund' => $order->payment_status === 'paid',
                 'can_resend_email' => $order->payment_status === 'paid',
                 'can_mark_paid' => false,
             ],
+        ];
+    }
+
+    private function accessEntitlementPayload(Entitlement $entitlement): array
+    {
+        return [
+            'id' => $entitlement->id,
+            'product_id' => $entitlement->product_id,
+            'product_name' => $entitlement->product?->name,
+            'status' => $entitlement->status,
+            'grant_source' => $entitlement->grant_source ?? 'purchase',
+            'access_label' => ($entitlement->grant_source ?? 'purchase') === 'admin_manual' ? 'Manual Product Access' : 'Purchased Access',
+            'can_revoke' => ($entitlement->grant_source ?? 'purchase') === 'admin_manual' && $entitlement->order_id === null && $entitlement->status === 'active',
+            'order_id' => $entitlement->order_id,
+            'granted_at' => $entitlement->granted_at,
+            'expires_at' => $entitlement->expires_at,
+            'revoked_at' => $entitlement->revoked_at,
+            'grant_note' => $entitlement->grant_note,
+        ];
+    }
+
+    private function resourceGrantPayloads(User $user)
+    {
+        return $user->resourceAccessGrants()
+            ->with('resource')
+            ->latest('granted_at')
+            ->get()
+            ->map(fn (ResourceAccessGrant $grant) => $this->resourceGrantPayload($grant))
+            ->values();
+    }
+
+    private function resourceGrantPayload(ResourceAccessGrant $grant): array
+    {
+        return [
+            'id' => $grant->id,
+            'resource_id' => $grant->resource_id,
+            'resource_title' => $grant->resource?->title,
+            'resource_slug' => $grant->resource?->slug,
+            'resource_type' => $grant->resource?->resource_type,
+            'status' => $grant->status,
+            'access_label' => 'Manual Resource Access',
+            'can_revoke' => $grant->status === 'active',
+            'granted_at' => $grant->granted_at,
+            'expires_at' => $grant->expires_at,
+            'revoked_at' => $grant->revoked_at,
+            'reason' => $grant->reason,
+            'revocation_reason' => $grant->revocation_reason,
         ];
     }
 

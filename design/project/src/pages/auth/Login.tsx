@@ -4,9 +4,11 @@ import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { ApiError } from '@/services/api/client';
 import { useAuth } from '@/services/auth-context';
 import { googleRedirectUrl } from '@/services/api/auth';
 import { authenticatedHomePath, safeInternalReturnTo } from '@/services/auth-routing';
+import { claimPendingPurchase } from '@/services/pending-purchase-claim';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,6 +24,20 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(form);
+      try {
+        const claim = await claimPendingPurchase();
+        if (claim) {
+          toast({ type: 'success', title: 'Purchase added', message: 'Purchase added to your account.' });
+          navigate('/account/library', { replace: true });
+          return;
+        }
+      } catch (error) {
+        toast({
+          type: 'error',
+          title: 'Purchase claim failed',
+          message: error instanceof ApiError && error.status === 422 ? 'Use the same email address you used when purchasing.' : 'This purchase was not added yet.',
+        });
+      }
       navigate(safeInternalReturnTo(params.get('return_to')) || authenticatedHomePath(user), { replace: true });
     } catch {
       toast({ type: 'error', title: 'Login failed', message: 'Check your email and password.' });

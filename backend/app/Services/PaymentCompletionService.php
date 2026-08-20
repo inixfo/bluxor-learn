@@ -85,6 +85,7 @@ class PaymentCompletionService
                             'user_id' => $order->user_id,
                             'order_id' => $order->id,
                             'customer_email' => strtolower($order->customer_email),
+                            'grant_source' => 'purchase',
                             'status' => 'active',
                             'granted_at' => now(),
                         ]

@@ -32,6 +32,7 @@ import CustomerLibraryDetail from '@/pages/customer/LibraryDetail';
 import CustomerOrders from '@/pages/customer/Orders';
 import CustomerOrderDetail from '@/pages/customer/OrderDetail';
 import CustomerDownloads from '@/pages/customer/Downloads';
+import CustomerResources from '@/pages/customer/Resources';
 import CustomerProfile from '@/pages/customer/Profile';
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminProducts from '@/pages/admin/Products';
@@ -100,6 +101,7 @@ export default function App() {
             <Route path="/account/orders" element={<CustomerOrders />} />
             <Route path="/account/orders/:orderNumber" element={<CustomerOrderDetail />} />
             <Route path="/account/downloads" element={<CustomerDownloads />} />
+            <Route path="/account/resources" element={<CustomerResources />} />
             <Route path="/account/profile" element={<CustomerProfile />} />
           </Route>
 

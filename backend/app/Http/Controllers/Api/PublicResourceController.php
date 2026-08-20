@@ -86,10 +86,14 @@ class PublicResourceController extends Controller
 
         $productIds = $resource->products()->withTrashed()->pluck('products.id')->all();
         if ($productIds === []) {
-            return false;
+            return $this->hasDirectResourceGrant($request, $resource);
         }
 
         $user = $request->user();
+        if ($this->hasDirectResourceGrant($request, $resource)) {
+            return true;
+        }
+
         if ($user instanceof User && $user->entitlements()
             ->whereIn('product_id', $productIds)
             ->where('status', 'active')
@@ -119,6 +123,21 @@ class PublicResourceController extends Controller
             ->whereNull('revoked_at')
             ->whereIn('product_id', $productIds)
             ->isNotEmpty();
+    }
+
+    private function hasDirectResourceGrant(Request $request, Resource $resource): bool
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return $user->resourceAccessGrants()
+            ->where('resource_id', $resource->id)
+            ->where('status', 'active')
+            ->whereNull('revoked_at')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->exists();
     }
 
     private function downloadUrl(Request $request, Resource $resource): string

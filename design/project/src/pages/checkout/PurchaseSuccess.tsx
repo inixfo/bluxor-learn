@@ -7,6 +7,7 @@ import { formatBDT } from '@/data/store';
 import { apiRequest, minorToDisplay } from '@/services/api/client';
 import { verifyPipraPayRedirect } from '@/services/api/checkout';
 import { trackMetaPurchase } from '@/services/metaTracking';
+import { storePendingPurchaseClaim } from '@/services/pending-purchase-claim';
 
 type Receipt = {
   order_number: string;
@@ -76,6 +77,12 @@ export default function PurchaseSuccess() {
   const paid = receipt?.payment_status === 'paid';
   const pending = loading || (!receipt && !error);
   const communities = guestCommunities.length ? guestCommunities : (receipt?.communities || []);
+  const rememberClaim = () => {
+    if (orderNumber && guestAccessToken) {
+      storePendingPurchaseClaim({ order_number: orderNumber, guest_access_token: guestAccessToken });
+    }
+  };
+  const accountReturnQuery = new URLSearchParams({ return_to: '/account' }).toString();
 
   return (
     <div className="container-page py-12 lg:py-16">
@@ -173,9 +180,15 @@ export default function PurchaseSuccess() {
               <div className="flex-1">
                 <h3 className="text-base font-bold text-ink-900">Keep all your purchases in one place</h3>
                 <p className="mt-1 text-sm text-ink-600">Create a free Learn by Bluxor account using your checkout email to access your library anytime.</p>
-                <Link to="/register" className="mt-4 inline-block">
+                <Link to={`/register?${accountReturnQuery}`} onClick={rememberClaim} className="mt-4 inline-block">
                   <Button size="sm" rightIcon={<ArrowRight className="h-4 w-4" />}>Create My Account</Button>
                 </Link>
+                <p className="mt-3 text-xs text-ink-500">
+                  Already have an account?{' '}
+                  <Link to={`/login?${accountReturnQuery}`} onClick={rememberClaim} className="font-semibold text-brand-600 hover:text-brand-700">
+                    Log in
+                  </Link>
+                </p>
               </div>
             </div>
           </div>

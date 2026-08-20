@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User, Mail, Phone, Lock, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Lock } from 'lucide-react';
 import { CustomerMobileNav } from '@/components/customer/CustomerSidebar';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -76,22 +76,6 @@ export default function CustomerProfile() {
           </div>
           <div className="mt-4">
             <Button variant="secondary" onClick={savePassword}>Update password</Button>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="mb-4 text-base font-bold text-ink-900">Security</h2>
-          <div className="flex items-center justify-between rounded-xl border border-ink-200/60 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ink-100 text-ink-500">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-ink-900">Two-factor authentication</p>
-                <p className="text-xs text-ink-400">Admin-ready architecture is in place; setup UI can be enabled later.</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" disabled>Enable</Button>
           </div>
         </Card>
       </div>

@@ -248,11 +248,25 @@ export type AdminOrder = {
     failed_at?: string | null;
     verified_at?: string | null;
   }[];
+  manual_payment_approval?: {
+    id: number;
+    amount_minor: number;
+    currency: string;
+    payment_method: string;
+    reference?: string | null;
+    reason: string;
+    approved_at?: string | null;
+    approved_by?: { id: number; name: string; email: string } | null;
+  } | null;
   entitlements?: {
     id: number;
     product_id: number;
     product_name?: string | null;
     status: string;
+    grant_source?: string;
+    access_label?: string;
+    can_revoke?: boolean;
+    order_id?: number | null;
     granted_at?: string | null;
     expires_at?: string | null;
   }[];
@@ -279,6 +293,7 @@ export type AdminOrder = {
   };
   actions?: {
     can_cancel: boolean;
+    can_approve_payment?: boolean;
     can_refund: boolean;
     can_resend_email: boolean;
     can_mark_paid: boolean;
@@ -332,6 +347,32 @@ export type AdminCustomerDetail = {
   summary: AdminCustomer;
   orders: AdminOrder[];
   entitlements: NonNullable<AdminOrder['entitlements']>;
+  resource_grants?: AdminResourceGrant[];
+};
+
+export type AdminResourceGrant = {
+  id: number;
+  resource_id: number;
+  resource_title?: string | null;
+  resource_slug?: string | null;
+  resource_type?: string | null;
+  status: string;
+  access_label?: string;
+  can_revoke?: boolean;
+  granted_at?: string | null;
+  expires_at?: string | null;
+  revoked_at?: string | null;
+  reason?: string | null;
+  revocation_reason?: string | null;
+};
+
+export type ManualPaymentApprovalPayload = {
+  confirmation: boolean;
+  amount_minor: number;
+  currency: string;
+  payment_method: 'piprapay_manual' | 'bkash' | 'nagad' | 'bank_transfer' | 'cash' | 'other';
+  reference?: string;
+  reason: string;
 };
 
 export type AdminCoupon = {
@@ -678,6 +719,13 @@ export async function updateAdminOrderNotes(id: number, adminNotes: string): Pro
   })).data;
 }
 
+export async function approveAdminOrderPayment(id: number, payload: ManualPaymentApprovalPayload): Promise<AdminOrder> {
+  return (await apiRequest<{ data: AdminOrder }>(`/admin/orders/${id}/approve-payment`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })).data;
+}
+
 export async function refundAdminOrder(orderId: number): Promise<unknown> {
   return (await apiRequest<{ data: unknown }>(`/admin/orders/${orderId}/refund`, {
     method: 'POST',
@@ -704,6 +752,34 @@ export async function reactivateAdminCustomer(userId: number): Promise<AdminCust
   return (await apiRequest<{ data: AdminCustomer }>(`/admin/customers/${userId}/reactivate`, {
     method: 'POST',
     body: JSON.stringify({}),
+  })).data;
+}
+
+export async function grantAdminProductAccess(userId: number, payload: { product_id: number; expires_at?: string; reason: string }): Promise<unknown> {
+  return (await apiRequest<{ data: unknown }>(`/admin/customers/${userId}/access/products`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })).data;
+}
+
+export async function grantAdminResourceAccess(userId: number, payload: { resource_id: number; expires_at?: string; reason: string }): Promise<unknown> {
+  return (await apiRequest<{ data: unknown }>(`/admin/customers/${userId}/access/resources`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })).data;
+}
+
+export async function revokeAdminProductAccess(entitlementId: number, reason: string): Promise<unknown> {
+  return (await apiRequest<{ data: unknown }>(`/admin/access/product-entitlements/${entitlementId}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })).data;
+}
+
+export async function revokeAdminResourceAccess(grantId: number, reason: string): Promise<unknown> {
+  return (await apiRequest<{ data: unknown }>(`/admin/access/resource-grants/${grantId}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
   })).data;
 }
 
